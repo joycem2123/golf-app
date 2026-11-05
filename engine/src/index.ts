@@ -7,3 +7,4 @@ export * from './posting';
 export * from './events';
 export * from './sync';
 export * from './stats';
+export * from './courses';

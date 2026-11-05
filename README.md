@@ -28,6 +28,15 @@ app will use this to work out every score, so it's tested on its own first.
 | Posting reminders | Only for formats where each player hits every shot (not scramble, shamble or alternate shot) |
 | Stats (optional) | Putts, fairways, greens in regulation, penalties, scoring breakdown |
 
+### Courses loaded (`engine/src/courses/`)
+| Course | Tees | Source | Verified against club card? |
+|---|---|---|---|
+| Willow Park G&CC, Calgary AB | Blue, White, Gold (men); White, Gold (women) | golfify.io | Not yet |
+| Indian Ridge CC – Arroyo, Palm Desert CA | 7 men's, 4 women's | golfify.io | Not yet |
+| Indian Ridge CC – Grove, Palm Desert CA | 7 men's, 4 women's | golfify.io | Not yet |
+
+Every tee is checked automatically: stroke indexes 1–18 with no repeats, pars add up, and ratings in a sensible range.
+
 ### Default handicap allowances (all can be changed per game)
 | Format | Default |
 |---|---|

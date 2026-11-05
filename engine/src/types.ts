@@ -32,6 +32,10 @@ export interface Course {
   region?: string;
   country: string;
   tees: Tee[];
+  /** Where the scorecard data came from. */
+  source?: string;
+  /** True once someone has checked it against the club's official scorecard. */
+  verified?: boolean;
 }
 
 export interface Player {
