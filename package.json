@@ -1,9 +1,13 @@
 {
   "name": "golf-app",
   "private": true,
-  "workspaces": ["engine"],
+  "workspaces": [
+    "engine",
+    "app"
+  ],
   "scripts": {
     "test": "npm test --workspace engine",
-    "typecheck": "npm run typecheck --workspace engine"
+    "typecheck": "npm run typecheck --workspace engine",
+    "app": "npm start --workspace app"
   }
 }

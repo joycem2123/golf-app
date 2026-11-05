@@ -92,6 +92,7 @@ export function playVegas(round: Round, cfg: VegasConfig): VegasResult {
       { id: cfg.teamA.id, name: nameA, value: totalA, position: totalA >= 0 ? 1 : 2, thru },
       { id: cfg.teamB.id, name: nameB, value: -totalA, position: totalA <= 0 ? 1 : 2, thru },
     ],
+    strokes: book.strokeMap(),
     holes,
     totalA,
   };

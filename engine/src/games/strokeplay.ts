@@ -9,6 +9,7 @@ import {
   ScoreBook,
   settingsWith,
   sideName,
+  wins,
 } from '../scoring';
 import type { BaseResult, HandicapSettings, Round, Side, Standing } from '../types';
 
@@ -22,6 +23,7 @@ export interface StrokeTotals {
 }
 
 export interface StrokeResult extends BaseResult {
+  type: 'scramble' | 'shamble' | 'strokePlay';
   totals: Record<string, StrokeTotals>;
 }
 
@@ -37,6 +39,7 @@ function finish(
   totals: Record<string, StrokeTotals>,
   holeCount: number,
   postingEligible: boolean,
+  book: ScoreBook,
 ): StrokeResult {
   const standings: Standing[] = rankStandings(
     entries.map((e) => ({ id: e.id, name: sideName(round, e), value: totals[e.id].toPar, thru: totals[e.id].thru })),
@@ -46,10 +49,13 @@ function finish(
   const finished = thru === holeCount;
   const leaders = standings.filter((s) => s.position === 1);
   const names = leaders.map((l) => l.name).join(' & ');
+  const at = formatToPar(leaders[0].value);
   const summary =
     Math.max(...entries.map((e) => totals[e.id].thru)) === 0
       ? 'Not started'
-      : `${names} ${finished ? (leaders.length > 1 ? 'tie' : 'wins') : 'leads'} at ${formatToPar(leaders[0].value)}`;
+      : leaders.length > 1
+        ? `${finished ? 'Tie' : 'Tied'} at ${at}: ${leaders.map((l) => l.name).join(' / ')}`
+        : `${names} ${finished ? wins(names) : names.includes(' & ') ? 'lead' : 'leads'} at ${at}`;
   return {
     type,
     title,
@@ -59,6 +65,7 @@ function finish(
     summary,
     postingEligible,
     standings,
+    strokes: book.strokeMap(),
     totals,
   };
 }
@@ -121,7 +128,7 @@ export function playScramble(round: Round, cfg: ScrambleConfig): StrokeResult {
       adj[t.id],
     );
   }
-  return finish(round, 'scramble', cfg.title ?? 'Scramble', cfg.teams, totals, book.holeCount, false);
+  return finish(round, 'scramble', cfg.title ?? 'Scramble', cfg.teams, totals, book.holeCount, false, book);
 }
 
 // ---------------------------------------------------------------- shamble
@@ -151,7 +158,7 @@ export function playShamble(round: Round, cfg: ShambleConfig): StrokeResult {
       t.members.reduce((s, m) => s + handicaps[m].matchHandicap, 0),
     );
   }
-  return finish(round, 'shamble', cfg.title ?? 'Shamble', cfg.teams, totals, book.holeCount, false);
+  return finish(round, 'shamble', cfg.title ?? 'Shamble', cfg.teams, totals, book.holeCount, false, book);
 }
 
 // ---------------------------------------------------------------- individual stroke play
@@ -178,5 +185,5 @@ export function playStrokePlay(round: Round, cfg: StrokePlayConfig): StrokeResul
       handicaps[id].matchHandicap,
     );
   }
-  return finish(round, 'strokePlay', cfg.title ?? 'Stroke play', entries, totals, book.holeCount, true);
+  return finish(round, 'strokePlay', cfg.title ?? 'Stroke play', entries, totals, book.holeCount, true, book);
 }

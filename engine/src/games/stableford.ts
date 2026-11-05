@@ -1,5 +1,5 @@
 import { DEFAULT_ALLOWANCES } from '../handicap';
-import { bestNSum, consecutiveThru, individualBook, rankStandings, settingsWith, sideName } from '../scoring';
+import { bestNSum, consecutiveThru, individualBook, rankStandings, settingsWith, sideName, wins } from '../scoring';
 import type { BaseResult, HandicapSettings, Round, Side } from '../types';
 
 /** Points by score relative to par. Anything better than eagle scores `albatross`. */
@@ -100,7 +100,7 @@ export function playStableford(round: Round, cfg: StablefordConfig): StablefordR
   const summary =
     thru === 0 && leaders[0].value === 0
       ? 'Not started'
-      : `${leaders.map((l) => l.name).join(' & ')} ${finished ? (leaders.length > 1 ? 'tie' : 'wins') : 'leads'} with ${leaders[0].value} pts`;
+      : `${leaders.map((l) => l.name).join(' & ')} ${finished ? (leaders.length > 1 ? 'tie' : wins(leaders[0].name)) : leaders.length > 1 || leaders[0].name.includes(' & ') ? 'lead' : 'leads'} with ${leaders[0].value} pts`;
 
   return {
     type: 'stableford',
@@ -111,6 +111,7 @@ export function playStableford(round: Round, cfg: StablefordConfig): StablefordR
     summary,
     postingEligible: true,
     standings,
+    strokes: book.strokeMap(),
     holePoints,
     totals,
   };

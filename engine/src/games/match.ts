@@ -8,6 +8,7 @@ import {
   ScoreBook,
   settingsWith,
   sideName,
+  wins,
 } from '../scoring';
 import type { BaseResult, HandicapSettings, PlayerHandicap, Round, Side } from '../types';
 
@@ -113,7 +114,10 @@ export function buildMatchOutcomes(
 
 export function matchSummary(nameA: string, nameB: string, s: MatchStatus): string {
   if (s.winner === 'halved') return `${nameA} and ${nameB} halved`;
-  if (s.winner) return `${s.winner === 'A' ? nameA : nameB} wins ${s.display}`;
+  if (s.winner) {
+    const w = s.winner === 'A' ? nameA : nameB;
+    return `${w} ${wins(w)} ${s.display}`;
+  }
   if (s.thru === 0) return 'Not started';
   if (s.lead === 0) return s.display;
   const leader = s.lead > 0 ? nameA : nameB;
@@ -130,7 +134,7 @@ export interface MatchPlayResult extends BaseResult {
 }
 
 export function playMatch(round: Round, cfg: MatchPlayConfig): MatchPlayResult {
-  const { outcomes, handicaps } = buildMatchOutcomes(round, cfg.format, cfg.sideA, cfg.sideB, cfg.handicap);
+  const { outcomes, handicaps, book } = buildMatchOutcomes(round, cfg.format, cfg.sideA, cfg.sideB, cfg.handicap);
   const status = scoreMatch(outcomes);
   const nameA = sideName(round, cfg.sideA);
   const nameB = sideName(round, cfg.sideB);
@@ -147,6 +151,7 @@ export function playMatch(round: Round, cfg: MatchPlayConfig): MatchPlayResult {
       { id: cfg.sideA.id, name: nameA, value: status.lead, position: status.lead >= 0 ? 1 : 2, thru: status.thru },
       { id: cfg.sideB.id, name: nameB, value: -status.lead, position: status.lead <= 0 ? 1 : 2, thru: status.thru },
     ],
+    strokes: book.strokeMap(),
     status,
     sideA: { id: cfg.sideA.id, name: nameA },
     sideB: { id: cfg.sideB.id, name: nameB },

@@ -126,6 +126,7 @@ export function playSkins(round: Round, cfg: SkinsConfig): SkinsResult {
     summary,
     postingEligible: true,
     standings,
+    strokes: book.strokeMap(),
     holes,
     skins,
     unclaimed: finished ? carry : 0,

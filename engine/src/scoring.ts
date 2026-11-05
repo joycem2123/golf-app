@@ -55,6 +55,11 @@ export class ScoreBook {
     return net ? this.net(key, i) : this.gross(key, i);
   }
 
+  /** Strokes received on every hole for every player/team in this game. */
+  strokeMap(): Record<string, number[]> {
+    return Object.fromEntries(this.strokes);
+  }
+
   par(key: string, i: number): number {
     return this.tees.get(key)!.holes[i].par;
   }
@@ -105,6 +110,11 @@ export function bestOf(book: ScoreBook, keys: string[], i: number, net: boolean)
 export function bestNSum(values: (number | null)[], n: number): number | null {
   if (values.some((v) => v === null)) return null;
   return [...(values as number[])].sort((a, b) => a - b).slice(0, n).reduce((s, v) => s + v, 0);
+}
+
+/** "Mike wins" but "Mike & Dave win". */
+export function wins(name: string): string {
+  return name.includes(' & ') ? 'win' : 'wins';
 }
 
 export function sideName(round: Round, side: Side): string {

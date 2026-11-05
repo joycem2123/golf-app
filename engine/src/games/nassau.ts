@@ -1,5 +1,5 @@
 import { scoreMatch, type MatchStatus } from '../matchplay';
-import { consecutiveThru, sideName } from '../scoring';
+import { consecutiveThru, sideName, wins } from '../scoring';
 import type { BaseResult, HandicapSettings, Round, Side } from '../types';
 import { buildMatchOutcomes } from './match';
 
@@ -56,7 +56,7 @@ export interface NassauResult extends BaseResult {
 }
 
 export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
-  const { outcomes, holeCount } = buildMatchOutcomes(round, cfg.format, cfg.sideA, cfg.sideB, cfg.handicap);
+  const { outcomes, holeCount, book } = buildMatchOutcomes(round, cfg.format, cfg.sideA, cfg.sideB, cfg.handicap);
   if (holeCount !== 18) throw new Error('Nassau needs an 18-hole round');
 
   const slice = (from: number, to: number) => scoreMatch(outcomes.slice(from - 1, to));
@@ -97,7 +97,7 @@ export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
   const summary = !finished
     ? `${nameA} ${points.A} - ${points.B} ${nameB} (in progress)`
     : winner
-      ? `${winner === 'A' ? nameA : nameB} wins the Nassau ${score}`
+      ? `${winner === 'A' ? nameA : nameB} ${wins(winner === 'A' ? nameA : nameB)} the Nassau ${score}`
       : `Nassau tied ${score}`;
   const thru = consecutiveThru((i) => outcomes[i] !== null, holeCount);
 
@@ -113,6 +113,7 @@ export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
       { id: cfg.sideA.id, name: nameA, value: points.A, position: points.A >= points.B ? 1 : 2, thru },
       { id: cfg.sideB.id, name: nameB, value: points.B, position: points.B >= points.A ? 1 : 2, thru },
     ],
+    strokes: book.strokeMap(),
     segments,
     presses,
     points,

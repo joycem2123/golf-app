@@ -154,6 +154,7 @@ export function playWolf(round: Round, cfg: WolfConfig): WolfResult {
     summary,
     postingEligible: true,
     standings,
+    strokes: book.strokeMap(),
     holes,
     points,
     nextWolfId: finished ? null : wolfFor(thru, order, points, cfg, book.holeCount),

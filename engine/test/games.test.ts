@@ -210,3 +210,16 @@ describe('posting reminders', () => {
     expect(ids.sort()).toEqual(['a', 'b']);
   });
 });
+
+describe('summary wording', () => {
+  it('ties and team names read naturally', () => {
+    const r = round({ a1: 0, a2: 0, b1: 0, b2: 0 }, { A: card([4]), B: card([4]) });
+    const res = playScramble(r, {
+      type: 'scramble',
+      teams: [{ id: 'A', members: ['a1', 'a2'] }, { id: 'B', members: ['b1', 'b2'] }],
+    });
+    expect(res.summary).toBe('Tied at E: A1 & A2 / B1 & B2');
+    const r2 = round({ a1: 0, a2: 0, b1: 0, b2: 0 }, { A: parCard({ 1: 3 }), B: parCard() });
+    expect(playScramble(r2, { type: 'scramble', teams: [{ id: 'A', members: ['a1', 'a2'] }, { id: 'B', members: ['b1', 'b2'] }] }).summary).toBe('A1 & A2 win at -1');
+  });
+});

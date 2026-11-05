@@ -121,4 +121,6 @@ export interface BaseResult {
   /** Whether players should be reminded to post this round to Golf Canada. */
   postingEligible: boolean;
   standings: Standing[];
+  /** Strokes received on each hole, keyed by player id (or team id for team-card formats). */
+  strokes: Record<string, number[]>;
 }

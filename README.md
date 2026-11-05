@@ -57,7 +57,7 @@ npm test
 
 ## Roadmap
 1. ~~Scoring engine~~ ✅
-2. iPhone app (Expo / React Native): course picker, game setup, hole-by-hole scoring, results. Works offline.
+2. ~~iPhone app (Expo / React Native): course picker, game setup, hole-by-hole scoring, results. Works offline.~~ ✅ first version in `app/`
 3. Accounts (email / Apple / Google), cloud sync (Supabase), live leaderboards with guest codes
 4. Events: trips, cups, seasons, head-to-head, notifications
 5. Course database for Canada and the US, TestFlight beta, App Store
