@@ -38,12 +38,47 @@ export interface RoundRecord {
   status: 'active' | 'complete';
   completedAt?: number;
   notices: (ScoreConflictNotice & { at: number })[];
+  /** Set when the round is part of a trip, cup or season. */
+  eventId?: string;
+  /** e.g. "Day 1 · Best Ball" */
+  label?: string;
+}
+
+export type EventType = 'trip' | 'cup' | 'season';
+
+export interface EventTeam {
+  name: string;
+  playerIds: string[];
+}
+
+export interface EventRecord {
+  id: string;
+  name: string;
+  type: EventType;
+  createdAt: number;
+  playerIds: string[];
+  /** Handicap indexes snapshotted when the event started (used if lockHandicaps). */
+  lockHandicaps: boolean;
+  lockedIndexes: Record<string, number>;
+  /** Ryder Cup style only. */
+  teams?: { A: EventTeam; B: EventTeam };
+  /** Team that keeps the cup on a tie. */
+  holder?: 'A' | 'B';
+  /** Total points on offer across the whole cup (decides how many are needed to win). */
+  cupPoints?: number;
+  /** Season/trip standings points. */
+  points: { win: number; halve: number; loss: number };
+  status: 'active' | 'complete';
 }
 
 interface State {
   players: SavedPlayer[];
   rounds: RoundRecord[];
   history: RecordedMatch[];
+  events: EventRecord[];
+  addEvent: (e: EventRecord) => void;
+  updateEvent: (e: EventRecord) => void;
+  deleteEvent: (id: string) => void;
   upsertPlayer: (p: SavedPlayer) => void;
   removePlayer: (id: string) => void;
   addRound: (r: RoundRecord) => void;
@@ -66,6 +101,12 @@ export const useStore = create<State>()(
       players: [],
       rounds: [],
       history: [],
+      events: [],
+
+      addEvent: (e) => set((s) => ({ events: [e, ...s.events] })),
+      updateEvent: (e) => set((s) => ({ events: s.events.map((x) => (x.id === e.id ? e : x)) })),
+      deleteEvent: (id) =>
+        set((s) => ({ events: s.events.filter((e) => e.id !== id), rounds: s.rounds.map((r) => (r.eventId === id ? { ...r, eventId: undefined } : r)) })),
 
       upsertPlayer: (p) =>
         set((s) => ({ players: s.players.some((x) => x.id === p.id) ? s.players.map((x) => (x.id === p.id ? p : x)) : [...s.players, p] })),
@@ -118,8 +159,14 @@ export const useStore = create<State>()(
 
       dismissNotices: (roundId) => set((s) => ({ rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, notices: [] })) })),
     }),
-    { name: 'golf-app-v1', storage: createJSONStorage(() => AsyncStorage) },
+    {
+      name: 'golf-app-v1',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 2,
+      migrate: (state) => ({ events: [], ...(state as object) }) as unknown as State,
+    },
   ),
 );
 
 export const useRound = (id: string | undefined) => useStore((s) => s.rounds.find((r) => r.id === id));
+export const useEvent = (id: string | undefined) => useStore((s) => s.events.find((e) => e.id === id));

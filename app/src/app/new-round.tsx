@@ -1,14 +1,14 @@
 import { courseHandicap, searchCourses, SEED_COURSES, type Course, type Player, type Tee } from '@golf/engine';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
 import { PlayerForm } from '@/components/player-form';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
-import { formatIndex } from '@/lib/format';
+import { formatIndex, shuffle } from '@/lib/format';
 import { draftProblem, draftToConfig, gameInfo, GAMES, newDraft, sideMatchConfig, type GameDraft } from '@/lib/games';
-import { newId, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
+import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { space, useColors } from '@/theme';
 
 type Step = 'course' | 'players' | 'game';
@@ -22,7 +22,12 @@ function teesFor(course: Course, gender: 'M' | 'F') {
 
 export default function NewRound() {
   const c = useColors();
-  const saved = useStore((s) => s.players);
+  const { eventId } = useLocalSearchParams<{ eventId?: string }>();
+  const event = useEvent(eventId);
+  const allSaved = useStore((s) => s.players);
+  const saved = event ? allSaved.filter((p) => event.playerIds.includes(p.id)) : allSaved;
+  const teamOfEvent = (id: string): 'A' | 'B' | undefined =>
+    event?.teams ? (event.teams.A.playerIds.includes(id) ? 'A' : event.teams.B.playerIds.includes(id) ? 'B' : undefined) : undefined;
   const upsertPlayer = useStore((s) => s.upsertPlayer);
   const addRound = useStore((s) => s.addRound);
 
@@ -41,10 +46,13 @@ export default function NewRound() {
       roster
         .map((r) => {
           const p = saved.find((s) => s.id === r.id);
-          return p ? { id: p.id, name: p.name, handicapIndex: p.handicapIndex, teeId: r.teeId } : null;
+          const index = event?.lockHandicaps ? (event.lockedIndexes[p?.id ?? ''] ?? p?.handicapIndex) : p?.handicapIndex;
+          return p ? { id: p.id, name: p.name, handicapIndex: index!, teeId: r.teeId } : null;
         })
-        .filter((p): p is Player => p !== null),
-    [roster, saved],
+        .filter((p): p is Player => p !== null)
+        // In a cup, Team A players come first so 1 v 1 games line up A v B.
+        .sort((a, b) => (teamOfEvent(a.id) === teamOfEvent(b.id) ? 0 : teamOfEvent(a.id) === 'A' ? -1 : 1)),
+    [roster, saved, event],
   );
 
   const defaultTee = (course: Course, p: SavedPlayer) => {
@@ -78,6 +86,7 @@ export default function NewRound() {
       currentHole: 1,
       status: 'active',
       notices: [],
+      eventId: event?.id,
     };
     addRound(round);
     router.replace(`/round/${id}`);
@@ -124,12 +133,40 @@ export default function NewRound() {
             {saved.length === 0 ? <Body muted>Add your group below. They’ll be saved for next time.</Body> : null}
             <View style={styles.wrap}>
               {saved.map((p) => (
-                <Chip key={p.id} label={`${p.name} ${formatIndex(p.handicapIndex)}`} selected={roster.some((r) => r.id === p.id)} onPress={() => togglePlayer(p)} />
+                <Chip
+                  key={p.id}
+                  label={`${p.name} ${formatIndex(event?.lockHandicaps ? (event.lockedIndexes[p.id] ?? p.handicapIndex) : p.handicapIndex)}`}
+                  selected={roster.some((r) => r.id === p.id)}
+                  color={teamOfEvent(p.id) === 'B' ? c.teamB : undefined}
+                  onPress={() => togglePlayer(p)}
+                />
               ))}
             </View>
           </Card>
 
-          {addingPlayer ? (
+          {event?.teams && (
+            <View style={styles.row}>
+              {([1, 2] as const).map((n) => (
+                <View key={n} style={{ flex: 1 }}>
+                  <Button
+                    small
+                    kind="secondary"
+                    title={`Random ${n} v ${n}`}
+                    onPress={() => {
+                      const pick = (ids: string[]) => shuffle(ids).slice(0, n);
+                      const ids = [...pick(event.teams!.A.playerIds), ...pick(event.teams!.B.playerIds)];
+                      setDraft(null);
+                      setSideMatches([]);
+                      setRoster(ids.map((id) => ({ id, teeId: defaultTee(course, saved.find((p) => p.id === id)!) })));
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+          {event?.lockHandicaps ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Handicaps are locked for {event.name}.</Label> : null}
+
+          {event ? null : addingPlayer ? (
             <PlayerForm
               onCancel={() => setAddingPlayer(false)}
               onSave={(p) => {
@@ -186,7 +223,16 @@ export default function NewRound() {
                   key={g.kind}
                   label={g.name}
                   selected={draft?.kind === g.kind}
-                  onPress={fits ? () => { setDraft(newDraft(g.kind, players)); setSideMatches([]); } : undefined}
+                  onPress={
+                    fits
+                      ? () => {
+                          const d = newDraft(g.kind, players);
+                          if (event?.teams) for (const p of players) d.teamOf[p.id] = teamOfEvent(p.id) ?? d.teamOf[p.id];
+                          setDraft(d);
+                          setSideMatches([]);
+                        }
+                      : undefined
+                  }
                   color={fits ? undefined : c.border}
                 />
               );

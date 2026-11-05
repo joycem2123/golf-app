@@ -3,9 +3,42 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { gameName } from '@/lib/games';
+import { cupScore, eventStandings, formatPoints } from '@/lib/events';
 import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@/lib/round';
-import { useStore, type RoundRecord } from '@/store/store';
-import { space, useColors } from '@/theme';
+import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
+import { fonts, space, useColors } from '@/theme';
+import { Text } from 'react-native';
+
+function EventCard({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+  const c = useColors();
+  const players = useStore((s) => s.players);
+  const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
+  let line: React.ReactNode;
+  if (e.teams) {
+    const s = cupScore(e, rounds).standings;
+    line = (
+      <Text style={{ fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>
+        <Text style={{ color: c.teamA }}>{e.teams.A.name} {formatPoints(s.teamA)}</Text>
+        <Text style={{ color: c.muted }}>  –  </Text>
+        <Text style={{ color: c.teamB }}>{formatPoints(s.teamB)} {e.teams.B.name}</Text>
+      </Text>
+    );
+  } else {
+    const top = eventStandings(e, rounds)[0];
+    line = <Body bold>{top && top.played ? `${name(top.playerId)} leads with ${formatPoints(top.points)} pts` : `${e.playerIds.length} players`}</Body>;
+  }
+  return (
+    <Pressable onPress={() => router.push(`/event/${e.id}`)}>
+      {({ pressed }) => (
+        <Card style={{ opacity: pressed ? 0.7 : 1, borderLeftWidth: 4, borderLeftColor: c.accent }}>
+          <Label>{e.type === 'cup' ? 'Ryder Cup' : e.type === 'trip' ? 'Trip' : 'Season'}</Label>
+          <H2>{e.name}</H2>
+          {line}
+        </Card>
+      )}
+    </Pressable>
+  );
+}
 
 function RoundCard({ r }: { r: RoundRecord }) {
   const c = useColors();
@@ -36,13 +69,25 @@ function RoundCard({ r }: { r: RoundRecord }) {
 
 export default function Home() {
   const rounds = useStore((s) => s.rounds);
+  const events = useStore((s) => s.events);
   const active = rounds.filter((r) => r.status === 'active');
   const done = rounds.filter((r) => r.status === 'complete');
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
       <Button title="Start a New Round" onPress={() => router.push('/new-round')} />
-      <Button title="Players" kind="secondary" onPress={() => router.push('/players')} />
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}><Button title="New Event" kind="secondary" onPress={() => router.push('/new-event')} /></View>
+        <View style={{ flex: 1 }}><Button title="Players" kind="secondary" onPress={() => router.push('/players')} /></View>
+      </View>
+      <Button title="Head-to-head records" kind="ghost" onPress={() => router.push('/head-to-head')} />
+
+      {events.length > 0 && (
+        <View style={{ gap: space.sm }}>
+          <Label>Events</Label>
+          {events.map((e) => <EventCard key={e.id} e={e} rounds={rounds} />)}
+        </View>
+      )}
 
       {active.length > 0 && (
         <View style={{ gap: space.sm }}>
