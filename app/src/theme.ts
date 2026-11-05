@@ -1,42 +1,39 @@
-import { useColorScheme } from 'react-native';
+import { Platform } from 'react-native';
 
-const light = {
-  bg: '#F3F5F4',
+/**
+ * Classic clubhouse palette: bright ivory and white, deep green, muted gold.
+ * The app is always light (see app.json "userInterfaceStyle").
+ */
+const palette = {
+  bg: '#FAF8F2',
   card: '#FFFFFF',
-  text: '#0E1A14',
-  muted: '#5B6B63',
-  border: '#DDE3E0',
-  primary: '#0B6E4F',
+  text: '#1B2A22',
+  muted: '#6E746B',
+  border: '#E3DDCF',
+  primary: '#1F5A3D',
   onPrimary: '#FFFFFF',
-  primarySoft: '#E3F0EA',
-  accent: '#B8922F',
-  danger: '#C0392B',
-  chip: '#EBF0ED',
-  win: '#0B6E4F',
-  lose: '#C0392B',
+  primarySoft: '#EDF2EC',
+  accent: '#A8864D',
+  danger: '#A6322B',
+  chip: '#F4F1E9',
+  /** Under par is red, as on a traditional leaderboard. */
+  under: '#B3261E',
+  over: '#1B2A22',
+  teamA: '#1F5A3D',
+  teamB: '#1F3A60',
+  teamASoft: '#EEF4EF',
+  teamBSoft: '#EEF2F8',
 };
 
-const dark: typeof light = {
-  bg: '#0A100D',
-  card: '#141C18',
-  text: '#EAF2ED',
-  muted: '#9AABA2',
-  border: '#25322C',
-  primary: '#36B486',
-  onPrimary: '#03110B',
-  primarySoft: '#173328',
-  accent: '#D9B65E',
-  danger: '#E5675B',
-  chip: '#1C2722',
-  win: '#36B486',
-  lose: '#E5675B',
-};
-
-export type Colors = typeof light;
+export type Colors = typeof palette;
 
 export function useColors(): Colors {
-  return useColorScheme() === 'dark' ? dark : light;
+  return palette;
 }
 
+export const fonts = {
+  serif: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, "Times New Roman", serif' }),
+};
+
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
-export const radius = { sm: 8, md: 12, lg: 16, pill: 999 } as const;
+export const radius = { sm: 4, md: 8, lg: 10, pill: 999 } as const;

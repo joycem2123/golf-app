@@ -1,0 +1,101 @@
+import type { GameResult, MatchStatus, Player } from '@golf/engine';
+
+import { toPar } from './format';
+import { TEAM_A, TEAM_B } from './games';
+
+export interface Headline {
+  /** Who is ahead, e.g. "Mike & Dave". Empty when all square. */
+  leader: string;
+  /** Leader's side: 0 = team A / first side, 1 = team B / second side. */
+  side: 0 | 1 | null;
+  /** The big status, e.g. "2 UP", "All Square", "Win 3&2", "14 pts". */
+  big: string;
+  /** e.g. "thru 7", "Final". */
+  small: string;
+  /** Compact extra lines (Nassau bets etc). */
+  extra: string[];
+}
+
+const playerName = (id: string, players: Player[]) =>
+  id === TEAM_A ? 'Team A' : id === TEAM_B ? 'Team B' : (players.find((p) => p.id === id)?.name ?? id);
+
+function matchLine(s: MatchStatus, nameA: string, nameB: string) {
+  if (s.thru === 0) return { leader: '', side: null, big: 'All Square', small: 'Not started' } as const;
+  const side = s.lead > 0 ? 0 : s.lead < 0 ? 1 : null;
+  const leader = side === 0 ? nameA : side === 1 ? nameB : '';
+  if (s.finished) {
+    return {
+      leader: s.winner === 'halved' ? '' : leader,
+      side: s.winner === 'halved' ? null : side,
+      big: s.winner === 'halved' ? 'Halved' : s.closedOutOnHole ? `Win ${s.display}` : `Win ${s.display}`,
+      small: 'Final',
+    } as const;
+  }
+  return {
+    leader,
+    side,
+    big: s.lead === 0 ? 'All Square' : `${Math.abs(s.lead)} UP${s.dormie ? ' · Dormie' : ''}`,
+    small: `thru ${s.thru}`,
+  } as const;
+}
+
+function segStatus(s: MatchStatus) {
+  if (s.thru === 0) return '–';
+  if (s.lead === 0) return s.finished ? 'Halved' : 'AS';
+  return `${s.lead > 0 ? 'A' : 'B'} ${s.finished ? s.display : `${Math.abs(s.lead)} UP`}`;
+}
+
+export function headline(result: GameResult, players: Player[]): Headline {
+  const small = result.finished ? 'Final' : result.thru ? `thru ${result.thru}` : 'Not started';
+  switch (result.type) {
+    case 'matchPlay':
+      return { ...matchLine(result.status, result.sideA.name, result.sideB.name), extra: [] };
+    case 'nassau': {
+      const [front, back, overall] = result.segments;
+      const pts = result.points.A === result.points.B ? null : result.points.A > result.points.B ? 0 : 1;
+      return {
+        ...matchLine(overall.status, result.standings[0].name, result.standings[1].name),
+        extra: [
+          `Front ${segStatus(front.status)}  ·  Back ${segStatus(back.status)}  ·  18 ${segStatus(overall.status)}`,
+          `Points  A ${result.points.A} – ${result.points.B} B${pts === null ? '' : ''}${result.presses.length ? `  ·  ${result.presses.length} press${result.presses.length > 1 ? 'es' : ''}` : ''}`,
+        ],
+      };
+    }
+    case 'vegas': {
+      const side = result.totalA > 0 ? 0 : result.totalA < 0 ? 1 : null;
+      return {
+        leader: side === null ? '' : result.standings.find((s) => s.position === 1 && s.value > 0)?.name ?? '',
+        side,
+        big: side === null ? 'All Square' : `${result.finished ? 'Win by ' : '+'}${Math.abs(result.totalA)} pts`,
+        small,
+        extra: [],
+      };
+    }
+    case 'scramble':
+    case 'shamble':
+    case 'strokePlay': {
+      const lead = result.standings.filter((s) => s.position === 1);
+      return {
+        leader: lead.length > 1 ? 'Tied' : playerName(lead[0].id, players),
+        side: lead.length > 1 ? null : lead[0].id === TEAM_A ? 0 : lead[0].id === TEAM_B ? 1 : null,
+        big: result.thru || result.standings.some((s) => s.thru) ? toPar(lead[0].value) : '–',
+        small,
+        extra: result.standings.length > 2 ? result.standings.slice(1).map((s) => `${s.position}. ${playerName(s.id, players)}  ${toPar(s.value)}`) : [],
+      };
+    }
+    default: {
+      // Skins, wolf, stableford: points tables
+      const unit = result.type === 'skins' ? 'skin' : 'pt';
+      const lead = result.standings.filter((s) => s.position === 1);
+      const fmt = (v: number) => `${v} ${unit}${Math.abs(v) === 1 ? '' : 's'}`;
+      const carry = result.type === 'skins' && !result.finished && result.holes.at(-1)?.status === 'carried' ? result.holes.at(-1)!.value : 0;
+      return {
+        leader: lead[0].value === 0 && result.type !== 'stableford' ? '' : lead.map((l) => playerName(l.id, players)).join(' & '),
+        side: null,
+        big: lead[0].value === 0 && result.type !== 'stableford' ? (result.thru ? 'No leader yet' : 'Not started') : fmt(lead[0].value),
+        small: carry ? `${small} · ${carry} riding` : small,
+        extra: result.standings.filter((s) => s.position !== 1 || lead.length > 1).slice(lead.length > 1 ? lead.length : 0).map((s) => `${s.position}. ${playerName(s.id, players)}  ${fmt(s.value)}`),
+      };
+    }
+  }
+}

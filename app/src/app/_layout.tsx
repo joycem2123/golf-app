@@ -1,14 +1,12 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 
-import { useColors } from '@/theme';
+import { fonts, useColors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
   const c = useColors();
 
   useEffect(() => {
@@ -16,12 +14,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={{ ...DefaultTheme, colors: { ...DefaultTheme.colors, background: c.bg, card: c.card, primary: c.primary, text: c.text, border: c.border } }}>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: c.bg },
+          headerStyle: { backgroundColor: c.card },
           headerTintColor: c.primary,
-          headerTitleStyle: { color: c.text },
+          headerTitleStyle: { color: c.primary, fontFamily: fonts.serif, fontWeight: '700' },
+          headerLargeTitleStyle: { color: c.primary, fontFamily: fonts.serif },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: c.bg },
         }}>

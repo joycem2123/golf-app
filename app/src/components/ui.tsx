@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 
-import { radius, space, useColors } from '@/theme';
+import { fonts, radius, space, useColors } from '@/theme';
 
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   const c = useColors();
@@ -171,14 +171,14 @@ export function OptionRow({ label, children }: { label: string; children: ReactN
 }
 
 export const styles = StyleSheet.create({
-  card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: space.lg, gap: space.sm },
-  h1: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  h2: { fontSize: 18, fontWeight: '700' },
-  label: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  card: { borderRadius: radius.lg, borderWidth: 1, padding: space.lg, gap: space.sm, shadowColor: '#3B3423', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  h1: { fontSize: 30, fontFamily: fonts.serif, fontWeight: '700' },
+  h2: { fontSize: 19, fontFamily: fonts.serif, fontWeight: '700' },
+  label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1.2 },
   body: { fontSize: 16 },
   button: { borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: space.lg, alignItems: 'center' },
   buttonSmall: { paddingVertical: 8, paddingHorizontal: space.md },
-  buttonText: { fontSize: 17, fontWeight: '700' },
+  buttonText: { fontSize: 16, fontWeight: '600', letterSpacing: 0.5 },
   chip: { borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1 },
   segmented: { flexDirection: 'row', borderRadius: radius.md, padding: 3, borderWidth: StyleSheet.hairlineWidth },
   segment: { flex: 1, paddingVertical: 8, borderRadius: radius.sm },
