@@ -1,7 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { ShareCard } from '@/components/share-card';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
+import { shareEvent } from '@/sync/sync';
 import { cupScore, eventMatches, eventStandings, formatPoints, type EventMatch } from '@/lib/events';
 import { formatIndex } from '@/lib/format';
 import { courseFor, shortCourseName } from '@/lib/round';
@@ -124,7 +126,10 @@ export default function EventScreen() {
           </>
         )}
 
-        <Button title={e.teams ? 'Start a match' : 'Start a round'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id } })} />
+        {e.remote?.role !== 'viewer' && (
+          <Button title={e.teams ? 'Start a match' : 'Start a round'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id } })} />
+        )}
+        <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />
 
         {eventRounds.length > 0 && (
           <Card>

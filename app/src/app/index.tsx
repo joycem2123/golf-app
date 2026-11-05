@@ -80,7 +80,11 @@ export default function Home() {
         <View style={{ flex: 1 }}><Button title="New Event" kind="secondary" onPress={() => router.push('/new-event')} /></View>
         <View style={{ flex: 1 }}><Button title="Players" kind="secondary" onPress={() => router.push('/players')} /></View>
       </View>
-      <Button title="Head-to-head records" kind="ghost" onPress={() => router.push('/head-to-head')} />
+      <Button title="Join with code" kind="secondary" onPress={() => router.push('/join')} />
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}><Button title="Head to head" kind="ghost" onPress={() => router.push('/head-to-head')} /></View>
+        <View style={{ flex: 1 }}><Button title="Account" kind="ghost" onPress={() => router.push('/account')} /></View>
+      </View>
 
       {events.length > 0 && (
         <View style={{ gap: space.sm }}>

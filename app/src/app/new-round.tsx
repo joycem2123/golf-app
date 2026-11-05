@@ -9,6 +9,7 @@ import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles }
 import { formatIndex, shuffle } from '@/lib/format';
 import { draftProblem, draftToConfig, gameInfo, GAMES, newDraft, sideMatchConfig, type GameDraft } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
+import { autoShare } from '@/sync/sync';
 import { space, useColors } from '@/theme';
 
 type Step = 'course' | 'players' | 'game';
@@ -89,6 +90,7 @@ export default function NewRound() {
       eventId: event?.id,
     };
     addRound(round);
+    void autoShare(id);
     router.replace(`/round/${id}`);
   };
 

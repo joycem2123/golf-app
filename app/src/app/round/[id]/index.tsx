@@ -6,12 +6,14 @@ import { useState } from 'react';
 
 import { GameSummaryCard } from '@/components/game-summary';
 import { ScorecardGrid } from '@/components/scorecard-grid';
+import { ShareCard } from '@/components/share-card';
 import { StatusBanner } from '@/components/status-banner';
 import { Body, Button, Card, Chip, H2, Label, Segmented, Stepper, styles } from '@/components/ui';
 import { gameName } from '@/lib/games';
 import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, shortCourseName, teeFor, type ScoreKey } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import { useRound, useStore, type RoundRecord } from '@/store/store';
+import { shareRound } from '@/sync/sync';
 import { fonts, radius, space, useColors } from '@/theme';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
@@ -43,6 +45,7 @@ function ScoreRow({
   const set = (v: number) => setScore(r.id, k.key, hole, Math.max(1, Math.min(15, v)));
   const setStat = (patch: object) => setStats(r.id, k.key, hole, { ...(stats ?? {}), ...patch });
   const fairways: [FairwayResult, string][] = [['left', '←'], ['hit', 'Hit'], ['right', '→']];
+  const readOnly = r.remote?.role === 'viewer';
 
   const Wrapper = teamColor ? View : Card;
   return (
@@ -63,14 +66,14 @@ function ScoreRow({
           </Text>
         </View>
         <View style={styles.row}>
-          <Pressable onPress={() => gross !== null && set(gross - 1)} style={[styles.stepBtn, { backgroundColor: c.chip }]}>
+          {!readOnly && <Pressable onPress={() => gross !== null && set(gross - 1)} style={[styles.stepBtn, { backgroundColor: c.chip }]}>
             <Text style={{ color: c.primary, fontSize: 22, fontWeight: '700' }}>−</Text>
-          </Pressable>
+          </Pressable>}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${k.label} score`}
-            onPress={() => gross === null && set(par)}
-            onLongPress={() => setScore(r.id, k.key, hole, null)}
+            onPress={() => !readOnly && gross === null && set(par)}
+            onLongPress={() => !readOnly && setScore(r.id, k.key, hole, null)}
             style={{
               width: 54, height: 54, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
               backgroundColor: gross === null ? c.chip : c.card, borderWidth: gross === null ? 1 : 1.5, borderColor: gross === null ? c.border : scoreColor(c, gross - par),
@@ -79,13 +82,13 @@ function ScoreRow({
               {gross ?? '–'}
             </Text>
           </Pressable>
-          <Pressable onPress={() => set(gross === null ? par : gross + 1)} style={[styles.stepBtn, { backgroundColor: c.chip }]}>
+          {!readOnly && <Pressable onPress={() => set(gross === null ? par : gross + 1)} style={[styles.stepBtn, { backgroundColor: c.chip }]}>
             <Text style={{ color: c.primary, fontSize: 22, fontWeight: '700' }}>+</Text>
-          </Pressable>
+          </Pressable>}
         </View>
       </View>
 
-      {r.statsEnabled && !k.isTeam && (
+      {r.statsEnabled && !k.isTeam && !readOnly && (
         <View style={{ gap: space.sm, borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.sm }}>
           <View style={[styles.row, { justifyContent: 'space-between' }]}>
             <Label>Putts</Label>
@@ -233,6 +236,8 @@ export default function Scorecard() {
   const setHole = useStore((s) => s.setHole);
   const completeRound = useStore((s) => s.completeRound);
   const dismissNotices = useStore((s) => s.dismissNotices);
+  const names = useStore((s) => s.names);
+  const me = useStore((s) => s.me);
   const [view, setView] = useState<'hole' | 'card'>('hole');
 
   if (!r) return <Body>Round not found.</Body>;
@@ -281,7 +286,10 @@ export default function Scorecard() {
         {r.notices.length > 0 && (
           <Card style={{ borderColor: c.accent, borderWidth: 2 }}>
             {r.notices.map((n, i) => (
-              <Body key={i}>Hole {n.hole}: {n.key} changed from {n.replacedGross} to {n.keptGross}</Body>
+              <Body key={i}>
+                Hole {n.hole}: {keys.find((k) => k.key === n.key)?.label ?? 'A player'}’s score changed from {n.replacedGross} to {n.keptGross}
+                {' '}by {n.keptBy === me ? 'you' : (names[n.keptBy] ?? 'another scorekeeper')}
+              </Body>
             ))}
             <Button small kind="ghost" title="OK" onPress={() => dismissNotices(r.id)} />
           </Card>
@@ -326,6 +334,7 @@ export default function Scorecard() {
 
             {r.games.map((g, i) => {
               const res = results[i];
+              if (r.remote?.role === 'viewer') return null;
               if (g.type === 'wolf' && res && isResult(res) && res.type === 'wolf') return <WolfPanel key={i} r={r} index={i} result={res} hole={hole} />;
               return null;
             })}
@@ -338,11 +347,12 @@ export default function Scorecard() {
 
             {hole < 18 && done(hole) && <Button title={`Next hole: ${hole + 1} ›`} onPress={() => setHole(r.id, hole + 1)} />}
 
-            {r.games.map((g, i) => (g.type === 'nassau' ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
+            {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
           </>
         )}
 
-        <Button title="Finish round" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />
+        <ShareCard remote={r.remote} what="round" onShare={() => shareRound(r.id)} />
+        {r.remote?.role !== 'viewer' && <Button title="Finish round" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />}
       </ScrollView>
     </>
   );
