@@ -1,6 +1,6 @@
-import { courseHandicap, searchCourses, SEED_COURSES, type Course, type Player, type Tee } from '@golf/engine';
+import { courseHandicap, findCourse, searchCourses, SEED_COURSES, type Course, type Player, type Tee } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
@@ -23,7 +23,7 @@ function teesFor(course: Course, gender: 'M' | 'F') {
 
 export default function NewRound() {
   const c = useColors();
-  const { eventId } = useLocalSearchParams<{ eventId?: string }>();
+  const { eventId, matchId } = useLocalSearchParams<{ eventId?: string; matchId?: string }>();
   const event = useEvent(eventId);
   const allSaved = useStore((s) => s.players);
   const saved = event ? allSaved.filter((p) => event.playerIds.includes(p.id)) : allSaved;
@@ -72,6 +72,31 @@ export default function NewRound() {
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
   const problem = draft ? draftProblem(draft, players) : 'Choose a game';
 
+  // Starting a scheduled match: pre-fill course, players, sides and format.
+  const scheduled = event?.schedule?.find((m) => m.id === matchId);
+  const saveScheduled = useStore((s) => s.saveScheduled);
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!scheduled || prefilled.current) return;
+    prefilled.current = true;
+    const co = scheduled.courseId ? findCourse(scheduled.courseId) : undefined;
+    if (!co) return;
+    setCourse(co);
+    const ids = [...scheduled.sideA, ...scheduled.sideB].filter((id) => saved.some((p) => p.id === id));
+    setRoster(ids.map((id) => ({ id, teeId: defaultTee(co, saved.find((p) => p.id === id)!) })));
+    setStep(ids.length ? 'game' : 'players');
+  }, [scheduled]);
+  const draftPrefilled = useRef(false);
+  useEffect(() => {
+    if (!scheduled?.kind || draftPrefilled.current || players.length === 0) return;
+    draftPrefilled.current = true;
+    const kind = scheduled.kind as GameDraft['kind'];
+    if (!GAMES.some((g) => g.kind === kind)) return;
+    const d = newDraft(kind, players);
+    for (const p of players) d.teamOf[p.id] = scheduled.sideB.includes(p.id) ? 'B' : 'A';
+    setDraft(d);
+  }, [players, scheduled]);
+
   const start = () => {
     if (!course || !draft || problem) return;
     const id = newId();
@@ -88,8 +113,10 @@ export default function NewRound() {
       status: 'active',
       notices: [],
       eventId: event?.id,
+      label: scheduled?.label,
     };
     addRound(round);
+    if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
     void autoShare(id);
     router.replace(`/round/${id}`);
   };

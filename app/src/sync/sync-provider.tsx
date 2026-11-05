@@ -24,7 +24,7 @@ export function SyncProvider() {
     let lastOutbox = st.outbox.length;
     const unsub = useStore.subscribe((s, prev) => {
       if (s.rounds !== prev.rounds || s.events !== prev.events) syncSubscriptions();
-      if (s.outbox.length > lastOutbox || s.dirtyRounds.length > prev.dirtyRounds.length) void flush();
+      if (s.outbox.length > lastOutbox || s.dirtyRounds.length > prev.dirtyRounds.length || s.dirtyEvents.length > prev.dirtyEvents.length) void flush();
       lastOutbox = s.outbox.length;
     });
 

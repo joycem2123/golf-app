@@ -197,6 +197,16 @@ export async function flush() {
       if (!error) cleared.push(id);
     }
     if (cleared.length) useStore.getState().clearDirty(cleared);
+
+    const dirtyEvents = useStore.getState().dirtyEvents;
+    const doneEvents: string[] = [];
+    for (const id of dirtyEvents) {
+      const e = useStore.getState().events.find((x) => x.id === id);
+      if (!e?.remote) { doneEvents.push(id); continue; }
+      const { error } = await supabase.from('events').update({ data: eventDoc(e), updated_at: new Date().toISOString() }).eq('id', id);
+      if (!error) doneEvents.push(id);
+    }
+    if (doneEvents.length) useStore.getState().clearDirtyEvents(doneEvents);
   } finally {
     flushing = false;
   }

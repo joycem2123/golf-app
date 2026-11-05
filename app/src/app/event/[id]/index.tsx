@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { ScheduleSection } from '@/components/schedule';
 import { ShareCard } from '@/components/share-card';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { shareEvent } from '@/sync/sync';
@@ -94,10 +95,14 @@ export default function EventScreen() {
                   </View>
                 </Card>
 
-                <Card>
-                  <H2>Matches</H2>
-                  {cupMatches.length === 0 ? <Body muted>Start a match below. Pairings can be randomized.</Body> : cupMatches.map((m) => <MatchRow key={m.id} e={e} m={m} name={name} />)}
-                </Card>
+                <ScheduleSection e={e} />
+
+                {cupMatches.length > 0 && (
+                  <Card>
+                    <H2>Results</H2>
+                    {cupMatches.map((m) => <MatchRow key={m.id} e={e} m={m} name={name} />)}
+                  </Card>
+                )}
               </>
             );
           })()
@@ -119,15 +124,16 @@ export default function EventScreen() {
               ))}
               <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Win 1 · halve ½ · every match counts, including side matches.</Label>
             </Card>
+            <ScheduleSection e={e} />
             <Card>
-              <H2>Matches</H2>
+              <H2>Results</H2>
               {matches.length === 0 ? <Body muted>No matches yet.</Body> : matches.map((m) => <MatchRow key={m.id} e={e} m={m} name={name} />)}
             </Card>
           </>
         )}
 
         {e.remote?.role !== 'viewer' && (
-          <Button title={e.teams ? 'Start a match' : 'Start a round'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id } })} />
+          <Button small kind="ghost" title={e.teams ? 'Start an unscheduled match' : 'Start an unscheduled round'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id } })} />
         )}
         <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />
 

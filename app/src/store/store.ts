@@ -62,6 +62,24 @@ export interface OutboxItem {
 
 export type EventType = 'trip' | 'cup' | 'season';
 
+/** A match planned ahead of time on an event's schedule. */
+export interface ScheduledMatch {
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM, 24-hour */
+  time?: string;
+  courseId?: string;
+  /** Game format (see lib/games GameKind). */
+  kind?: string;
+  sideA: string[];
+  sideB: string[];
+  label?: string;
+  notes?: string;
+  /** Set once the match has been started. */
+  roundId?: string;
+}
+
 export interface EventTeam {
   name: string;
   playerIds: string[];
@@ -86,6 +104,7 @@ export interface EventRecord {
   points: { win: number; halve: number; loss: number };
   status: 'active' | 'complete';
   remote?: Remote;
+  schedule?: ScheduledMatch[];
 }
 
 interface State {
@@ -95,11 +114,19 @@ interface State {
   events: EventRecord[];
   /** Signed-in user id (null = not signed in). */
   me: string | null;
+  /** The user has been through the welcome screen (signed in, signed up or chose guest). */
+  onboarded: boolean;
+  setOnboarded: (v: boolean) => void;
   /** Display names of other users, by user id. */
   names: Record<string, string>;
   outbox: OutboxItem[];
   /** Rounds whose game setup (wolf picks, presses, status) needs uploading. */
   dirtyRounds: string[];
+  /** Events whose details or schedule need uploading. */
+  dirtyEvents: string[];
+  saveScheduled: (eventId: string, m: ScheduledMatch) => void;
+  removeScheduled: (eventId: string, matchId: string) => void;
+  clearDirtyEvents: (ids: string[]) => void;
   setMe: (id: string | null) => void;
   setName: (id: string, name: string) => void;
   setRoundRemote: (roundId: string, remote: Remote) => void;
@@ -133,6 +160,11 @@ const dirty = (s: { rounds: RoundRecord[]; dirtyRounds: string[] }, roundId: str
   return r?.remote && r.remote.role !== 'viewer' && !s.dirtyRounds.includes(roundId) ? [...s.dirtyRounds, roundId] : s.dirtyRounds;
 };
 
+const dirtyEvent = (s: { events: EventRecord[]; dirtyEvents: string[] }, eventId: string) => {
+  const e = s.events.find((x) => x.id === eventId);
+  return e?.remote && e.remote.role !== 'viewer' && !s.dirtyEvents.includes(eventId) ? [...s.dirtyEvents, eventId] : s.dirtyEvents;
+};
+
 const mapRound = (rounds: RoundRecord[], id: string, fn: (r: RoundRecord) => RoundRecord) =>
   rounds.map((r) => (r.id === id ? fn(r) : r));
 
@@ -144,9 +176,29 @@ export const useStore = create<State>()(
       history: [],
       events: [],
       me: null,
+      onboarded: false,
+      setOnboarded: (v) => set({ onboarded: v }),
       names: {},
       outbox: [],
       dirtyRounds: [],
+      dirtyEvents: [],
+
+      saveScheduled: (eventId, m) =>
+        set((s) => ({
+          events: s.events.map((e) => {
+            if (e.id !== eventId) return e;
+            const list = e.schedule ?? [];
+            const schedule = list.some((x) => x.id === m.id) ? list.map((x) => (x.id === m.id ? m : x)) : [...list, m];
+            return { ...e, schedule };
+          }),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
+      removeScheduled: (eventId, matchId) =>
+        set((s) => ({
+          events: s.events.map((e) => (e.id === eventId ? { ...e, schedule: (e.schedule ?? []).filter((x) => x.id !== matchId) } : e)),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
+      clearDirtyEvents: (ids) => set((s) => ({ dirtyEvents: s.dirtyEvents.filter((id) => !ids.includes(id)) })),
 
       setMe: (id) => set({ me: id }),
       setName: (id, name) => set((s) => ({ names: { ...s.names, [id]: name } })),
@@ -198,7 +250,11 @@ export const useStore = create<State>()(
       upsertRemoteEvent: (e) =>
         set((s) => ({
           events: s.events.some((x) => x.id === e.id)
-            ? s.events.map((x) => (x.id === e.id ? { ...e, remote: x.remote?.role === 'owner' ? x.remote : e.remote } : x))
+            ? s.events.map((x) =>
+                x.id === e.id
+                  ? { ...e, schedule: s.dirtyEvents.includes(e.id) ? x.schedule : e.schedule, remote: x.remote?.role === 'owner' ? x.remote : e.remote }
+                  : x,
+              )
             : [e, ...s.events],
         })),
 
@@ -271,8 +327,8 @@ export const useStore = create<State>()(
     {
       name: 'golf-app-v1',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 3,
-      migrate: (state) => ({ events: [], names: {}, outbox: [], dirtyRounds: [], me: null, ...(state as object) }) as unknown as State,
+      version: 4,
+      migrate: (state) => ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, ...(state as object) }) as unknown as State,
     },
   ),
 );

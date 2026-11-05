@@ -34,7 +34,7 @@ export function ShareCard({ remote, what, onShare }: { remote?: Remote; what: 'r
           small
           kind="secondary"
           title="Send code"
-          onPress={() => Share.share({ message: `Join my ${what === 'event' ? 'event' : 'round'} in Matchday with code ${remote.shareCode}` })}
+          onPress={() => Share.share({ message: `Join my ${what === 'event' ? 'event' : 'round'} in MatchDay with code ${remote.shareCode}` })}
         />
       </Card>
     );
@@ -45,7 +45,7 @@ export function ShareCard({ remote, what, onShare }: { remote?: Remote; what: 'r
       <H2>Share live</H2>
       <Body muted>
         {what === 'event'
-          ? 'Put this event online so every group can score their own match and everyone sees the cup live.'
+          ? 'Put this event online so every group can score their own match and everyone sees results live.'
           : 'Let friends follow the leaderboard live, or keep score on their own phones.'}
       </Body>
       {error ? <Body style={{ color: c.danger }}>{error}</Body> : null}

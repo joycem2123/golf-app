@@ -1,15 +1,14 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
-import { gameName } from '@/lib/games';
+import { Body, Card, H2, Label, styles } from '@/components/ui';
 import { cupScore, eventStandings, formatPoints } from '@/lib/events';
+import { gameName } from '@/lib/games';
 import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
-import { fonts, space, useColors } from '@/theme';
-import { Text } from 'react-native';
+import { fonts, useColors } from '@/theme';
 
-function EventCard({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+export function EventCard({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
   const c = useColors();
   const players = useStore((s) => s.players);
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
@@ -40,7 +39,7 @@ function EventCard({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
   );
 }
 
-function RoundCard({ r }: { r: RoundRecord }) {
+export function RoundCard({ r }: { r: RoundRecord }) {
   const c = useColors();
   const results = evaluate(r);
   const main = results[0];
@@ -64,55 +63,5 @@ function RoundCard({ r }: { r: RoundRecord }) {
         </Card>
       )}
     </Pressable>
-  );
-}
-
-export default function Home() {
-  const rounds = useStore((s) => s.rounds);
-  const events = useStore((s) => s.events);
-  const active = rounds.filter((r) => r.status === 'active');
-  const done = rounds.filter((r) => r.status === 'complete');
-
-  return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
-      <Button title="Start a New Round" onPress={() => router.push('/new-round')} />
-      <View style={styles.row}>
-        <View style={{ flex: 1 }}><Button title="New Event" kind="secondary" onPress={() => router.push('/new-event')} /></View>
-        <View style={{ flex: 1 }}><Button title="Players" kind="secondary" onPress={() => router.push('/players')} /></View>
-      </View>
-      <Button title="Join with code" kind="secondary" onPress={() => router.push('/join')} />
-      <View style={styles.row}>
-        <View style={{ flex: 1 }}><Button title="Head to head" kind="ghost" onPress={() => router.push('/head-to-head')} /></View>
-        <View style={{ flex: 1 }}><Button title="Account" kind="ghost" onPress={() => router.push('/account')} /></View>
-      </View>
-
-      {events.length > 0 && (
-        <View style={{ gap: space.sm }}>
-          <Label>Events</Label>
-          {events.map((e) => <EventCard key={e.id} e={e} rounds={rounds} />)}
-        </View>
-      )}
-
-      {active.length > 0 && (
-        <View style={{ gap: space.sm }}>
-          <Label>In progress</Label>
-          {active.map((r) => <RoundCard key={r.id} r={r} />)}
-        </View>
-      )}
-
-      {done.length > 0 && (
-        <View style={{ gap: space.sm }}>
-          <Label>Completed</Label>
-          {done.map((r) => <RoundCard key={r.id} r={r} />)}
-        </View>
-      )}
-
-      {rounds.length === 0 && (
-        <Card>
-          <H2>No rounds yet</H2>
-          <Body muted>Start a round to pick a course, add your group and choose your games. Scores save on your phone, even without signal.</Body>
-        </Card>
-      )}
-    </ScrollView>
   );
 }

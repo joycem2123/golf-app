@@ -14,7 +14,14 @@ const H = 38;
 /** Traditional scorecard marks: circle = birdie, double circle = eagle, square = bogey, double square = double+. */
 function Mark({ gross, par, dot }: { gross: number | null; par: number; dot: number }) {
   const c = useColors();
-  if (gross === null) return <Text style={{ color: c.border }}>·</Text>;
+  if (gross === null) {
+    return (
+      <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>
+        {dot > 0 && <View style={{ position: 'absolute', top: 1, right: 1, width: 5, height: 5, borderRadius: 3, backgroundColor: c.accent }} />}
+        {dot > 1 && <View style={{ position: 'absolute', top: 8, right: 1, width: 5, height: 5, borderRadius: 3, backgroundColor: c.accent }} />}
+      </View>
+    );
+  }
   const d = gross - par;
   const color = d < 0 ? c.under : c.over;
   const shape = (inset: number, round: boolean) => ({
@@ -29,6 +36,7 @@ function Mark({ gross, par, dot }: { gross: number | null; par: number; dot: num
       {d >= 2 && <View style={shape(6, false)} />}
       <Text style={{ color, fontSize: 14, fontWeight: '600' }}>{gross}</Text>
       {dot > 0 && <View style={{ position: 'absolute', top: 1, right: 1, width: 5, height: 5, borderRadius: 3, backgroundColor: c.accent }} />}
+      {dot > 1 && <View style={{ position: 'absolute', top: 8, right: 1, width: 5, height: 5, borderRadius: 3, backgroundColor: c.accent }} />}
     </View>
   );
 }
