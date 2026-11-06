@@ -14,6 +14,8 @@ export interface Headline {
   small: string;
   /** Compact extra lines (Nassau bets etc). */
   extra: string[];
+  /** Stroke play: the top of the leaderboard (shown instead of leader / big). */
+  board?: { id: string; pos: string; name: string; value: string }[];
 }
 
 const playerName = (id: string, players: Player[]) =>
@@ -93,13 +95,23 @@ export function headline(result: GameResult, players: Player[]): Headline {
       }
     // falls through
     case 'strokePlay': {
+      // A small leaderboard: the top 3 (ties shown as T2), not a big "Tied".
+      const started = result.thru > 0 || result.standings.some((s) => s.thru > 0);
+      const tied = (pos: number) => result.standings.filter((s) => s.position === pos).length > 1;
+      const board = result.standings.slice(0, 3).map((s) => ({
+        id: s.id,
+        pos: started ? `${tied(s.position) ? 'T' : ''}${s.position}` : '–',
+        name: playerName(s.id, players),
+        value: started ? toPar(s.value) : '–',
+      }));
       const lead = result.standings.filter((s) => s.position === 1);
       return {
-        leader: lead.length > 1 ? 'Tied' : playerName(lead[0].id, players),
+        leader: '',
         side: lead.length > 1 ? null : teamIdName(lead[0].id) === 'Team A' ? 0 : teamIdName(lead[0].id) === 'Team B' ? 1 : null,
-        big: result.thru || result.standings.some((s) => s.thru) ? toPar(lead[0].value) : '–',
+        big: '',
         small,
-        extra: result.standings.length > 2 ? result.standings.slice(1).map((s) => `${s.position}. ${playerName(s.id, players)}  ${toPar(s.value)}`) : [],
+        extra: result.standings.length > 3 ? [`+${result.standings.length - 3} more`] : [],
+        board,
       };
     }
     default: {

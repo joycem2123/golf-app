@@ -2,7 +2,7 @@ import type { GameResult, Player } from '@golf/engine';
 import { Text, View } from 'react-native';
 
 import { headline } from '@/lib/headline';
-import { fonts, space, useColors } from '@/theme';
+import { fonts, space, teamColor, useColors } from '@/theme';
 
 /** The big, simple "who's winning" banner pinned to the top of the scorecard. */
 /** "Matt Joyce & Braydon Cole" → "Matt & Braydon" (team names like "Team A" stay as they are). */
@@ -35,6 +35,21 @@ export function StatusBanner({
         <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' }}>{name}</Text>
         <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' }}>{h.small}</Text>
       </View>
+      {h.board ? (
+        <View style={{ gap: 3, marginTop: 2 }}>
+          {h.board.map((row) => {
+            const L = /^Team ([A-Z])$/.exec(row.name)?.[1];
+            const rc = L ? teamColor(L).color : c.text;
+            return (
+              <View key={row.id} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.sm }}>
+                <Text style={{ width: 30, color: c.muted, fontWeight: '800', fontSize: 14 }}>{row.pos}</Text>
+                <Text numberOfLines={1} style={{ flex: 1, color: rc, fontFamily: fonts.serif, fontSize: 18, fontWeight: '700' }}>{row.name}</Text>
+                <Text style={{ color: row.value.startsWith('-') ? c.under : c.text, fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{row.value}</Text>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
       <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', columnGap: space.sm }}>
         {h.leader ? (
           <Text style={{ fontFamily: fonts.serif, fontSize: 22, fontWeight: '700', color }} numberOfLines={1}>
@@ -43,6 +58,7 @@ export function StatusBanner({
         ) : null}
         <Text style={{ fontFamily: fonts.serif, fontSize: 30, fontWeight: '700', color }}>{h.big}</Text>
       </View>
+      )}
       {h.extra.map((line) => (
         <Text key={line} style={{ color: c.muted, fontSize: 13 }}>{line}</Text>
       ))}
@@ -57,7 +73,7 @@ export function StatusBanner({
               <Text style={{ color: c.muted, fontWeight: '700', fontSize: 11, letterSpacing: 1 }}>{label}  </Text>
               {who}
             </Text>
-            <Text style={{ flexShrink: 0, color: c.text, fontSize: 13, fontWeight: '700' }}>{s.leader ? `${firsts(s.leader)} ${s.big}` : s.big}</Text>
+            <Text style={{ flexShrink: 0, color: c.text, fontSize: 13, fontWeight: '700' }}>{s.board ? (s.board[0] ? `${s.board[0].pos === 'T1' ? 'Tied ' : ''}${s.board[0].name} ${s.board[0].value}` : '') : s.leader ? `${firsts(s.leader)} ${s.big}` : s.big}</Text>
           </View>
         );
       })}
