@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 
 import { useStore } from '@/store/store';
 import { supabase } from './supabase';
+import { restoreMe } from './auth';
 import { flush, resetSubscriptions, syncSubscriptions } from './sync';
 
 /** Runs in the background: keeps live subscriptions open and sends queued scores. */
@@ -11,13 +12,17 @@ export function SyncProvider() {
     const st = useStore.getState();
     supabase.auth.getSession().then(({ data }) => {
       st.setMe(data.session?.user.id ?? null);
+      void restoreMe();
       syncSubscriptions();
       void flush();
     });
     const { data: auth } = supabase.auth.onAuthStateChange((event, session) => {
       useStore.getState().setMe(session?.user.id ?? null);
       if (event === 'SIGNED_OUT') resetSubscriptions();
-      else syncSubscriptions();
+      else {
+        if (event === 'SIGNED_IN') void restoreMe();
+        syncSubscriptions();
+      }
     });
 
     // Re-check subscriptions whenever rounds/events change; send new scores right away.

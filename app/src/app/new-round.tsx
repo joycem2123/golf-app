@@ -7,6 +7,7 @@ import { GameOptions } from '@/components/game-options';
 import { PlayerForm } from '@/components/player-form';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
+import { meFirst, useMe } from '@/lib/me';
 import { draftProblem, draftToConfig, gameInfo, GAMES, newDraft, sideMatchConfig, type GameDraft } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { autoShare } from '@/sync/sync';
@@ -26,6 +27,7 @@ export default function NewRound() {
   const { eventId, matchId } = useLocalSearchParams<{ eventId?: string; matchId?: string }>();
   const event = useEvent(eventId);
   const allSaved = useStore((s) => s.players);
+  const { me, isMe } = useMe();
   const saved = event ? allSaved.filter((p) => event.playerIds.includes(p.id)) : allSaved;
   const teamOfEvent = (id: string): 'A' | 'B' | undefined =>
     event?.teams ? (event.teams.A.playerIds.includes(id) ? 'A' : event.teams.B.playerIds.includes(id) ? 'B' : undefined) : undefined;
@@ -144,7 +146,15 @@ export default function NewRound() {
         <>
           <Field label="Search courses" value={query} onChangeText={setQuery} placeholder="Course name or city" />
           {searchCourses(query, SEED_COURSES).map((co) => (
-            <Pressable key={co.id} onPress={() => { setCourse(co); setRoster([]); setDraft(null); setStep('players'); }}>
+            <Pressable
+              key={co.id}
+              onPress={() => {
+                setCourse(co);
+                // Start with me in the group (if I'm part of this event, or it's a regular round).
+                setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);
+                setDraft(null);
+                setStep('players');
+              }}>
               <Card style={course?.id === co.id ? { borderColor: c.primary, borderWidth: 2 } : undefined}>
                 <H2>{co.name}</H2>
                 <Body muted>{[co.city, co.region].filter(Boolean).join(', ')} · Par {co.tees[0].par} · {co.tees.length} tees</Body>
@@ -161,10 +171,10 @@ export default function NewRound() {
             <Label>Who’s playing?</Label>
             {saved.length === 0 ? <Body muted>Add your group below. They’ll be saved for next time.</Body> : null}
             <View style={styles.wrap}>
-              {saved.map((p) => (
+              {meFirst(saved, isMe).map((p) => (
                 <Chip
                   key={p.id}
-                  label={`${p.name} ${formatIndex(event?.lockHandicaps ? (event.lockedIndexes[p.id] ?? p.handicapIndex) : p.handicapIndex)}`}
+                  label={`${p.name}${isMe(p.id) ? ' (Me)' : ''} ${formatIndex(event?.lockHandicaps ? (event.lockedIndexes[p.id] ?? p.handicapIndex) : p.handicapIndex)}`}
                   selected={roster.some((r) => r.id === p.id)}
                   color={teamOfEvent(p.id) === 'B' ? c.teamB : undefined}
                   onPress={() => togglePlayer(p)}

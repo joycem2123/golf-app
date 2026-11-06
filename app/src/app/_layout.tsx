@@ -28,7 +28,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Home' }} />
         <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="new-round" options={{ title: 'New Round', presentation: 'modal' }} />
-        <Stack.Screen name="players" options={{ title: 'Players' }} />
+        <Stack.Screen name="players" options={{ title: 'Me & Friends' }} />
         <Stack.Screen name="new-event" options={{ title: 'New Event', presentation: 'modal' }} />
         <Stack.Screen name="event/[id]/index" options={{ title: 'Event' }} />
         <Stack.Screen name="event/[id]/match" options={{ title: 'Schedule a match', presentation: 'modal' }} />

@@ -29,7 +29,7 @@ export default function More() {
       <TabHeader title="More" />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Card style={{ paddingVertical: 0 }}>
-          <Row title="Players" sub="Your group and their handicap indexes" href="/players" />
+          <Row title="Me & friends" sub="Your details and your group's handicap indexes" href="/players" />
           <Row title="New event" sub="Trip, Ryder Cup or season" href="/new-event" />
           <Row title="Join with code" sub="Follow a leaderboard or keep score" href="/join" />
           <Row title="Head to head" sub="Records between any two players" href="/head-to-head" />

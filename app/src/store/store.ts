@@ -116,6 +116,15 @@ interface State {
   me: string | null;
   /** The user has been through the welcome screen (signed in, signed up or chose guest). */
   onboarded: boolean;
+  /** The saved player who is "Me". */
+  myPlayerId: string | null;
+  /** Other player ids that are also me (e.g. how someone else's round listed me). */
+  meAliases: string[];
+  /** Rounds/events where the user said they aren't one of the players. */
+  identityDismissed: string[];
+  setMyPlayer: (id: string | null) => void;
+  addMeAlias: (id: string) => void;
+  dismissIdentity: (key: string) => void;
   setOnboarded: (v: boolean) => void;
   /** Display names of other users, by user id. */
   names: Record<string, string>;
@@ -178,6 +187,12 @@ export const useStore = create<State>()(
       me: null,
       onboarded: false,
       setOnboarded: (v) => set({ onboarded: v }),
+      myPlayerId: null,
+      meAliases: [],
+      identityDismissed: [],
+      setMyPlayer: (id) => set({ myPlayerId: id }),
+      addMeAlias: (id) => set((s) => ({ meAliases: s.meAliases.includes(id) ? s.meAliases : [...s.meAliases, id] })),
+      dismissIdentity: (key) => set((s) => ({ identityDismissed: [...s.identityDismissed, key] })),
       names: {},
       outbox: [],
       dirtyRounds: [],
@@ -327,8 +342,9 @@ export const useStore = create<State>()(
     {
       name: 'golf-app-v1',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 4,
-      migrate: (state) => ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, ...(state as object) }) as unknown as State,
+      version: 5,
+      migrate: (state) =>
+        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], ...(state as object) }) as unknown as State,
     },
   ),
 );

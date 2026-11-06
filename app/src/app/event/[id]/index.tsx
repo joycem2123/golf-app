@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ScheduleSection } from '@/components/schedule';
+import { IdentityCard } from '@/components/people';
 import { ShareCard } from '@/components/share-card';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { shareEvent } from '@/sync/sync';
@@ -50,6 +51,9 @@ export default function EventScreen() {
     <>
       <Stack.Screen options={{ title: e.name }} />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
+        {e.remote && e.remote.role !== 'owner' && (
+          <IdentityCard scopeKey={e.id} candidates={e.playerIds.map((pid) => ({ id: pid, name: name(pid) }))} />
+        )}
         {e.teams ? (
           (() => {
             const { matches: cupMatches, standings: s } = cupScore(e, rounds);

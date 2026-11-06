@@ -4,9 +4,10 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogoMark, Wordmark } from '@/components/logo';
-import { Body, Button, Card, Field } from '@/components/ui';
-import { ensureSession, signIn, signUp } from '@/sync/auth';
-import { useStore } from '@/store/store';
+import { Body, Button, Card, Field, Segmented } from '@/components/ui';
+import { parseIndex } from '@/lib/format';
+import { ensureSession, restoreMe, saveMyProfile, signIn, signUp } from '@/sync/auth';
+import { newId, useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 
 type Mode = 'choose' | 'signIn' | 'signUp';
@@ -19,6 +20,11 @@ export default function Welcome() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [index, setIndex] = useState('');
+  const [gender, setGender] = useState<'M' | 'F'>('M');
+  const upsertPlayer = useStore((s) => s.upsertPlayer);
+  const setMyPlayer = useStore((s) => s.setMyPlayer);
+  const parsedIndex = index.trim() ? parseIndex(index) : null;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -76,21 +82,35 @@ export default function Welcome() {
         {mode !== 'choose' && (
           <Card style={{ marginTop: 'auto', borderRadius: radius.lg }}>
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>{mode === 'signIn' ? 'Welcome back' : 'Create your account'}</Text>
-            {mode === 'signUp' && <Field label="Your name" value={name} onChangeText={setName} placeholder="Mike" autoCapitalize="words" />}
+            {mode === 'signUp' && (
+              <>
+                <Field label="Your name" value={name} onChangeText={setName} placeholder="Mike" autoCapitalize="words" />
+                <Field label="Handicap index (optional)" value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
+                <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
+              </>
+            )}
             <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 6 characters" secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
               title={busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-              disabled={busy || !email.includes('@') || password.length < 6 || (mode === 'signUp' && !name.trim())}
+              disabled={busy || !email.includes('@') || password.length < 6 || (mode === 'signUp' && (!name.trim() || (index.trim() !== '' && parsedIndex === null)))}
               onPress={() =>
                 run(async () => {
                   if (mode === 'signIn') {
                     await signIn(email.trim(), password);
+                    await restoreMe();
                     return done();
                   }
-                  const { needsConfirmation } = await signUp(email.trim(), password, name);
-                  if (!needsConfirmation) return done();
+                  const { needsConfirmation, userId } = await signUp(email.trim(), password, name);
+                  // Create "Me" right away (using my account id so it matches on every phone).
+                  const me = { id: userId ?? newId(), name: name.trim(), handicapIndex: parsedIndex ?? 0, gender };
+                  upsertPlayer(me);
+                  setMyPlayer(me.id);
+                  if (!needsConfirmation) {
+                    await saveMyProfile(me);
+                    return done();
+                  }
                   setMessage({ text: 'Check your email and tap the confirmation link, then come back and sign in.' });
                   setMode('signIn');
                 })

@@ -9,6 +9,7 @@ import { Body, Card, H2, Label } from '@/components/ui';
 import { gameName } from '@/lib/games';
 import { headline } from '@/lib/headline';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
+import { useMe } from '@/lib/me';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -49,7 +50,8 @@ export default function Home() {
   const live = active[0];
   const liveResult = live ? evaluate(live)[0] : undefined;
   const liveHead = live && liveResult && isResult(liveResult) ? headline(liveResult, live.players) : null;
-  const firstName = me && names[me] ? names[me].split(' ')[0] : null;
+  const { me: myPlayer } = useMe();
+  const firstName = myPlayer ? myPlayer.name.split(' ')[0] : me && names[me] ? names[me].split(' ')[0] : null;
 
   return (
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: space.xl }}>
@@ -91,7 +93,7 @@ export default function Home() {
           <Tile primary title="New Round" sub="Pick a course, players and games" icon={glyph('+', '#fff')} onPress={() => router.push('/new-round')} />
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
           <Tile title="Join with Code" sub="Follow live or keep score" icon={glyph('#', c.primary)} onPress={() => router.push('/join')} />
-          <Tile title="Players" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/players')} />
+          <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/players')} />
         </View>
 
         {events.length > 0 && (

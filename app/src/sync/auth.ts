@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 
-import { useStore } from '@/store/store';
+import { useStore, type SavedPlayer } from '@/store/store';
 import { supabase } from './supabase';
 
 /** Make sure we have a session; guests get an anonymous one (no email needed). */
@@ -17,7 +17,35 @@ export async function signUp(email: string, password: string, name: string) {
   const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
   if (error) throw new Error(error.message);
   if (data.session) await saveProfileName(name);
-  return { needsConfirmation: !data.session };
+  return { needsConfirmation: !data.session, userId: data.user?.id ?? null };
+}
+
+/** Save my player (name, index, tees) to my account so it follows me to other phones. */
+export async function saveMyProfile(p: SavedPlayer) {
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
+  if (!user || user.is_anonymous) return;
+  await supabase.from('profiles').upsert({ id: user.id, display_name: p.name, handicap_index: p.handicapIndex, gender: p.gender });
+  useStore.getState().setName(user.id, p.name);
+}
+
+/** After signing in on a phone that doesn't know me yet, rebuild my player from my account. */
+export async function restoreMe() {
+  const st = useStore.getState();
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
+  if (!user || user.is_anonymous) return;
+  const local = st.players.find((p) => p.id === st.myPlayerId);
+  if (local) {
+    // Already know who I am on this phone: make sure my account has the latest.
+    await saveMyProfile(local);
+    return;
+  }
+  const { data: profile } = await supabase.from('profiles').select('display_name, handicap_index, gender').eq('id', user.id).maybeSingle();
+  const name = profile?.display_name ?? (user.user_metadata?.name as string | undefined);
+  if (!name) return;
+  st.upsertPlayer({ id: user.id, name, handicapIndex: Number(profile?.handicap_index ?? 0), gender: (profile?.gender as 'M' | 'F') ?? 'M' });
+  st.setMyPlayer(user.id);
 }
 
 export async function signIn(email: string, password: string) {

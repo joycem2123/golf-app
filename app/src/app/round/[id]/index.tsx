@@ -6,7 +6,9 @@ import { useState } from 'react';
 
 import { GameSummaryCard } from '@/components/game-summary';
 import { ScorecardGrid } from '@/components/scorecard-grid';
+import { IdentityCard, MeBadge } from '@/components/people';
 import { ShareCard } from '@/components/share-card';
+import { useMe } from '@/lib/me';
 import { StatusBanner } from '@/components/status-banner';
 import { Body, Button, Card, Chip, H2, Label, Segmented, Stepper, styles } from '@/components/ui';
 import { gameName } from '@/lib/games';
@@ -45,6 +47,7 @@ function ScoreRow({
   const set = (v: number) => setScore(r.id, k.key, hole, Math.max(1, Math.min(15, v)));
   const setStat = (patch: object) => setStats(r.id, k.key, hole, { ...(stats ?? {}), ...patch });
   const fairways: [FairwayResult, string][] = [['left', '←'], ['hit', 'Hit'], ['right', '→']];
+  const { isMe } = useMe();
   const readOnly = r.remote?.role === 'viewer';
 
   const Wrapper = teamColor ? View : Card;
@@ -54,6 +57,7 @@ function ScoreRow({
         <View style={{ flex: 1 }}>
           <View style={styles.row}>
             <H2>{k.label}</H2>
+            {!k.isTeam && isMe(k.key) ? <MeBadge small /> : null}
             {counts && teamColor ? (
               <View style={{ backgroundColor: teamColor, borderRadius: 3, paddingHorizontal: 6, paddingVertical: 2 }}>
                 <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>COUNTS</Text>
@@ -282,6 +286,8 @@ export default function Scorecard() {
           value={view}
           onChange={setView}
         />
+
+        {r.remote && r.remote.role !== 'owner' && <IdentityCard scopeKey={r.id} candidates={r.players} />}
 
         {r.notices.length > 0 && (
           <Card style={{ borderColor: c.accent, borderWidth: 2 }}>

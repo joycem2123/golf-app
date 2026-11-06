@@ -6,6 +6,7 @@ import { ScrollView, View } from 'react-native';
 import { PlayerForm } from '@/components/player-form';
 import { Body, Button, Card, Chip, Field, H2, Label, OptionRow, Segmented, Stepper, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
+import { meFirst, useMe } from '@/lib/me';
 import { newId, useStore, type EventRecord, type EventType } from '@/store/store';
 import { space, useColors } from '@/theme';
 
@@ -23,8 +24,9 @@ export default function NewEvent() {
 
   const [type, setType] = useState<EventType>('trip');
   const [name, setName] = useState('');
-  const [ids, setIds] = useState<string[]>([]);
-  const [teamOf, setTeamOf] = useState<Record<string, 'A' | 'B'>>({});
+  const { me, isMe } = useMe();
+  const [ids, setIds] = useState<string[]>(me ? [me.id] : []);
+  const [teamOf, setTeamOf] = useState<Record<string, 'A' | 'B'>>(me ? { [me.id]: 'A' } : {});
   const [teamNames, setTeamNames] = useState({ A: 'Team A', B: 'Team B' });
   const [holder, setHolder] = useState<'none' | 'A' | 'B'>('none');
   const [lock, setLock] = useState(true);
@@ -77,8 +79,8 @@ export default function NewEvent() {
       <Card>
         <H2>Players</H2>
         <View style={styles.wrap}>
-          {saved.map((p) => (
-            <Chip key={p.id} label={`${p.name} ${formatIndex(p.handicapIndex)}`} selected={ids.includes(p.id)} onPress={() => toggle(p.id)} />
+          {meFirst(saved, isMe).map((p) => (
+            <Chip key={p.id} label={`${p.name}${isMe(p.id) ? ' (Me)' : ''} ${formatIndex(p.handicapIndex)}`} selected={ids.includes(p.id)} onPress={() => toggle(p.id)} />
           ))}
         </View>
         {adding ? (
