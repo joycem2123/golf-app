@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head>
+<head><script>/* Login links that fall back to the home page go to the right page. */(function(){var h=location.hash.slice(1),q=new URLSearchParams(h);if(q.get('type')==='recovery')location.replace('reset.html#'+h);else if(q.get('access_token')||q.get('error_description'))location.replace('confirmed.html#'+h);})();</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Clutch Up Golf · Golf matches & rivalries with your friends</title>
