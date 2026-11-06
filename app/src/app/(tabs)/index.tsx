@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -17,7 +18,7 @@ import { useMe } from '@/lib/me';
 import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
-import { Tip } from '@/components/tip';
+import { Tip, type TipTarget } from '@/components/tip';
 
 function greeting() {
   const h = new Date().getHours();
@@ -60,6 +61,8 @@ export default function Home() {
   const requestCount = incoming.length;
   const requestName = incoming[0]?.display_name || incoming[0]?.username || 'Someone';
   const { deleteRound, deleteEvent, bar } = useDeleteWithUndo();
+  const liveRef: TipTarget = useRef(null);
+  const firstOpenRef: TipTarget = useRef(null);
   const firstName = myPlayer ? myPlayer.name.split(' ')[0] : me && names[me] ? names[me].split(' ')[0] : null;
 
   return (
@@ -80,7 +83,7 @@ export default function Home() {
 
       {/* Live round, overlapping the banner */}
       {live && (
-        <View style={{ marginHorizontal: space.lg, marginTop: -56 }}>
+        <View ref={liveRef} collapsable={false} style={{ marginHorizontal: space.lg, marginTop: -56 }}>
         <SwipeToDelete label="round" onDelete={() => deleteRound(live.id)} disabled={!canDeleteRound(live)}>
         <GHPressable onPress={() => router.push(`/round/${live.id}`)}>
           <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
@@ -122,7 +125,7 @@ export default function Home() {
           <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
         </View>
 
-        <GameSections skipRoundId={live?.id} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} />
+        <GameSections skipRoundId={live?.id} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} firstOpenRef={firstOpenRef} />
 
         {rounds.length === 0 && events.length === 0 && (
           <Card>
@@ -134,10 +137,10 @@ export default function Home() {
     </ScrollView>
     <Tip
       id="home-swipe"
-      tabScreen
       when={rounds.length + events.length > 0}
-      title="Managing your rounds"
-      lines={['Swipe left on a round or event to delete it. You’ll have a few seconds to undo.', 'Tap a round to jump back into scoring or see its results.']}
+      target={live && canDeleteRound(live) ? liveRef : firstOpenRef}
+      title="Swipe left to delete"
+      lines={['Slide a live or upcoming card to the left to delete it. You’ll have a few seconds to undo.']}
     />
     {bar}
     </View>

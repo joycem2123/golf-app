@@ -6,6 +6,7 @@ import { useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 import { EventCard, RoundCard } from './cards';
 import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
+import type { TipTarget } from './tip';
 import { Body, Label } from './ui';
 
 function Tag({ text, tone }: { text: string; tone: 'live' | 'upcoming' | 'final' }) {
@@ -27,6 +28,7 @@ export function GameSections({
   hideEventRounds,
   onDeleteRound,
   onDeleteEvent,
+  firstOpenRef,
 }: {
   /** A round already shown elsewhere on the screen (Home's live card). */
   skipRoundId?: string;
@@ -35,6 +37,8 @@ export function GameSections({
   hideEventRounds?: boolean;
   onDeleteRound: (id: string) => void;
   onDeleteEvent: (id: string) => void;
+  /** Attached to the first live/upcoming card (Home's tip points at it). */
+  firstOpenRef?: TipTarget;
 }) {
   const c = useColors();
   const rounds = useStore((s) => s.rounds);
@@ -101,7 +105,7 @@ export function GameSections({
       {open.length > 0 && (
         <View style={{ gap: space.sm }}>
           <Label>Live & upcoming</Label>
-          {open.map((i) => i.node)}
+          {open.map((i, n) => (n === 0 && firstOpenRef ? <View key={i.key} ref={firstOpenRef} collapsable={false}>{i.node}</View> : i.node))}
           <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Swipe a live or upcoming card left to delete it.</Text>
         </View>
       )}
