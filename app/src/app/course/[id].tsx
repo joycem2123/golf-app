@@ -3,7 +3,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
-import { Body, Button, Card, H2, Label, Segmented } from '@/components/ui';
+import { Sheet } from '@/components/round-setup';
+import { Body, Button, Card, Field, H2, Label, Segmented } from '@/components/ui';
 import { getCourse, originalCourse } from '@/lib/courses';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -45,13 +46,19 @@ export default function CourseEditor() {
   const [draft, setDraft] = useState<Course | null>(() => (current ? clone(current) : null));
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const [teeId, setTeeId] = useState<string | null>(null);
+  // Adding a tee: name, rating and slope; holes are copied from an existing tee.
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newRating, setNewRating] = useState<number | undefined>();
+  const [newSlope, setNewSlope] = useState<number | undefined>();
+  const [copyFrom, setCopyFrom] = useState<string | null>(null);
   if (!current || !draft) return <Body>Course not found.</Body>;
 
   const tees = draft.tees.filter((t) => (t.gender ?? 'M') === gender);
   const tee = tees.find((t) => t.id === teeId) ?? tees[0];
-  const genders = (['M', 'F'] as const).filter((g) => draft.tees.some((t) => (t.gender ?? 'M') === g));
+  const genders = ['M', 'F'] as const;
 
-  const updateTee = (fn: (t: Tee) => Tee) => setDraft((d) => (d ? { ...d, tees: d.tees.map((t) => (t.id === tee.id ? fn(t) : t)) } : d));
+  const updateTee = (fn: (t: Tee) => Tee) => setDraft((d) => (d && tee ? { ...d, tees: d.tees.map((t) => (t.id === tee.id ? fn(t) : t)) } : d));
   const setHole = (i: number, patch: Partial<Tee['holes'][number]>) =>
     updateTee((t) => {
       const holes = t.holes.map((h, k) => (k === i ? { ...h, ...patch } : h));
@@ -70,6 +77,38 @@ export default function CourseEditor() {
           }
         : d,
     );
+
+  const original = originalCourse(id);
+  const isCustom = (t: Tee) => !original?.tees.some((o) => o.id === t.id);
+  const nameTaken = tees.some((t) => t.name.trim().toLowerCase() === newName.trim().toLowerCase());
+  const addProblem = !newName.trim()
+    ? 'Give the tee a name'
+    : nameTaken
+      ? `There’s already a ${newName.trim()} tee`
+      : !newRating || newRating < 50 || newRating > 85
+        ? 'Enter the course rating (e.g. 72.4)'
+        : !newSlope || newSlope < 55 || newSlope > 155
+          ? 'Enter the slope (55 to 155)'
+          : null;
+  const addTee = () => {
+    if (addProblem) return;
+    // No tees for this gender yet: copy the holes from any tee (pars and handicaps can then be changed).
+    const from = tees.find((t) => t.id === copyFrom) ?? tees[0] ?? draft.tees[0];
+    const slug = newName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const tid = `${draft.id}-${slug}-${gender.toLowerCase()}-${Date.now().toString(36)}`;
+    const t: Tee = { id: tid, name: newName.trim(), gender, courseRating: newRating!, slope: newSlope!, par: from.par, holes: from.holes.map((h) => ({ ...h })) };
+    setDraft((d) => (d ? { ...d, tees: [...d.tees, t] } : d));
+    setTeeId(tid);
+    setAdding(false);
+    setNewName('');
+    setNewRating(undefined);
+    setNewSlope(undefined);
+  };
+  const removeTee = () =>
+    Alert.alert(`Remove the ${tee.name} tee?`, 'Rounds already played on it are not affected.', [
+      { text: 'Cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => { setDraft((d) => (d ? { ...d, tees: d.tees.filter((t) => t.id !== tee.id) } : d)); setTeeId(null); } },
+    ]);
 
   const problems = draft.tees.flatMap((t) => validateTee(t).map((p) => `${t.gender === 'F' ? 'Ladies' : 'Men'} · ${p}`));
   const changed = JSON.stringify(draft) !== JSON.stringify(current);
@@ -96,14 +135,14 @@ export default function CourseEditor() {
   const head = (t: string, w?: number) => <Text style={{ width: w, flex: w ? undefined : 1, textAlign: 'center', color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{t}</Text>;
   // Hole handicaps used twice (or out of range) are outlined in red.
   const siCount = new Map<number, number>();
-  for (const h of tee.holes) siCount.set(h.strokeIndex, (siCount.get(h.strokeIndex) ?? 0) + 1);
-  const badSi = (si: number) => (siCount.get(si) ?? 0) > 1 || si < 1 || si > tee.holes.length;
-  const missing = Array.from({ length: tee.holes.length }, (_, i) => i + 1).filter((n) => !siCount.has(n));
+  for (const h of tee?.holes ?? []) siCount.set(h.strokeIndex, (siCount.get(h.strokeIndex) ?? 0) + 1);
+  const badSi = (si: number) => (siCount.get(si) ?? 0) > 1 || si < 1 || si > (tee?.holes.length ?? 18);
+  const missing = Array.from({ length: tee?.holes.length ?? 0 }, (_, i) => i + 1).filter((n) => !siCount.has(n));
   /** Plain-English versions of the checks. */
   const friendly = (p: string) =>
-    p.replace(`${tee.name}: `, '').startsWith('stroke indexes')
-      ? `Hole handicaps: each number from 1 to ${tee.holes.length} must be used once.${missing.length ? ` Missing: ${missing.join(', ')}.` : ''}`
-      : p.replace(`${tee.name}: `, '').replace(/^\w/, (x) => x.toUpperCase());
+    p.replace(`${tee?.name}: `, '').startsWith('stroke indexes')
+      ? `Hole handicaps: each number from 1 to ${tee?.holes.length} must be used once.${missing.length ? ` Missing: ${missing.join(', ')}.` : ''}`
+      : p.replace(`${tee?.name}: `, '').replace(/^\w/, (x) => x.toUpperCase());
   const nine = (from: number) => {
     const holes = tee.holes.slice(from, from + 9);
     return (
@@ -141,7 +180,7 @@ export default function CourseEditor() {
     );
   };
 
-  const teeProblems = validateTee(tee);
+  const teeProblems = tee ? validateTee(tee) : [];
   return (
     <>
       <Stack.Screen options={{ title: draft.name.split(' – ')[1] ?? draft.name.replace(/ (Golf )?(& )?Country Club$/, '') }} />
@@ -151,7 +190,7 @@ export default function CourseEditor() {
           <Text style={{ color: c.muted }}>{[draft.city, draft.region].filter(Boolean).join(', ')}{edited ? ' · edited' : ''}</Text>
         </View>
 
-        {genders.length > 1 && (
+        {(
           <Segmented options={genders.map((g) => ({ value: g, label: g === 'M' ? 'Men’s tees' : 'Ladies’ tees' }))} value={gender} onChange={(g) => { setGender(g); setTeeId(null); }} />
         )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
@@ -161,14 +200,34 @@ export default function CourseEditor() {
             return (
               <Pressable key={t.id} onPress={() => setTeeId(t.id)} accessibilityRole="tab" accessibilityState={{ selected: sel }}
                 style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, borderColor: bad ? c.danger : sel ? c.primary : c.border, backgroundColor: sel ? c.primary : c.card }}>
-                <Text style={{ color: sel ? c.onPrimary : c.text, fontWeight: '700' }}>{t.name}</Text>
+                <Text style={{ color: sel ? c.onPrimary : c.text, fontWeight: '700' }}>{t.name}{isCustom(t) ? ' ·new' : ''}</Text>
               </Pressable>
             );
           })}
+          <Pressable
+            onPress={() => { setCopyFrom(tee?.id ?? null); setAdding(true); }}
+            accessibilityRole="button"
+            accessibilityLabel="Add a tee"
+            style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.primary }}>
+            <Text style={{ color: c.primary, fontWeight: '700' }}>+ Add tee</Text>
+          </Pressable>
         </ScrollView>
 
+        {!tee && (
+          <Card>
+            <Body muted>No {gender === 'M' ? 'men’s' : 'ladies’'} tees yet. Tap “+ Add tee” to add one.</Body>
+          </Card>
+        )}
+        {tee && <>
         <Card>
-          <H2>{tee.name} tees · {gender === 'M' ? 'Men' : 'Ladies'}</H2>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <H2>{tee.name} tees · {gender === 'M' ? 'Men' : 'Ladies'}</H2>
+            {isCustom(tee) && (
+              <Pressable onPress={removeTee} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove the ${tee.name} tee`}>
+                <Text style={{ color: c.danger, fontWeight: '700' }}>Remove</Text>
+              </Pressable>
+            )}
+          </View>
           <View style={{ flexDirection: 'row', gap: space.md }}>
             <View style={{ flex: 1, gap: 4 }}>
               <Label>Course rating</Label>
@@ -206,10 +265,46 @@ export default function CourseEditor() {
           )}
         </Card>
 
+        </>}
+
         <Button title={changed ? 'Save changes' : 'No changes yet'} disabled={!changed} onPress={save} />
         {edited && <Button title="Reset to the original scorecard" kind="ghost" onPress={reset} />}
         <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>New rounds use your changes. Rounds already played keep the numbers they were played with.</Text>
       </ScrollView>
+
+      <Sheet visible={adding} onClose={() => setAdding(false)} title={`New ${gender === 'M' ? 'men’s' : 'ladies’'} tee`}>
+        <View style={{ gap: space.md }}>
+          <Field label="Tee name" value={newName} onChangeText={setNewName} placeholder="Black" autoFocus />
+          <View style={{ flexDirection: 'row', gap: space.md }}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Label>Course rating</Label>
+              <NumField label="New tee course rating" decimal value={newRating} width={110} onChange={setNewRating} />
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Label>Slope</Label>
+              <NumField label="New tee slope" value={newSlope} width={110} onChange={setNewSlope} />
+            </View>
+          </View>
+          {tees.length > 0 && (
+            <View style={{ gap: 6 }}>
+              <Label>Copy pars, hole handicaps and yards from</Label>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {tees.map((t) => {
+                  const on = (copyFrom ?? tees[0].id) === t.id;
+                  return (
+                    <Pressable key={t.id} onPress={() => setCopyFrom(t.id)} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: on ? c.primary : c.chip }}>
+                      <Text style={{ color: on ? c.onPrimary : c.text, fontWeight: '700' }}>{t.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={{ color: c.muted, fontSize: 12 }}>You can change any hole after adding the tee.</Text>
+            </View>
+          )}
+          {newName ? <Text style={{ color: addProblem ? c.danger : c.muted, fontSize: 13 }}>{addProblem ?? 'Ready to add.'}</Text> : null}
+          <Button title="Add tee" disabled={!!addProblem} onPress={addTee} />
+        </View>
+      </Sheet>
     </>
   );
 }

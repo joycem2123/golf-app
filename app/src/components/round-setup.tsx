@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatIndex } from '@/lib/format';
@@ -202,6 +202,8 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      {/* Lifts the sheet above the keyboard when it has text boxes. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={{ flex: 1, backgroundColor: '#00000055' }} onPress={onClose} accessibilityLabel="Close" />
       <View style={{ maxHeight: '82%', backgroundColor: c.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: insets.bottom + space.md }}>
         <View style={{ alignItems: 'center', paddingTop: space.sm }}>
@@ -213,8 +215,9 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
             <Text style={{ color: c.primary, fontSize: 16, fontWeight: '700' }}>Done</Text>
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.lg }}>{children}</ScrollView>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: space.lg }}>{children}</ScrollView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
