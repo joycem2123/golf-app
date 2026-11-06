@@ -49,6 +49,7 @@ Clutch Up Golf is for friendly games. Points have no cash value.
 golf,scorecard,match play,nassau,skins,scramble,ryder cup,handicap,golf games,leaderboard,best ball
 
 ## URLs
+- Support email: support@clutchupgolf.com
 - Support URL: https://joycem2123.github.io/golf-app/   (after GitHub Pages is turned on)
 - Privacy Policy URL: https://joycem2123.github.io/golf-app/privacy.html
 - Marketing URL (optional): your website, if you get one (e.g. clutchupgolf.com)
@@ -84,7 +85,7 @@ Does the app collect data? **Yes.** Used for tracking? **No.** All data below is
 Clutch Up Golf scores friendly golf games between friends. To try it: sign in with the demo account, open the live round on Home to see live scoring, or start a New Round (Willow Park) with the demo friends. Account deletion: More → Account information → Delete my account. Report/Block: Friends tab → ⋯ next to a friend. Game "points" have no monetary value; the app has no betting or payments. Scorecard scanning uses the camera only when the user taps "Scan the scorecard".
 
 ## Before submitting
-- [ ] Replace CONTACT_EMAIL in docs/index.html, privacy.html and terms.html with your support email, then turn on GitHub Pages
+- [x] Support email on the pages; GitHub Pages turned on
 - [ ] Supabase: SMTP email provider set up; Site URL changed from localhost; Pro plan
 - [ ] Screenshots: 6.9" iPhone (1320×2868) — at least 3 (Home, live scoring, results)
 - [ ] Demo account created and filled with sample data
