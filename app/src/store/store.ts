@@ -358,7 +358,16 @@ export const useStore = create<State>()(
           rounds: s.rounds.map((r) => (roundIds.includes(r.id) ? { ...r, eventId: e.id } : r)),
         })),
       deleteRound: (id) =>
-        set((s) => ({ rounds: s.rounds.filter((r) => r.id !== id), history: s.history.filter((m) => m.eventId !== id) })),
+        set((s) => ({
+          rounds: s.rounds.filter((r) => r.id !== id),
+          history: s.history.filter((m) => m.eventId !== id),
+          events: s.events.map((e) =>
+            e.schedule?.some((m) => m.roundId === id) ? { ...e, schedule: e.schedule.map((m) => (m.roundId === id ? { ...m, roundId: undefined } : m)) } : e,
+          ),
+          dirtyEvents: s.events.some((e) => e.remote && e.remote.role !== 'viewer' && e.schedule?.some((m) => m.roundId === id) && !s.dirtyEvents.includes(e.id))
+            ? [...s.dirtyEvents, ...s.events.filter((e) => e.schedule?.some((m) => m.roundId === id)).map((e) => e.id)]
+            : s.dirtyEvents,
+        })),
 
       setScore: (roundId, key, hole, gross) =>
         set((s) => {

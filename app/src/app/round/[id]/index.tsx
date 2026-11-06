@@ -6,7 +6,10 @@ import { useState } from 'react';
 
 import { GameSummaryCard } from '@/components/game-summary';
 import { ScorecardGrid } from '@/components/scorecard-grid';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { IdentityCard, MeBadge } from '@/components/people';
+import { canDeleteRound } from '@/components/swipe-to-delete';
+import { supabase } from '@/sync/supabase';
 import { ShareCard } from '@/components/share-card';
 import { useMe } from '@/lib/me';
 import { StatusBanner } from '@/components/status-banner';
@@ -243,6 +246,8 @@ export default function Scorecard() {
   const names = useStore((s) => s.names);
   const me = useStore((s) => s.me);
   const [view, setView] = useState<'hole' | 'card'>('hole');
+  const [quitting, setQuitting] = useState(false);
+  const deleteRound = useStore((s) => s.deleteRound);
 
   if (!r) return <Body>Round not found.</Body>;
 
@@ -359,6 +364,27 @@ export default function Scorecard() {
 
         <ShareCard remote={r.remote} what="round" onShare={() => shareRound(r.id)} />
         {r.remote?.role !== 'viewer' && <Button title="Finish round" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />}
+        {r.remote?.role !== 'viewer' && canDeleteRound(r) && (
+          <Button title={r.remote && r.remote.role !== 'owner' ? 'Leave round' : 'Quit round'} kind="ghost" onPress={() => setQuitting(true)} />
+        )}
+        <ConfirmDialog
+          visible={quitting}
+          title={r.remote && r.remote.role !== 'owner' ? 'Leave this round?' : 'Quit this round?'}
+          message={
+            r.remote && r.remote.role !== 'owner'
+              ? 'It will be removed from your phone. The rest of the group can keep playing.'
+              : `The round and the scores entered so far will be deleted${r.remote ? ' for everyone in the group' : ''}. This can’t be undone.`
+          }
+          cancelLabel="Keep playing"
+          confirmLabel={r.remote && r.remote.role !== 'owner' ? 'Leave round' : 'Quit round'}
+          onCancel={() => setQuitting(false)}
+          onConfirm={() => {
+            setQuitting(false);
+            if (r.remote?.role === 'owner') void supabase.from('rounds').delete().eq('id', r.id);
+            router.dismissTo('/');
+            deleteRound(r.id);
+          }}
+        />
       </ScrollView>
     </>
   );
