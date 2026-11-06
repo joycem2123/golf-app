@@ -7,13 +7,16 @@ import { captureRef } from 'react-native-view-shot';
 
 import { Confetti } from '@/components/confetti';
 import { GameSummaryCard } from '@/components/game-summary';
+import { MatchStory, SideRow } from '@/components/match-result';
 import { MeBadge } from '@/components/people';
 import { Mark } from '@/components/scorecard-grid';
-import { Body, Button, Card, H2, Label } from '@/components/ui';
+import { Body, Button, Card, H2, Label, Segmented } from '@/components/ui';
 import { toPar } from '@/lib/format';
-import { gameName, teamIdName } from '@/lib/games';
+import { gameName, matchLabel, teamIdName } from '@/lib/games';
 import { useMe } from '@/lib/me';
-import { matchOutcomes, teamTotals, type MatchOutcome, type ResultSide } from '@/lib/results';
+import { matchOutcomes, teamTotals, type MatchOutcome } from '@/lib/results';
+import { storyHoles } from '@/lib/story';
+import { teamGroups, teamHole } from '@/lib/teams';
 import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor } from '@/lib/round';
 import { useRound, useStore } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
@@ -33,6 +36,7 @@ export default function Results() {
   const shot = useRef<ComponentRef<typeof View>>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [scoreView, setScoreView] = useState<'players' | 'teams'>('players');
   if (!r) return <Body>Round not found.</Body>;
 
   const results = evaluate(r);
@@ -79,27 +83,41 @@ export default function Results() {
     sub = myWins.length > 1 ? `You won ${myWins.length} matches.` : 'Nicely played.';
   }
 
+  type Row = { k: { key: string; label: string; isTeam: boolean }; tee: ReturnType<typeof teeFor>; g: (h: number) => number | null; out: number | null; inn: number | null; tot: number; holes: number; toPar: number; letter?: string; sub?: string };
+  const makeRow = (k: Row['k'], g: Row['g'], tee: Row['tee'], letter?: string, sub?: string): Row => {
+    const sum = (holes: number[]) => holes.reduce((s, h) => s + (g(h) ?? 0), 0);
+    const played = [...FRONT, ...BACK].filter((h) => g(h) !== null);
+    const par = played.reduce((s, h) => s + tee.holes[h - 1].par, 0);
+    return {
+      k, tee, g, letter, sub,
+      out: FRONT.some((h) => g(h) !== null) ? sum(FRONT) : null,
+      inn: BACK.some((h) => g(h) !== null) ? sum(BACK) : null,
+      tot: sum(played),
+      holes: played.length,
+      toPar: sum(played) - par,
+    };
+  };
   const rows = scoreKeys(r)
-    .map((k) => {
-      const tee = teeFor(r, k.members[0]);
-      const g = (h: number) => grossAt(r, k.key, h);
-      const sum = (holes: number[]) => holes.reduce((s, h) => s + (g(h) ?? 0), 0);
-      const played = [...FRONT, ...BACK].filter((h) => g(h) !== null);
-      const par = played.reduce((s, h) => s + tee.holes[h - 1].par, 0);
-      return {
-        k,
-        tee,
-        g,
-        out: FRONT.some((h) => g(h) !== null) ? sum(FRONT) : null,
-        inn: BACK.some((h) => g(h) !== null) ? sum(BACK) : null,
-        tot: sum(played),
-        holes: played.length,
-        toPar: sum(played) - par,
-        letter: r.teamOf?.[k.members[0]],
-      };
-    })
+    .map((k) => makeRow(k, (h) => grossAt(r, k.key, h), teeFor(r, k.members[0]), r.teamOf?.[k.members[0]]))
     .filter((x) => x.holes > 0)
     .sort((a, b) => (a.holes === b.holes ? a.tot - b.tot : b.holes - a.holes));
+
+  // Team cards: the score that counted for each team in each team match (best ball, alternate shot, scramble…).
+  const teamRows: Row[] = [];
+  let teamNet = false;
+  r.games.forEach((g, gi) => {
+    const res = results[gi];
+    if (g.type === 'vegas' || !res || !isResult(res)) return;
+    const groups = teamGroups(r, c, gi);
+    if (!groups) return;
+    if (g.handicap?.net !== false) teamNet = true;
+    const label = matchLabel(g);
+    for (const t of groups) {
+      const firsts = t.names.split(' & ').map((n) => n.split(' ')[0]).join(' & ');
+      const row = makeRow({ key: `${gi}:${t.id}`, label: firsts, isTeam: true }, (h) => teamHole(r, res, t, h, gi).score, teeFor(r, r.players[0].id), t.label.slice(-1), label ?? undefined);
+      if (row.holes > 0) teamRows.push(row);
+    }
+  });
 
   const shareText = () => {
     const lines = [`⛳ ${celebrate && !teamWinner ? 'I won!' : headline} ${courseName} · ${date}`];
@@ -128,30 +146,6 @@ export default function Results() {
     } finally {
       setSharing(false);
     }
-  };
-
-  const sideRow = (m: MatchOutcome, s: ResultSide, which: 'a' | 'b') => {
-    const tc = teamColor(s.letter);
-    const won = m.winner === which;
-    const lost = !!m.winner && m.winner !== which && m.winner !== 'halved';
-    const me = s.members.some((x) => myIds.includes(x));
-    return (
-      <View
-        style={{
-          flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 10, paddingHorizontal: space.md, borderRadius: radius.md,
-          backgroundColor: won ? tc.color : m.winner === 'halved' ? tc.soft : c.card,
-          borderWidth: won ? 0 : 1, borderColor: c.border, borderLeftWidth: 4, borderLeftColor: tc.color,
-        }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          {teamRound && <Text style={{ color: won ? '#ffffffcc' : tc.color, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 }}>TEAM {s.letter}</Text>}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Text numberOfLines={1} style={{ flexShrink: 1, color: won ? '#fff' : lost ? c.muted : c.text, fontSize: 16, fontWeight: won ? '800' : '600' }}>{s.names}</Text>
-            {me && <MeBadge small />}
-          </View>
-        </View>
-        {won && <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>🏆 {m.detail}</Text>}
-      </View>
-    );
   };
 
   return (
@@ -223,8 +217,14 @@ export default function Results() {
                       {m.winner === 'halved' ? 'HALVED' : m.winner ? 'FINAL' : m.detail.toUpperCase()}
                     </Text>
                   </View>
-                  {sideRow(m, m.a, 'a')}
-                  {sideRow(m, m.b, 'b')}
+                  <Pressable onPress={() => router.push(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`} style={({ pressed }) => ({ gap: 6, opacity: pressed ? 0.7 : 1 })}>
+                    <SideRow m={m} s={m.a} which="a" showTeam={teamRound} me={m.a.members.some((x) => myIds.includes(x))} />
+                    <SideRow m={m} s={m.b} which="b" showTeam={teamRound} me={m.b.members.some((x) => myIds.includes(x))} />
+                    {isResult(results[m.gi] as GameResult | { error: string }) && (
+                      <MatchStory r={r} res={results[m.gi] as GameResult} m={m} holes={storyHoles(r, results[m.gi] as GameResult, m, c)} compact />
+                    )}
+                    <Text style={{ color: c.primary, fontWeight: '700', fontSize: 14, textAlign: 'right' }}>Match details & scorecard ›</Text>
+                  </Pressable>
                 </View>
               ))}
             </Card>
@@ -234,15 +234,19 @@ export default function Results() {
             <Card>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <H2>Scores</H2>
-                <Text style={{ color: c.muted, fontSize: 12 }}>Tap a player for their card</Text>
+                <Text style={{ color: c.muted, fontSize: 12 }}>Tap {scoreView === 'teams' ? 'a team' : 'a player'} for their card</Text>
               </View>
+              {teamRows.length > 0 && (
+                <Segmented options={[{ value: 'players', label: 'Players' }, { value: 'teams', label: 'Teams' }]} value={scoreView} onChange={(v) => { setScoreView(v); setOpen(null); }} />
+              )}
+              {scoreView === 'teams' && <Text style={{ color: c.muted, fontSize: 12 }}>The score that counted for each team on every hole{teamNet ? ' (net, after handicap strokes)' : ''}.</Text>}
               <View style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.border }}>
-                <Text style={{ flex: 1, color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>PLAYER</Text>
+                <Text style={{ flex: 1, color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{scoreView === 'teams' ? 'TEAM' : 'PLAYER'}</Text>
                 {['OUT', 'IN', 'TOT', '+/−'].map((h) => (
                   <Text key={h} style={{ width: h === 'TOT' ? 46 : 40, textAlign: 'center', color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{h}</Text>
                 ))}
               </View>
-              {rows.map((x) => {
+              {(scoreView === 'teams' ? teamRows : rows).map((x) => {
                 const tc = x.letter ? teamColor(x.letter) : null;
                 const isOpen = open === x.k.key;
                 return (
@@ -256,6 +260,7 @@ export default function Results() {
                         {tc && <View style={{ width: 4, height: 22, borderRadius: 2, backgroundColor: tc.color }} />}
                         <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontSize: 15, fontWeight: '600' }}>{x.k.label}</Text>
                         {!x.k.isTeam && isMe(x.k.key) && <MeBadge small />}
+                        {x.sub ? <Text numberOfLines={1} style={{ color: c.muted, fontSize: 11 }}>{x.sub}</Text> : null}
                         <Text style={{ color: c.muted, fontSize: 12 }}>{isOpen ? '▴' : '▾'}</Text>
                       </View>
                       <Text style={{ width: 40, textAlign: 'center', color: c.text, fontSize: 15 }}>{x.out ?? '–'}</Text>

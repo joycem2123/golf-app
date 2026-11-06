@@ -39,6 +39,7 @@ export default function RootLayout() {
         <Stack.Screen name="join" options={{ title: 'Join with Code', presentation: 'modal' }} />
         <Stack.Screen name="round/[id]/index" options={{ title: 'Scorecard' }} />
         <Stack.Screen name="round/[id]/results" options={{ title: 'Results' }} />
+        <Stack.Screen name="round/[id]/match/[gi]" options={{ title: "Match" }} />
       </Stack>
       <SyncProvider />
     </ThemeProvider>

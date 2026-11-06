@@ -44,6 +44,8 @@ export interface RoundRecord {
   currentHole: number;
   /** Hole each match is on, by game id (several matches play at once). */
   matchHoles?: Record<string, number>;
+  /** AI-written match stories, by game id (shared with everyone in the round). */
+  stories?: Record<string, string>;
   status: 'active' | 'complete';
   completedAt?: number;
   notices: (ScoreConflictNotice & { at: number })[];
@@ -184,6 +186,7 @@ interface State {
   setHole: (roundId: string, hole: number, gameId?: string) => void;
   updateGame: (roundId: string, index: number, game: GameConfig) => void;
   completeRound: (roundId: string, matches: RecordedMatch[]) => void;
+  setStory: (roundId: string, gameId: string, story: string) => void;
   reopenRound: (roundId: string) => void;
   dismissNotices: (roundId: string) => void;
 }
@@ -328,6 +331,7 @@ export const useStore = create<State>()(
               status: s.dirtyRounds.includes(r.id) ? r.status : round.status,
               eventId: round.eventId ?? r.eventId,
               teamOf: round.teamOf ?? r.teamOf,
+              stories: { ...round.stories, ...r.stories },
               remote: r.remote?.role === 'owner' ? r.remote : round.remote ?? r.remote,
             })),
           };
@@ -421,6 +425,12 @@ export const useStore = create<State>()(
       updateGame: (roundId, index, game) =>
         set((s) => ({
           rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, games: r.games.map((g, i) => (i === index ? game : g)) })),
+          dirtyRounds: dirty(s, roundId),
+        })),
+
+      setStory: (roundId, gameId, story) =>
+        set((s) => ({
+          rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, stories: { ...r.stories, [gameId]: story } })),
           dirtyRounds: dirty(s, roundId),
         })),
 

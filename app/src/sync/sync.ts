@@ -15,10 +15,10 @@ import { supabase } from './supabase';
 
 // ------------------------------------------------------------------ documents
 
-type RoundDoc = Pick<RoundRecord, 'createdAt' | 'courseId' | 'players' | 'games' | 'statsEnabled' | 'eventId' | 'label' | 'teamOf'>;
+type RoundDoc = Pick<RoundRecord, 'createdAt' | 'courseId' | 'players' | 'games' | 'statsEnabled' | 'eventId' | 'label' | 'teamOf' | 'stories'>;
 
 function roundDoc(r: RoundRecord): RoundDoc {
-  return { createdAt: r.createdAt, courseId: r.courseId, players: r.players, games: r.games, statsEnabled: r.statsEnabled, eventId: r.eventId, label: r.label, teamOf: r.teamOf };
+  return { createdAt: r.createdAt, courseId: r.courseId, players: r.players, games: r.games, statsEnabled: r.statsEnabled, eventId: r.eventId, label: r.label, teamOf: r.teamOf, stories: r.stories };
 }
 
 interface RoundRow {
