@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "RIVL",
+    "name": "RallyCap",
     "slug": "golf-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -38,8 +38,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "RIVL uses the camera to scan golf scorecards.",
-          "photosPermission": "RIVL reads a scorecard photo you choose to fill in the course."
+          "cameraPermission": "RallyCap uses the camera to scan golf scorecards.",
+          "photosPermission": "RallyCap reads a scorecard photo you choose to fill in the course."
         }
       ],
       [

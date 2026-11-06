@@ -79,7 +79,7 @@ export default function Welcome() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space.xl * 2, paddingBottom: insets.bottom + space.xl, paddingHorizontal: space.xl }} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'center', gap: space.md, marginBottom: space.xl * 1.5 }}>
           <LogoMark size={150} />
-          <Wordmark size={46} color="#FFFFFF" />
+          <Wordmark size={44} color="#FFFFFF" golf />
           <Text style={{ color: c.brandGold, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textAlign: 'center' }}>PLAY. COMPETE. REPEAT.</Text>
         </View>
 

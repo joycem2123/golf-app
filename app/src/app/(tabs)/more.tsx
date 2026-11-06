@@ -41,13 +41,13 @@ export default function More() {
           {signedIn ? (
             <Row title="Account information" sub={email ? `${email} · change email or password` : 'Change email or password'} href="/account" />
           ) : (
-            <Row title="Create account or sign in" sub="You’re using RIVL as a guest" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
+            <Row title="Create account or sign in" sub="You’re using RallyCap as a guest" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
           )}
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
         </Card>
         {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
-        <Body muted style={{ textAlign: 'center' }}>RIVL · preview build</Body>
+        <Body muted style={{ textAlign: 'center' }}>RallyCap · preview build</Body>
       </ScrollView>
       <ConfirmDialog
         visible={asking}

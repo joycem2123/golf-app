@@ -125,7 +125,7 @@ export default function Home() {
 
         {rounds.length === 0 && events.length === 0 && (
           <Card>
-            <H2>Welcome to RIVL</H2>
+            <H2>Welcome to RallyCap Golf</H2>
             <Body muted>Start a round to pick a course, add your group and choose your games. Scores save on your phone, even without signal.</Body>
           </Card>
         )}

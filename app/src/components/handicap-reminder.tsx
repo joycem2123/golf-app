@@ -49,7 +49,7 @@ export function HandicapReminder() {
             {asked ? `${who} asked you to update your handicap` : `Is your handicap index still ${formatIndex(me.handicapIndex)}?`}
           </Text>
           <Text style={{ color: c.muted, fontSize: 13 }}>
-            {asked ? `It’s ${formatIndex(me.handicapIndex)} on RIVL, last updated ${ago(at)}.` : `Last updated ${ago(at)}. Keep it current so matches are fair.`}
+            {asked ? `It’s ${formatIndex(me.handicapIndex)} on RallyCap, last updated ${ago(at)}.` : `Last updated ${ago(at)}. Keep it current so matches are fair.`}
           </Text>
         </View>
       </View>

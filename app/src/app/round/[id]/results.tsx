@@ -133,7 +133,7 @@ export default function Results() {
       lines.push(`${m.title}: ${m.a.names} v ${m.b.names}: ${w ? `${w} ${m.detail}` : m.detail}`);
     }
     if (rows.length) lines.push(rows.map((x) => `${x.k.label} ${x.tot}`).join(', '));
-    lines.push('Scored with RIVL');
+    lines.push('Scored with RallyCap Golf');
     return lines.join('\n');
   };
 
@@ -284,7 +284,7 @@ export default function Results() {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 4 }}>
             <LogoMark size={22} badge />
-            <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }}>SCORED WITH RIVL</Text>
+            <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }}>SCORED WITH RALLYCAP</Text>
           </View>
         </View>
 

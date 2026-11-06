@@ -21,7 +21,7 @@ export function HandicapCheck({ players }: { players: SavedPlayer[] }) {
   const [busy, setBusy] = useState<'ask' | 'refresh' | null>(null);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const signedIn = !!session?.user && !session.user.is_anonymous;
-  // Friends on RIVL whose index is more than two weeks old (only once we know when they last updated it).
+  // Friends on RallyCap whose index is more than two weeks old (only once we know when they last updated it).
   const stale = players.filter((p) => p.userId && !isMe(p.id) && !p.pending && p.handicapUpdatedAt && isStale(p.handicapUpdatedAt));
   if (!signedIn || stale.length === 0) return null;
 
