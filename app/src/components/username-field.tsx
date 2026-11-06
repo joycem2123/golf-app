@@ -13,12 +13,14 @@ export function UsernameField({
   onChange,
   onStatus,
   current,
+  onFocus,
 }: {
   value: string;
   onChange: (v: string) => void;
   onStatus: (s: UsernameStatus) => void;
   /** My existing username (always counts as available). */
   current?: string | null;
+  onFocus?: () => void;
 }) {
   const c = useColors();
   const [status, setStatus] = useState<UsernameStatus>('empty');
@@ -65,6 +67,7 @@ export function UsernameField({
           autoCapitalize="none"
           autoCorrect={false}
           accessibilityLabel="Username"
+          onFocus={onFocus}
           style={{ flex: 1, color: c.text, fontSize: 16, paddingVertical: 10, paddingHorizontal: 4 }}
         />
       </View>

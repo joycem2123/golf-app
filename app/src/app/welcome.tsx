@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogoMark, Wordmark } from '@/components/logo';
@@ -77,13 +77,65 @@ export default function Welcome() {
     }
   };
 
+  // Keep the box you're typing in, and the main button, above the keyboard.
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const scrollY = useRef(0);
+  const kbHeight = useRef(0);
+  const [kbOpen, setKbOpen] = useState(false);
+  const shortForm = mode === 'signIn' || mode === 'forgotPw';
+  const reveal = () =>
+    setTimeout(() => {
+      if (!kbHeight.current) return;
+      if (shortForm) return scrollRef.current?.scrollToEnd({ animated: true });
+      const input = TextInput.State.currentlyFocusedInput() as unknown as { measureInWindow?: (cb: (x: number, y: number, w: number, h: number) => void) => void } | null;
+      input?.measureInWindow?.((_x, y, _w, h) => {
+        const visibleBottom = Dimensions.get('window').height - (Platform.OS === 'ios' ? kbHeight.current : 0) - 24;
+        const top = insets.top + 12;
+        // Leave room under the box so its label and the next box show too.
+        if (y + h + 60 > visibleBottom) scrollRef.current?.scrollTo({ y: scrollY.current + (y + h + 60 - visibleBottom), animated: true });
+        else if (y - 28 < top) scrollRef.current?.scrollTo({ y: Math.max(0, scrollY.current - (top - (y - 28))), animated: true });
+      });
+    }, 80);
+  const revealRef = useRef(reveal);
+  revealRef.current = reveal;
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const a = Keyboard.addListener(showEvt, (e) => {
+      kbHeight.current = e.endCoordinates.height;
+      setKbOpen(true);
+      setTimeout(() => revealRef.current(), Platform.OS === 'ios' ? 250 : 50);
+    });
+    const b = Keyboard.addListener(hideEvt, () => {
+      kbHeight.current = 0;
+      setKbOpen(false);
+    });
+    return () => {
+      a.remove();
+      b.remove();
+    };
+  }, []);
+  // Switching screens with the keyboard up: show the new screen's button.
+  useEffect(() => {
+    if (kbHeight.current) revealRef.current();
+  }, [mode]);
+  const onFocus = { onFocus: reveal };
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.brand }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space.xl * 2, paddingBottom: insets.bottom + space.xl, paddingHorizontal: space.xl }} keyboardShouldPersistTaps="handled">
-        <View style={{ alignItems: 'center', gap: space.md, marginBottom: space.xl * 1.5 }}>
-          <LogoMark size={150} />
-          <Wordmark size={44} color="#FFFFFF" golf />
-          <Text style={{ color: c.brandGold, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textAlign: 'center' }}>PLAY. COMPETE. REPEAT.</Text>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.brand }} behavior={undefined}>
+      <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => (scrollY.current = e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + (kbOpen ? space.md : space.xl * 2), paddingBottom: insets.bottom + space.xl, paddingHorizontal: space.xl }}
+        keyboardShouldPersistTaps="handled">
+        {/* The logo shrinks while typing so the form fits above the keyboard. */}
+        <View style={{ alignItems: 'center', gap: kbOpen ? space.xs : space.md, marginBottom: kbOpen ? space.md : space.xl * 1.5 }}>
+          <LogoMark size={kbOpen ? 56 : 150} />
+          <Wordmark size={kbOpen ? 28 : 44} color="#FFFFFF" golf={!kbOpen} />
+          {!kbOpen && <Text style={{ color: c.brandGold, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textAlign: 'center' }}>PLAY. COMPETE. REPEAT.</Text>}
         </View>
 
         {mode === 'choose' && (
@@ -122,11 +174,11 @@ export default function Welcome() {
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>Set up your player</Text>
             <Body muted>Your username lets friends find you and add you to their rounds.</Body>
             <View style={{ flexDirection: 'row', gap: space.sm }}>
-                  <Field label="First name" value={firstName} onChangeText={setFirstName} placeholder="Joyce" autoCapitalize="words" autoComplete="given-name" />
-                  <Field label="Last name" value={lastName} onChangeText={setLastName} placeholder="Smith" autoCapitalize="words" autoComplete="family-name" />
+                  <Field label="First name" {...onFocus} value={firstName} onChangeText={setFirstName} placeholder="Joyce" autoCapitalize="words" autoComplete="given-name" />
+                  <Field label="Last name" {...onFocus} value={lastName} onChangeText={setLastName} placeholder="Smith" autoCapitalize="words" autoComplete="family-name" />
                 </View>
-            <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} />
-            <Field label="Handicap index (optional)" value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
+            <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} onFocus={reveal} />
+            <Field label="Handicap index (optional)" {...onFocus} value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
             <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
@@ -150,23 +202,23 @@ export default function Welcome() {
             {mode === 'signUp' && (
               <>
                 <View style={{ flexDirection: 'row', gap: space.sm }}>
-                  <Field label="First name" value={firstName} onChangeText={setFirstName} placeholder="Joyce" autoCapitalize="words" autoComplete="given-name" />
-                  <Field label="Last name" value={lastName} onChangeText={setLastName} placeholder="Smith" autoCapitalize="words" autoComplete="family-name" />
+                  <Field label="First name" {...onFocus} value={firstName} onChangeText={setFirstName} placeholder="Joyce" autoCapitalize="words" autoComplete="given-name" />
+                  <Field label="Last name" {...onFocus} value={lastName} onChangeText={setLastName} placeholder="Smith" autoCapitalize="words" autoComplete="family-name" />
                 </View>
-                <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} />
-                <Field label="Handicap index (optional)" value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
+                <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} onFocus={reveal} />
+                <Field label="Handicap index (optional)" {...onFocus} value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
                 <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
               </>
             )}
             {mode === 'signIn' ? (
-              <Field label="Email or username" value={email} onChangeText={setEmail} placeholder="you@example.com or username" autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" />
+              <Field label="Email or username" {...onFocus} value={email} onChangeText={setEmail} placeholder="you@example.com or username" autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" />
             ) : (
-              <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+              <Field label="Email" {...onFocus} value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             )}
-            <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'Create a strong password' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
+            <Field label="Password" {...onFocus} value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'Create a strong password' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
             {mode === 'signUp' && password.length > 0 && <PasswordChecklist password={password} />}
             {mode === 'signUp' && (
-              <Field label="Retype password" value={password2} onChangeText={setPassword2} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
+              <Field label="Retype password" {...onFocus} value={password2} onChangeText={setPassword2} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
             )}
             {mode === 'signUp' && password2.length > 0 && password2 !== password && (
               <Text style={{ color: c.danger, fontSize: 13 }}>The passwords don’t match.</Text>
@@ -216,7 +268,7 @@ export default function Welcome() {
           <Card style={{ gap: space.md }}>
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>Reset your password</Text>
             <Body>Enter the email on your account. We’ll email you a link to choose a new password.</Body>
-            <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+            <Field label="Email" {...onFocus} value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
               title={busy ? 'Please wait…' : 'Send reset link'}

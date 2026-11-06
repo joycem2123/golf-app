@@ -121,14 +121,14 @@ export async function signIn(emailOrUsername: string, password: string) {
             : 'Could not sign in. Try again.',
       );
     }
-    if (!data) throw new Error('That username and password don’t match.');
+    if (!data) throw new Error('Email/username and password don’t match.');
     email = data as string;
   }
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     throw new Error(
       /invalid login|invalid credentials/i.test(error.message)
-        ? 'That email and password don’t match.'
+        ? 'Email/username and password don’t match.'
         : /not confirmed/i.test(error.message)
           ? 'Confirm your email first: tap the link we sent you.'
           : /fetch|network/i.test(error.message)

@@ -21,7 +21,7 @@ export function H2({ children }: { children: ReactNode }) {
 
 export function Label({ children, style }: { children: ReactNode; style?: object }) {
   const c = useColors();
-  return <Text style={[styles.label, { color: c.muted }, style]}>{children}</Text>;
+  return <Text style={[styles.label, { color: c.text, opacity: 0.72 }, style]}>{children}</Text>;
 }
 
 export function Body({ children, muted, bold, style }: { children: ReactNode; muted?: boolean; bold?: boolean; style?: object }) {
