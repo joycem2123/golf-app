@@ -47,6 +47,7 @@ export default function RootLayout() {
         <Stack.Screen name="round/[id]/match/[gi]" options={{ title: "Match" }} />
         <Stack.Screen name="courses" options={{ title: "Courses" }} />
         <Stack.Screen name="account" options={{ title: "Account information" }} />
+        <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
         <Stack.Screen name="course/[id]" options={{ title: "Course" }} />
         <Stack.Screen name="course/new" options={{ title: "Add a course", presentation: "modal" }} />
       </Stack>

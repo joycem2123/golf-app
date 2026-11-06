@@ -14,8 +14,11 @@ export async function ensureSession(): Promise<Session> {
   return anon.session;
 }
 
+/** Where confirmation links land: a page that says it worked and opens the app. */
+export const AUTH_LANDING = 'https://joycem2123.github.io/golf-app/confirmed.html';
+
 export async function signUp(email: string, password: string, name: string) {
-  const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
+  const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: AUTH_LANDING } });
   if (error) throw new Error(error.message);
   if (data.session) await saveProfileName(name);
   return { needsConfirmation: !data.session, userId: data.user?.id ?? null };
@@ -156,7 +159,7 @@ async function confirmPassword(current: string) {
 /** Change my email. Supabase emails a confirmation link; the change applies once it's clicked. */
 export async function changeEmail(newEmail: string, currentPassword: string) {
   await confirmPassword(currentPassword);
-  const { error } = await supabase.auth.updateUser({ email: newEmail.trim().toLowerCase() });
+  const { error } = await supabase.auth.updateUser({ email: newEmail.trim().toLowerCase() }, { emailRedirectTo: AUTH_LANDING });
   if (error) throw new Error(friendlyAuthError(error.message));
 }
 

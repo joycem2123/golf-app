@@ -182,7 +182,7 @@ export default function Welcome() {
                     await saveMyProfile(me, username);
                     return done();
                   }
-                  setMessage({ text: 'Check your email and tap the confirmation link, then come back and sign in.' });
+                  setMessage({ text: `We sent a confirmation link to ${email.trim()}. Tap it, then come back here and sign in.` });
                   setMode('signIn');
                 })
               }

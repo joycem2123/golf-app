@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="favicon.png"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"><title>Clutch Up Golf · Email confirmed</title>
+<style>.big{font-family:Outfit,-apple-system,sans-serif;font-size:28px;margin:8px 0}.btn{display:block;text-align:center;background:#1F5A3D;color:#fff;text-decoration:none;font-weight:700;padding:15px;border-radius:10px;margin:18px 0 8px}.tick{width:64px;height:64px;border-radius:32px;background:#1F5A3D;color:#fff;font-size:34px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto}</style></head>
+<body><header><img src="logo.png" alt=""><h1>Clutch Up</h1><p>Golf</p></header>
+<main style="text-align:center">
+  <div id="ok">
+    <div class="tick">✓</div>
+    <p class="big" id="title">Email confirmed</p>
+    <p id="msg">You’re all set. Head back to Clutch Up to start playing.</p>
+    <a class="btn" id="open" href="clutchup://auth-callback">Open Clutch Up</a>
+    <p class="muted">Button doesn’t open the app? Switch back to Clutch Up (or Expo Go) yourself and sign in with your email and password.</p>
+  </div>
+  <div id="bad" style="display:none">
+    <p class="big">That link didn’t work</p>
+    <p id="err">It may have expired or already been used.</p>
+    <p class="muted">Open Clutch Up and sign in. If your email isn’t confirmed yet, try signing up again to get a new link.</p>
+  </div>
+</main>
+<script>
+  // Supabase sends people here after confirming; the sign-in details (if any) are in the part after #.
+  var hash = location.hash.slice(1), q = new URLSearchParams(hash || location.search.slice(1));
+  if (q.get('error') || q.get('error_description')) {
+    document.getElementById('ok').style.display = 'none';
+    document.getElementById('bad').style.display = 'block';
+    if (q.get('error_description')) document.getElementById('err').textContent = q.get('error_description').replace(/\+/g, ' ');
+  } else {
+    if (q.get('type') === 'email_change') { document.getElementById('title').textContent = 'Email updated'; document.getElementById('msg').textContent = 'Your new email is confirmed. Use it next time you sign in.'; }
+    // The real app picks up the sign-in from this link and signs you straight in.
+    if (hash) document.getElementById('open').href = 'clutchup://auth-callback#' + hash;
+  }
+</script>
+<footer>© 2026 Clutch Up Golf</footer></body></html>
