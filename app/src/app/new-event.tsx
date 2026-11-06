@@ -14,6 +14,7 @@ import { meFirst, useMe } from '@/lib/me';
 import { usePickBus } from '@/store/pick';
 import { newId, useStore, type EventRecord, type EventType, type SavedPlayer } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
+import { track } from '@/lib/usage';
 
 type Step = 'details' | 'players' | 'teams' | 'rounds' | 'matchups';
 type Plan = { id: string; date?: string; draft: GameDraft | null; tbd?: boolean };
@@ -203,6 +204,7 @@ export default function NewEvent() {
       rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
     };
     addEvent(e);
+    track('event_created', { type, rounds: plans.length, players: ids.length, teams: !!teams, recurring: !!(isSeason && rec) });
     // The event is saved; go to it once this screen has finished handling the tap.
     setTimeout(() => {
       try {

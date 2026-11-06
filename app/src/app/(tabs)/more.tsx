@@ -4,7 +4,8 @@ import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { TabHeader } from '@/components/tab-header';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { Body, Button, Card } from '@/components/ui';
+import { Body, Button, Card, Toggle } from '@/components/ui';
+import { useUsageSharing } from '@/lib/usage';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
 import { signOut, useSession } from '@/sync/auth';
@@ -31,6 +32,7 @@ function Row({ title, sub, href, onPress }: { title: string; sub: string; href?:
 export default function More() {
   const session = useSession();
   const [asking, setAsking] = useState(false);
+  const [sharingUsage, setSharingUsage] = useUsageSharing();
   const signedIn = !!session?.user && !session.user.is_anonymous;
   const email = session?.user?.email;
   return (
@@ -47,6 +49,9 @@ export default function More() {
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
           <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
           <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
+        </Card>
+        <Card>
+          <Toggle label="Share anonymous usage data" hint="Which features get used, never your name, email or scores. Helps us decide what to improve." value={sharingUsage} onChange={setSharingUsage} />
         </Card>
         {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
         <Body muted style={{ textAlign: 'center' }}>Clutch Up · preview build</Body>

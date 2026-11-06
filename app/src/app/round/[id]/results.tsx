@@ -22,6 +22,7 @@ import { teamGroups, teamHole } from '@/lib/teams';
 import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor } from '@/lib/round';
 import { useRound, useStore } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { track } from '@/lib/usage';
 
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BACK = [10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -140,6 +141,7 @@ export default function Results() {
   /** Share a picture of the results (falls back to text). */
   const share = async () => {
     setSharing(true);
+    track('results_shared');
     try {
       if (Platform.OS !== 'web' && (await Sharing.isAvailableAsync())) {
         const uri = await captureRef(shot, { format: 'png', quality: 1, result: 'tmpfile' });

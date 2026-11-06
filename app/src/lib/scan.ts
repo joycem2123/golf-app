@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { ensureSession } from '@/sync/auth';
 import { supabase } from '@/sync/supabase';
+import { track } from '@/lib/usage';
 
 interface ScannedCard {
   courseName: string | null;
@@ -42,6 +43,7 @@ export async function readScorecard(base64: string, hint: { id: string; name: st
     throw new Error(msg);
   }
   const card = data?.card as ScannedCard | undefined;
+  track('scorecard_scanned', { read: !!card?.tees?.length });
   if (!card?.tees?.length) throw new Error('No tees could be read from that photo. Try a clearer, straight-on photo of the whole card.');
   const used = new Set<string>();
   const tees: Tee[] = card.tees

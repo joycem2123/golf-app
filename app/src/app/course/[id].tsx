@@ -11,6 +11,7 @@ import { Body, Button, Card, Field, H2, Label, Segmented } from '@/components/ui
 import { getCourse, isAddedCourse, originalCourse } from '@/lib/courses';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
+import { track } from '@/lib/usage';
 
 /** A number box that lets you type freely ("70." on the way to "70.6") and reports valid numbers. */
 function NumField({ value, onChange, decimal, width, label, bad }: { value: number | undefined; onChange: (n: number | undefined) => void; decimal?: boolean; width: number; label: string; bad?: boolean }) {
@@ -132,6 +133,7 @@ export default function CourseEditor() {
   const save = () => {
     if (problems.length) return Alert.alert('Check the scorecard', problems.slice(0, 4).map((p) => p.replace(/stroke indexes must be [^(]*\(got[^)]*\)/, 'hole handicaps must use each number once')).join('\n'));
     saveCourse(draft, current);
+    track('course_edited');
     void resendSharedCourse(draft); // friends I've shared it with get the new version
     router.back();
   };

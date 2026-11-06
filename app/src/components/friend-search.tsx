@@ -8,6 +8,7 @@ import { respondToRequest, searchProfiles, sendFriendRequest, useFriendRequests,
 import { radius, space, useColors } from '@/theme';
 import { PlayerForm } from './player-form';
 import { Body, Button, Card } from './ui';
+import { track } from '@/lib/usage';
 
 /** Find people on Clutch Up as you type, or add someone who isn't on the app. */
 export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p: SavedPlayer) => void; onClose?: () => void; initialQuery?: string }) {
@@ -119,7 +120,7 @@ export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p:
         } else if (friend) action = <Text style={{ color: c.primary, fontWeight: '700' }}>Friend ✓</Text>;
         else if (theyAsked) action = <Button small title={acting === h.id ? '…' : 'Accept'} onPress={() => act(() => respondToRequest(theyAsked, true))} />;
         else if (requested) action = <Text style={{ color: c.muted, fontWeight: '700' }}>Requested</Text>;
-        else action = <Button small title={acting === h.id ? '…' : 'Add friend'} onPress={() => act(() => sendFriendRequest(h))} />;
+        else action = <Button small title={acting === h.id ? '…' : 'Add friend'} onPress={() => act(() => sendFriendRequest(h).then((r) => (track('friend_request_sent'), r)))} />;
 
         return (
           <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, borderTopWidth: 1, borderTopColor: c.border }}>

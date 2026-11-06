@@ -14,6 +14,7 @@ import { accountKey, GUEST_KEY, switchAccount } from '@/store/accounts';
 import { newId, useStore } from '@/store/store';
 import { supabase } from '@/sync/supabase';
 import { radius, space, useColors } from '@/theme';
+import { track } from '@/lib/usage';
 
 type Mode = 'choose' | 'signIn' | 'signUp' | 'guest' | 'forgotPw';
 
@@ -152,6 +153,7 @@ export default function Welcome() {
                   // Guests get a temporary online session so they can still join and share.
                   // If there's no signal, carry on offline.
                   const session = await ensureSession().catch(() => null);
+                  track('guest_started');
                   if (!session) return done(); // offline: set up a username later from Profile
                   if (existingMe) {
                     const [f, ...rest] = existingMe.name.split(' ');
@@ -231,6 +233,7 @@ export default function Welcome() {
                 run(async () => {
                   if (mode === 'signIn') {
                     await signIn(email.trim(), password);
+                    track('signed_in', { with: email.includes('@') && !email.trim().startsWith('@') ? 'email' : 'username' });
                     const { data } = await supabase.auth.getSession();
                     // Load only this account's data (never the previous account's).
                     await switchAccount(accountKey(data.session?.user.id));
@@ -240,6 +243,7 @@ export default function Welcome() {
                   // A guest moving to a full account hands their username over to it.
                   await releaseUsername().catch(() => undefined);
                   const { needsConfirmation, userId } = await signUp(email.trim(), password, name);
+                  track('account_created');
                   // A new account gets its own empty data. Only a guest upgrading brings their guest history along.
                   if (userId) await switchAccount(accountKey(userId), { carryFrom: GUEST_KEY });
                   // Create "Me" right away (using my account id so it matches on every phone).
@@ -276,6 +280,7 @@ export default function Welcome() {
               onPress={() =>
                 run(async () => {
                   await sendPasswordReset(email);
+                  track('password_reset_requested');
                   setMessage({ text: `If ${email.trim()} has a Clutch Up account, a reset link is on its way. Open it, choose a new password, then come back and sign in. Check your junk folder if you don’t see it.` });
                 })
               }

@@ -1,9 +1,10 @@
 import { Outfit_600SemiBold, Outfit_700Bold, useFonts } from '@expo-google-fonts/outfit';
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { useUsageTracking } from '@/lib/usage';
 import { SyncProvider } from '@/sync/sync-provider';
 import { fonts, useColors } from '@/theme';
 
@@ -14,6 +15,7 @@ export default function RootLayout() {
   // The wordmark font; keep the splash screen up until it's ready (or failed, then fall back).
   const [fontsLoaded, fontError] = useFonts({ Outfit_600SemiBold, Outfit_700Bold });
   const ready = fontsLoaded || !!fontError;
+  useUsageTracking(usePathname());
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();

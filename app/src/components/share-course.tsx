@@ -8,6 +8,7 @@ import { shareCourse } from '@/sync/courses';
 import { radius, space, useColors } from '@/theme';
 import { Sheet } from './round-setup';
 import { Body, Button } from './ui';
+import { track } from '@/lib/usage';
 
 /** Pick which friends get a course: type names, or choose all friends. */
 /** Shared empty list (a new [] in a store selector would redraw forever). */
@@ -36,6 +37,7 @@ export function ShareCourseSheet({ course, visible, onClose }: { course: Course;
     setMsg(null);
     try {
       await shareCourse(course, chosen);
+      track('course_shared', { friends: chosen.length });
       setDone({ names: online.filter((f) => chosen.includes(f.userId!)).map((f) => f.name), stopped: chosen.length === 0 });
       setPicked(null);
     } catch (e) {

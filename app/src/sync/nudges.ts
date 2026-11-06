@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 
 import { useStore } from '@/store/store';
 import { supabase } from './supabase';
+import { track } from '@/lib/usage';
 
 /** A handicap index older than this gets a reminder. */
 export const STALE_DAYS = 14;
@@ -87,6 +88,7 @@ export function watchNudges(uid: string | null) {
 export async function askToUpdate(userIds: string[]): Promise<{ sent: string[]; skipped: string[] }> {
   const { data, error } = await supabase.functions.invoke('nudge', { body: { to: userIds } });
   if (error) throw new Error('Couldn’t send. Check your connection and try again.');
+  track('handicap_nudge_sent', { friends: userIds.length });
   return data as { sent: string[]; skipped: string[] };
 }
 

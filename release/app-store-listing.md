@@ -75,7 +75,8 @@ Does the app collect data? **Yes.** Used for tracking? **No.** All data below is
 | User Content → Other User Content | Yes | Rounds, scores, handicap, courses, reports |
 | User Content → Photos | No | Scorecard photos are read in real time and not kept |
 | Location, Contacts, Health, Financial, Browsing, Search, Purchases | No | |
-| Usage Data, Diagnostics | No | No analytics or crash reporting yet |
+| Usage Data → Product Interaction | Yes | **Not linked to the user**, not used for tracking. Purpose: **Analytics**. Anonymous feature usage tied to a random install ID; can be turned off in More |
+| Diagnostics | No | No crash reporting yet |
 
 ## Sign-in information for App Review
 - Create a demo account in the app (e.g. with a "+review" email such as yourname+review@gmail.com) and tell Claude, so it can add sample rounds, an event and a friend to it.

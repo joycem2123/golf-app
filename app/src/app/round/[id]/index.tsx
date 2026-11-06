@@ -20,6 +20,7 @@ import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import { useRound, useStore, type RoundRecord } from '@/store/store';
 import { flush, shareRound } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { track } from '@/lib/usage';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -172,6 +173,7 @@ function NassauPress({ r, index, hole }: { r: RoundRecord; index: number; hole: 
   const presses = game.presses ?? [];
   const add = (seg: 'front' | 'back' | 'overall') =>
     updateGame(r.id, index, { ...game, presses: [...presses, { segment: seg, startHole: hole }] });
+    track('press_added');
   return (
     <Card>
       <H2>Nassau presses</H2>
@@ -321,6 +323,7 @@ export default function Scorecard() {
   const finish = () => {
     const go = () => {
       completeRound(r.id, recordedMatches(r, results.filter(isResult)));
+      track('round_completed', { games: r.games.map((g) => g.type).join(','), players: r.players.length, in_event: !!r.eventId });
       router.replace(`/round/${r.id}/results`);
     };
     if (allDone) return go();
@@ -463,6 +466,7 @@ export default function Scorecard() {
             router.dismissTo('/');
             // Deleted online by the sync straight away (or left, if someone else started it).
             deleteRound(r.id, { now: true });
+            track('round_deleted');
             void flush();
           }}
         />

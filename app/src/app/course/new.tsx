@@ -7,6 +7,7 @@ import { Body, Button, Card, Field, H2, Segmented } from '@/components/ui';
 import { pickScorecard, readScorecard } from '@/lib/scan';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
+import { track } from '@/lib/usage';
 
 /** Add a course: type its name, then scan the scorecard or enter it by hand. */
 export default function NewCourse() {
@@ -22,6 +23,7 @@ export default function NewCourse() {
   const id = () => `custom-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}-${Date.now().toString(36)}`;
   const open = (course: Course, notes?: string) => {
     saveCourse(course, course);
+    track('course_added', { scanned: notes !== undefined });
     router.replace({ pathname: '/course/[id]', params: { id: course.id, ...(notes !== undefined ? { scanned: '1', notes } : {}) } });
   };
 

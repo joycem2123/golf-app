@@ -17,6 +17,7 @@ import { autoShare } from '@/sync/sync';
 import { radius, space, teamColor, useColors } from '@/theme';
 import { today } from '@/lib/dates';
 import { getCourse, useCourses } from '@/lib/courses';
+import { track } from '@/lib/usage';
 
 type Step = 'course' | 'players' | 'teams' | 'game';
 
@@ -196,6 +197,7 @@ export default function NewRound() {
       teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
     };
     addRound(round);
+    track('round_created', { games: round.games.map((g) => g.type).join(','), players: players.length, teams: !!round.teamOf, stats: !!statsEnabled, in_event: !!round.eventId, side_matches: sideMatches.length });
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
     if (event && planned) setEventRoundId(event.id, planned.id, id);
     if (event && addingRound && !planned) addEventRound(event.id, { id: newId(), number: 0, date: today(), draft, roundId: id });

@@ -4,6 +4,7 @@ import { Share, Text, View } from 'react-native';
 import type { Remote } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 import { Body, Button, Card, H2, Label } from './ui';
+import { track } from '@/lib/usage';
 
 /** Shows the share code, or a button to put the round/event online. */
 export function ShareCard({ remote, what, onShare }: { remote?: Remote; what: 'round' | 'event'; onShare: () => Promise<string> }) {
@@ -34,7 +35,7 @@ export function ShareCard({ remote, what, onShare }: { remote?: Remote; what: 'r
           small
           kind="secondary"
           title="Send code"
-          onPress={() => Share.share({ message: `Join my ${what === 'event' ? 'event' : 'round'} in Clutch Up with code ${remote.shareCode}` })}
+          onPress={() => (track('share_code_shared', { what }), Share.share({ message: `Join my ${what === 'event' ? 'event' : 'round'} in Clutch Up with code ${remote.shareCode}` }))}
         />
       </Card>
     );

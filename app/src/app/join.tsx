@@ -5,6 +5,7 @@ import { ScrollView, TextInput } from 'react-native';
 import { Body, Button, Card, Field, Label, Segmented } from '@/components/ui';
 import { joinByCode } from '@/sync/sync';
 import { fonts, radius, space, useColors } from '@/theme';
+import { track } from '@/lib/usage';
 
 export default function Join() {
   const c = useColors();
@@ -20,6 +21,7 @@ export default function Join() {
     setError(null);
     try {
       const res = await joinByCode(clean, role, name);
+      track('joined_by_code', { kind: res.kind, role });
       router.replace(res.kind === 'round' ? `/round/${res.id}` : `/event/${res.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

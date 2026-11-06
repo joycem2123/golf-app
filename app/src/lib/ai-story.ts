@@ -6,6 +6,7 @@ import { shareRound } from '@/sync/sync';
 import type { MatchOutcome } from './results';
 import { courseFor } from './round';
 import type { StoryHole } from './story';
+import { track } from '@/lib/usage';
 
 const asked = new Set<string>();
 
@@ -38,6 +39,7 @@ export async function requestAiStory(r: RoundRecord, res: GameResult, m: MatchOu
     const { data, error } = await supabase.functions.invoke('match-story', { body: { roundId: r.id, facts } });
     if (error || !data?.story) return null;
     useStore.getState().setStory(r.id, gameId, data.story as string);
+    track('ai_story_generated');
     return data.story as string;
   } catch {
     return null;
