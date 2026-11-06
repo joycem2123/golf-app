@@ -57,8 +57,9 @@ function ScoreRow({
   return (
     <Wrapper style={teamColor ? { paddingVertical: space.sm, gap: space.sm } : undefined}>
       <View style={[styles.row, { justifyContent: 'space-between' }]}>
-        <View style={{ flex: 1 }}>
-          <View style={styles.row}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          {/* Badges wrap under a long name instead of running into the − / + buttons. */}
+          <View style={[styles.row, { flexWrap: 'wrap', rowGap: 4 }]}>
             <H2>{k.label}</H2>
             {!k.isTeam && isMe(k.key) ? <MeBadge small /> : null}
             {counts && teamColor ? (

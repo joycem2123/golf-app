@@ -5,6 +5,9 @@ import { headline } from '@/lib/headline';
 import { fonts, space, useColors } from '@/theme';
 
 /** The big, simple "who's winning" banner pinned to the top of the scorecard. */
+/** "Matt Joyce & Braydon Cole" → "Matt & Braydon" (team names like "Team A" stay as they are). */
+const firsts = (s: string) => (/^Team [A-Z]$/.test(s) ? s : s.split(' & ').map((n) => n.trim().split(' ')[0]).join(' & '));
+
 export function StatusBanner({
   name,
   result,
@@ -46,15 +49,15 @@ export function StatusBanner({
       {sideGames.map((g, i) => {
         if (!g.result || 'error' in g.result) return null;
         const s = headline(g.result, players);
-        const who = g.result.type === 'matchPlay' ? `${g.result.sideA.name} v ${g.result.sideB.name}` : g.name;
+        const who = g.result.type === 'matchPlay' ? `${firsts(g.result.sideA.name)} v ${firsts(g.result.sideB.name)}` : g.name;
         const label = g.result.type === 'matchPlay' && g.name === 'Side match' ? 'SIDE' : g.name.toUpperCase();
         return (
-          <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
-            <Text style={{ color: c.text, fontSize: 13 }}>
+          <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm, marginTop: 2 }}>
+            <Text numberOfLines={1} style={{ flex: 1, minWidth: 0, color: c.text, fontSize: 13 }}>
               <Text style={{ color: c.muted, fontWeight: '700', fontSize: 11, letterSpacing: 1 }}>{label}  </Text>
               {who}
             </Text>
-            <Text style={{ color: c.text, fontSize: 13, fontWeight: '700' }}>{s.leader ? `${s.leader} ${s.big}` : s.big}</Text>
+            <Text style={{ flexShrink: 0, color: c.text, fontSize: 13, fontWeight: '700' }}>{s.leader ? `${firsts(s.leader)} ${s.big}` : s.big}</Text>
           </View>
         );
       })}
