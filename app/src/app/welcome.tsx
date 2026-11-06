@@ -80,7 +80,7 @@ export default function Welcome() {
         <View style={{ alignItems: 'center', gap: space.md, marginBottom: space.xl * 1.5 }}>
           <LogoMark size={150} />
           <Wordmark size={46} color="#FFFFFF" />
-          <Text style={{ color: c.brandGold, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textAlign: 'center' }}>RIVALRIES · MATCHES · BRAGGING RIGHTS</Text>
+          <Text style={{ color: c.brandGold, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textAlign: 'center' }}>PLAY. COMPETE. REPEAT.</Text>
         </View>
 
         {mode === 'choose' && (
