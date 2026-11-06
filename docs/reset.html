@@ -1,0 +1,91 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><link rel="icon" href="favicon.png"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"><title>Clutch Up Golf · Reset password</title>
+<style>
+.big{font-family:Outfit,-apple-system,sans-serif;font-size:28px;margin:8px 0}
+.btn{display:block;width:100%;text-align:center;background:#1F5A3D;color:#fff;border:0;font:700 16px -apple-system,sans-serif;padding:15px;border-radius:10px;margin:18px 0 8px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:default}
+label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:16px 0 6px}
+.pw{position:relative}
+.pw input{width:100%;font-size:17px;padding:13px 52px 13px 14px;border:1px solid var(--line);border-radius:10px;background:#F3F0E7;color:var(--ink)}
+.eye{position:absolute;right:4px;top:4px;bottom:4px;width:44px;border:0;background:none;color:var(--muted);font-weight:600;cursor:pointer;font-size:13px}
+ul.rules{list-style:none;padding:0;margin:8px 0 0;font-size:14px;color:var(--muted)}
+ul.rules li.ok{color:#1F5A3D}
+.err{color:#A6322B;font-size:14px;margin:8px 0 0}
+.tick{width:64px;height:64px;border-radius:32px;background:#1F5A3D;color:#fff;font-size:34px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto}
+</style></head>
+<body><header><img src="logo.png" alt=""><h1>Clutch Up</h1><p>Golf</p></header>
+<main style="max-width:440px">
+  <div id="form" style="display:none">
+    <p class="big">Choose a new password</p>
+    <p class="muted" id="who"></p>
+    <label for="p1">New password</label>
+    <div class="pw"><input id="p1" type="password" autocomplete="new-password"><button class="eye" type="button" data-for="p1">Show</button></div>
+    <ul class="rules" id="rules"></ul>
+    <label for="p2">Retype new password</label>
+    <div class="pw"><input id="p2" type="password" autocomplete="new-password"><button class="eye" type="button" data-for="p2">Show</button></div>
+    <p class="err" id="match" style="display:none">The passwords don’t match.</p>
+    <p class="err" id="fail" style="display:none"></p>
+    <button class="btn" id="save" disabled>Save new password</button>
+  </div>
+  <div id="done" style="display:none;text-align:center">
+    <div class="tick">✓</div>
+    <p class="big">Password updated</p>
+    <p>Open Clutch Up and sign in with your email and new password.</p>
+  </div>
+  <div id="bad" style="display:none;text-align:center">
+    <p class="big">That link didn’t work</p>
+    <p id="err">It may have expired or already been used. Reset links work once and expire after an hour.</p>
+    <p class="muted">In Clutch Up, tap Sign in → Forgot password? to get a new link.</p>
+  </div>
+</main>
+<script src="supabase.js"></script>
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  var show = function (id) { ['form', 'done', 'bad'].forEach(function (x) { $(x).style.display = x === id ? 'block' : 'none'; }); };
+  // Same rules as the app (and the server).
+  var RULES = [
+    ['At least 8 characters', function (p) { return p.length >= 8; }],
+    ['An uppercase letter (A–Z)', function (p) { return /[A-Z]/.test(p); }],
+    ['A lowercase letter (a–z)', function (p) { return /[a-z]/.test(p); }],
+    ['A number (0–9)', function (p) { return /[0-9]/.test(p); }],
+    ['A special character (like ! @ # $ ?)', function (p) { return /[!@#$%^&*()_+\-=[\]{};'\\:"|<>?,./`~]/.test(p); }]
+  ];
+  RULES.forEach(function (r) { var li = document.createElement('li'); li.textContent = '○  ' + r[0]; $('rules').appendChild(li); });
+  function check() {
+    var p = $('p1').value, q = $('p2').value, all = true;
+    RULES.forEach(function (r, i) { var ok = r[1](p); all = all && ok; var li = $('rules').children[i]; li.className = ok ? 'ok' : ''; li.textContent = (ok ? '✓  ' : '○  ') + r[0]; });
+    $('match').style.display = q && q !== p ? 'block' : 'none';
+    $('save').disabled = !all || p !== q;
+  }
+  $('p1').oninput = check; $('p2').oninput = check;
+  document.querySelectorAll('.eye').forEach(function (b) {
+    b.onclick = function () { var i = $(b.dataset.for); var hide = i.type === 'text'; i.type = hide ? 'password' : 'text'; b.textContent = hide ? 'Show' : 'Hide'; };
+  });
+
+  var q = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
+  var sb = window.supabase.createClient('https://iuimtflswquajijwwpfp.supabase.co', 'sb_publishable_RRmHLcxdNcylmfpwLC9VwA_lYlAHF4T', { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  if (q.get('error') || q.get('error_description') || !q.get('access_token') || !q.get('refresh_token')) {
+    show('bad');
+  } else {
+    sb.auth.setSession({ access_token: q.get('access_token'), refresh_token: q.get('refresh_token') }).then(function (r) {
+      if (r.error) return show('bad');
+      // Remove the one-time sign-in details from the address bar.
+      history.replaceState(null, '', location.pathname);
+      if (r.data.user && r.data.user.email) $('who').textContent = 'For ' + r.data.user.email;
+      show('form'); $('p1').focus();
+    });
+  }
+  $('save').onclick = function () {
+    $('save').disabled = true; $('save').textContent = 'Saving…'; $('fail').style.display = 'none';
+    sb.auth.updateUser({ password: $('p1').value }).then(function (r) {
+      if (r.error) {
+        var m = r.error.message;
+        $('fail').textContent = /same|different from the old/i.test(m) ? 'Choose a password different from your old one.' : /weak|should contain|characters/i.test(m) ? 'That password doesn’t meet the rules above.' : /session|expired|jwt/i.test(m) ? 'This link has expired. Request a new one in the app.' : m;
+        $('fail').style.display = 'block'; $('save').textContent = 'Save new password'; check();
+        return;
+      }
+      sb.auth.signOut();
+      show('done');
+    });
+  };
+</script>
+<footer>© 2026 Clutch Up Golf</footer></body></html>

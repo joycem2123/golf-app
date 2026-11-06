@@ -18,6 +18,8 @@
 <script>
   // Supabase sends people here after confirming; the sign-in details (if any) are in the part after #.
   var hash = location.hash.slice(1), q = new URLSearchParams(hash || location.search.slice(1));
+  // Password reset links land here too: send them to the page where the new password is chosen.
+  if (q.get('type') === 'recovery') location.replace('reset.html#' + hash);
   if (q.get('error') || q.get('error_description')) {
     document.getElementById('ok').style.display = 'none';
     document.getElementById('bad').style.display = 'block';

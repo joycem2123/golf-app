@@ -112,6 +112,21 @@ export async function signIn(email: string, password: string) {
   if (error) throw new Error(error.message);
 }
 
+/** Email a reset link. The link opens a page on clutchupgolf.com where the new password is set. */
+export async function sendPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: AUTH_LANDING });
+  if (error && /fetch|network/i.test(error.message)) throw new Error('No connection. Try again when you have signal.');
+  if (error && /rate|too many|seconds/i.test(error.message)) throw new Error('Too many tries. Wait a minute, then try again.');
+  // Any other error is ignored on purpose: we never reveal whether an email has an account.
+}
+
+/** "Forgot your email?": a masked hint (like jo•••@gm•••.com) for a username, or null. */
+export async function emailHint(username: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('email_hint', { u: username.trim().replace(/^@/, '').toLowerCase() });
+  if (error) throw new Error('Could not look that up. Check your connection.');
+  return (data as string | null) ?? null;
+}
+
 export async function signOut() {
   await supabase.auth.signOut();
 }
