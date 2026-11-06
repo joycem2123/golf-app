@@ -9,7 +9,7 @@ import { removeFriend } from '@/sync/friends';
 import { FriendSearch } from './friend-search';
 import { UsernameField, type UsernameStatus } from './username-field';
 import { fonts, radius, space, useColors } from '@/theme';
-import { PlayerForm } from './player-form';
+import { PlayerForm, splitName } from './player-form';
 import { Body, Button, Card, H2, Label } from './ui';
 
 export function MeBadge({ small }: { small?: boolean }) {
@@ -56,6 +56,19 @@ export function MeCard() {
     }
   };
 
+  const missingName = !!me && (!splitName(me).first || !splitName(me).last);
+  if (missingName && !editing) {
+    return (
+      <View style={{ gap: space.sm }}>
+        <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
+          <H2>Add your full name</H2>
+          <Body muted>MatchDay needs your first and last name so friends can find the right person.</Body>
+        </Card>
+        <PlayerForm fullName initial={me} onSave={save} />
+      </View>
+    );
+  }
+
   if (!me || editing) {
     return (
       <View style={{ gap: space.sm }}>
@@ -76,7 +89,7 @@ export function MeCard() {
             )}
           </Card>
         )}
-        <PlayerForm initial={me} onSave={save} onCancel={me ? () => setEditing(false) : undefined} />
+        <PlayerForm fullName initial={me} onSave={save} onCancel={me ? () => setEditing(false) : undefined} />
       </View>
     );
   }

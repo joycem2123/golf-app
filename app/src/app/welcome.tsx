@@ -18,7 +18,9 @@ export default function Welcome() {
   const insets = useSafeAreaInsets();
   const setOnboarded = useStore((s) => s.setOnboarded);
   const [mode, setMode] = useState<Mode>('choose');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const name = `${firstName.trim()} ${lastName.trim()}`.trim();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [index, setIndex] = useState('');
@@ -34,7 +36,7 @@ export default function Welcome() {
 
   /** Create or update "Me" with the given account id. */
   const makeMe = (uid: string | null) => {
-    const details = { name: name.trim(), handicapIndex: parsedIndex ?? existingMe?.handicapIndex ?? 0, gender, username };
+    const details = { name, firstName: firstName.trim(), lastName: lastName.trim(), handicapIndex: parsedIndex ?? existingMe?.handicapIndex ?? 0, gender, username };
     if (existingMe) {
       upsertPlayer({ ...existingMe, ...details });
       if (uid && uid !== existingMe.id) replaceMyPlayerId(uid);
@@ -46,7 +48,7 @@ export default function Welcome() {
     setMyUsername(username);
     return useStore.getState().players.find((p) => p.id === useStore.getState().myPlayerId)!;
   };
-  const detailsOk = !!name.trim() && uStatus === 'available' && (index.trim() === '' || parsedIndex !== null);
+  const detailsOk = !!firstName.trim() && !!lastName.trim() && uStatus === 'available' && (index.trim() === '' || parsedIndex !== null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -91,7 +93,11 @@ export default function Welcome() {
                   // If there's no signal, carry on offline.
                   const session = await ensureSession().catch(() => null);
                   if (!session) return done(); // offline: set up a username later from Profile
-                  if (existingMe) setName(existingMe.name);
+                  if (existingMe) {
+                    const [f, ...rest] = existingMe.name.split(' ');
+                    setFirstName(existingMe.firstName ?? f ?? '');
+                    setLastName(existingMe.lastName ?? rest.join(' '));
+                  }
                   setMode('guest');
                 })
               }>
@@ -107,7 +113,10 @@ export default function Welcome() {
           <Card style={{ marginTop: 'auto', borderRadius: radius.lg }}>
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>Set up your player</Text>
             <Body muted>Your username lets friends find you and add you to their rounds.</Body>
-            <Field label="Your name" value={name} onChangeText={setName} placeholder="Mike" autoCapitalize="words" />
+            <View style={{ flexDirection: 'row', gap: space.sm }}>
+                  <Field label="First name" value={firstName} onChangeText={setFirstName} placeholder="Joyce" autoCapitalize="words" autoComplete="given-name" />
+                  <Field label="Last name" value={lastName} onChangeText={setLastName} placeholder="Smith" autoCapitalize="words" autoComplete="family-name" />
+                </View>
             <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} />
             <Field label="Handicap index (optional)" value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
             <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
@@ -132,7 +141,10 @@ export default function Welcome() {
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>{mode === 'signIn' ? 'Welcome back' : 'Create your account'}</Text>
             {mode === 'signUp' && (
               <>
-                <Field label="Your name" value={name} onChangeText={setName} placeholder="Mike" autoCapitalize="words" />
+                <View style={{ flexDirection: 'row', gap: space.sm }}>
+                  <Field label="First name" value={firstName} onChangeText={setFirstName} placeholder="Joyce" autoCapitalize="words" autoComplete="given-name" />
+                  <Field label="Last name" value={lastName} onChangeText={setLastName} placeholder="Smith" autoCapitalize="words" autoComplete="family-name" />
+                </View>
                 <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} />
                 <Field label="Handicap index (optional)" value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
                 <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />

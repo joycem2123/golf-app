@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 
+import { splitName } from '@/components/player-form';
 import { useStore, type SavedPlayer } from '@/store/store';
 import { supabase } from './supabase';
 
@@ -47,7 +48,15 @@ export async function saveMyProfile(p: SavedPlayer, username = useStore.getState
   if (!user) return;
   const { error } = await supabase
     .from('profiles')
-    .upsert({ id: user.id, display_name: p.name, handicap_index: p.handicapIndex, gender: p.gender, ...(username ? { username } : {}) });
+    .upsert({
+      id: user.id,
+      display_name: p.name,
+      first_name: splitName(p).first || null,
+      last_name: splitName(p).last || null,
+      handicap_index: p.handicapIndex,
+      gender: p.gender,
+      ...(username ? { username } : {}),
+    });
   if (error) {
     if (error.code === '23505') throw new Error(`@${username} is already taken. Try another.`);
     throw new Error(error.message);
@@ -71,14 +80,14 @@ export async function restoreMe() {
   if (!user) return;
   await claimIdentity();
   const local = useStore.getState().players.find((p) => p.id === useStore.getState().myPlayerId);
-  const { data: profile } = await supabase.from('profiles').select('display_name, handicap_index, gender, username').eq('id', user.id).maybeSingle();
+  const { data: profile } = await supabase.from('profiles').select('display_name, first_name, last_name, handicap_index, gender, username').eq('id', user.id).maybeSingle();
   if (profile?.username) st.setMyUsername(profile.username);
   if (local) {
     await saveMyProfile(local).catch(() => undefined);
   } else {
     const name = profile?.display_name ?? (user.user_metadata?.name as string | undefined);
     if (name) {
-      st.upsertPlayer({ id: user.id, userId: user.id, username: profile?.username ?? undefined, name, handicapIndex: Number(profile?.handicap_index ?? 0), gender: (profile?.gender as 'M' | 'F') ?? 'M' });
+      st.upsertPlayer({ id: user.id, userId: user.id, username: profile?.username ?? undefined, name, firstName: profile?.first_name ?? undefined, lastName: profile?.last_name ?? undefined, handicapIndex: Number(profile?.handicap_index ?? 0), gender: (profile?.gender as 'M' | 'F') ?? 'M' });
       st.setMyPlayer(user.id);
     }
   }

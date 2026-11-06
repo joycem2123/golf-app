@@ -21,6 +21,8 @@ export interface SavedPlayer {
   name: string;
   handicapIndex: number;
   gender: 'M' | 'F';
+  firstName?: string;
+  lastName?: string;
   /** Set for people on MatchDay (their account id is also their player id). */
   userId?: string;
   username?: string;
