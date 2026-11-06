@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
-import { GamePicker, GameRulesButton, PlayerPicker, StepPills } from '@/components/round-setup';
+import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/components/round-setup';
 import { HandicapCheck } from '@/components/handicap-check';
 import { TeamsStep } from '@/components/teams-step';
 import { usePickBus } from '@/store/pick';
@@ -14,7 +14,7 @@ import { meFirst, useMe } from '@/lib/me';
 import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, sideMatchConfig, teamsSet, type GameDraft, type TeamOf } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { autoShare } from '@/sync/sync';
-import { space, teamColor, useColors } from '@/theme';
+import { radius, space, teamColor, useColors } from '@/theme';
 import { today } from '@/lib/dates';
 import { getCourse, useCourses } from '@/lib/courses';
 
@@ -60,6 +60,24 @@ export default function NewRound() {
   const [sideMatches, setSideMatches] = useState<[string, string][]>([]);
   const [pickSide, setPickSide] = useState<string | null>(null);
   const [statsEnabled, setStatsEnabled] = useState(false);
+  // Add a regular round to a season?
+  const events = useStore((s) => s.events);
+  const seasons = events.filter((e) => e.type === 'season' && e.status !== 'complete' && e.remote?.role !== 'viewer');
+  const [toSeason, setToSeason] = useState<'no' | 'yes'>('no');
+  const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [seasonSheet, setSeasonSheet] = useState(false);
+  const [seasonQuery, setSeasonQuery] = useState('');
+  const seasonsAtStart = useRef(new Set(seasons.map((e) => e.id)));
+  // A season created from here (Create a new season) is picked automatically when you come back.
+  useEffect(() => {
+    const fresh = seasons.find((e) => !seasonsAtStart.current.has(e.id));
+    if (fresh) {
+      seasonsAtStart.current.add(fresh.id);
+      setToSeason('yes');
+      setSeasonId(fresh.id);
+    }
+  }, [seasons.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const season = toSeason === 'yes' ? seasons.find((e) => e.id === seasonId) : undefined;
 
   const players: Player[] = useMemo(
     () =>
@@ -156,8 +174,9 @@ export default function NewRound() {
 
   const addEventRound = useStore((s) => s.addEventRound);
   const setEventRoundId = useStore((s) => s.setEventRoundId);
+  const addEventPlayers = useStore((s) => s.addEventPlayers);
   const start = () => {
-    if (!course || !draft || problem) return;
+    if (!course || !draft || problem || (!event && toSeason === 'yes' && !season)) return;
     const id = newId();
     const round: RoundRecord = {
       id,
@@ -172,14 +191,19 @@ export default function NewRound() {
       currentHole: 1,
       status: 'active',
       notices: [],
-      eventId: event?.id,
-      label: planned ? `Round ${planned.number}` : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : scheduled?.label,
+      eventId: event?.id ?? season?.id,
+      label: planned ? `Round ${planned.number}` : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : season ? `Round ${(season.rounds?.length ?? 0) + 1}` : scheduled?.label,
       teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
     };
     addRound(round);
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
     if (event && planned) setEventRoundId(event.id, planned.id, id);
     if (event && addingRound && !planned) addEventRound(event.id, { id: newId(), number: 0, date: today(), draft, roundId: id });
+    if (!event && season) {
+      // Joins the season: listed as its next round, and anyone new joins the season.
+      addEventRound(season.id, { id: newId(), number: 0, date: today(), draft, roundId: id });
+      addEventPlayers(season.id, players.map((p) => p.id));
+    }
     void autoShare(id);
     router.replace(`/round/${id}`);
   };
@@ -281,6 +305,30 @@ export default function NewRound() {
           {event?.lockHandicaps ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Handicaps are locked for {event.name}.</Label> : null}
           {!event?.lockHandicaps && <HandicapCheck players={roster.map((r) => saved.find((p) => p.id === r.id)).filter((p): p is SavedPlayer => !!p)} />}
 
+
+          {roster.length > 1 && (() => {
+            // One tap sets everyone's tee (men and ladies each get their own version of it).
+            const names = [...new Set(course.tees.map((t) => t.name))];
+            const setAll = (name: string) =>
+              setRoster((rs) =>
+                rs.map((x) => {
+                  const p = saved.find((s) => s.id === x.id);
+                  const t = p && teesFor(course, p.gender).find((tt) => tt.name === name);
+                  return t ? { ...x, teeId: t.id } : x;
+                }),
+              );
+            const everyone = (name: string) => roster.every((x) => course.tees.find((t) => t.id === x.teeId)?.name === name);
+            const missing = (name: string) => roster.filter((x) => { const p = saved.find((s) => s.id === x.id); return p && !teesFor(course, p.gender).some((t) => t.name === name); }).length;
+            return (
+              <Card>
+                <H2>Tees for everyone</H2>
+                <View style={styles.wrap}>
+                  {names.map((n) => <Chip key={n} label={n} selected={everyone(n)} onPress={() => setAll(n)} />)}
+                </View>
+                <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Sets every player’s tee at once. You can still change anyone below.{names.some((n) => missing(n) > 0) ? ' Players without that tee keep theirs.' : ''}</Label>
+              </Card>
+            );
+          })()}
 
           {roster.map((r) => {
             const p = saved.find((s) => s.id === r.id)!;
@@ -401,8 +449,57 @@ export default function NewRound() {
             </>
           )}
 
+          {!event && (
+            <Card>
+              <H2>Add this round to a season?</H2>
+              <Segmented options={[{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }]} value={toSeason} onChange={setToSeason} />
+              {toSeason === 'yes' && (
+                <Pressable
+                  onPress={() => setSeasonSheet(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose a season"
+                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: season ? c.primary : c.border, borderRadius: radius.md, padding: space.md, opacity: pressed ? 0.7 : 1 })}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>SEASON</Text>
+                    <Text style={{ color: season ? c.text : c.muted, fontSize: 17, fontWeight: '700' }}>{season ? season.name : 'Choose a season'}</Text>
+                    {season && <Text style={{ color: c.muted, fontSize: 12 }}>Will be Round {(season.rounds?.length ?? 0) + 1} · {season.playerIds.length} players</Text>}
+                  </View>
+                  <Text style={{ color: c.primary, fontSize: 16 }}>▾</Text>
+                </Pressable>
+              )}
+            </Card>
+          )}
+
           {problem && draft ? <Body style={{ color: c.danger }}>{problem}</Body> : null}
-          <Button title="Start round" disabled={!!problem} onPress={start} />
+          {!problem && !event && toSeason === 'yes' && !season ? <Body style={{ color: c.danger }}>Choose a season, or pick No.</Body> : null}
+          <Button title={season ? `Start round · ${season.name}` : 'Start round'} disabled={!!problem || (!event && toSeason === 'yes' && !season)} onPress={start} />
+
+          <Sheet visible={seasonSheet} onClose={() => setSeasonSheet(false)} title="Choose a season">
+            <View style={{ gap: space.sm }}>
+              {seasons.length > 4 && <Field label="Search" value={seasonQuery} onChangeText={setSeasonQuery} placeholder="Season name" />}
+              {seasons
+                .filter((e) => !seasonQuery.trim() || e.name.toLowerCase().includes(seasonQuery.trim().toLowerCase()))
+                .map((e) => {
+                  const sel = e.id === seasonId;
+                  return (
+                    <Pressable key={e.id} onPress={() => { setSeasonId(e.id); setSeasonSheet(false); }} accessibilityRole="button" accessibilityLabel={e.name}
+                      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: c.border, opacity: pressed ? 0.6 : 1 })}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{e.name}</Text>
+                        <Text style={{ color: c.muted, fontSize: 12 }}>{(e.rounds?.length ?? 0)} round{(e.rounds?.length ?? 0) === 1 ? '' : 's'} so far · {e.playerIds.length} players</Text>
+                      </View>
+                      {sel && <Text style={{ color: c.primary, fontSize: 18, fontWeight: '900' }}>✓</Text>}
+                    </Pressable>
+                  );
+                })}
+              {seasons.length === 0 && <Body muted>You don’t have any seasons yet.</Body>}
+              <Button
+                title="+ Create a new season"
+                kind="secondary"
+                onPress={() => { setSeasonSheet(false); router.push({ pathname: '/new-event', params: { type: 'season', returnTo: 'new-round' } }); }}
+              />
+            </View>
+          </Sheet>
         </>
       )}
     </ScrollView>

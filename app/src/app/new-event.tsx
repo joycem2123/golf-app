@@ -1,5 +1,5 @@
 import { lockHandicaps, type Player } from '@golf/engine';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -62,11 +62,14 @@ export default function NewEvent() {
 
   const [step, setStep] = useState<Step>('details');
   // Details
-  const [type, setType] = useState<EventType>('trip');
+  // Opened from New Round's "Create a new season": start as a play-as-you-go season and go back there after.
+  const params = useLocalSearchParams<{ type?: EventType; returnTo?: string }>();
+  const fromRound = params.returnTo === 'new-round';
+  const [type, setType] = useState<EventType>(params.type ?? 'trip');
   const [name, setName] = useState('');
   const [start, setStart] = useState(today());
-  const [end, setEnd] = useState(addDays(today(), 2));
-  const [rec, setRec] = useState<Recurrence>({ every: 'weekly', days: [], week: 1 });
+  const [end, setEnd] = useState(addDays(today(), params.type === 'season' ? 91 : 2));
+  const [rec, setRec] = useState<Recurrence>({ every: fromRound ? 'asYouGo' : 'weekly', days: [], week: 1 });
   const [lock, setLock] = useState(true);
   // Players & teams
   const [ids, setIds] = useState<string[]>(me ? [me.id] : []);
@@ -76,7 +79,7 @@ export default function NewEvent() {
   const [teamNames, setTeamNames] = useState({ A: 'Team A', B: 'Team B' });
   const [holder, setHolder] = useState<'none' | 'A' | 'B'>('none');
   // Rounds
-  const [count, setCount] = useState(3);
+  const [count, setCount] = useState(fromRound ? 0 : 3);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [current, setCurrent] = useState(0);
 
@@ -203,6 +206,7 @@ export default function NewEvent() {
     // The event is saved; go to it once this screen has finished handling the tap.
     setTimeout(() => {
       try {
+        if (fromRound) return router.back(); // New Round picks the new season up
         router.replace(`/event/${e.id}`);
       } catch {
         router.dismissTo('/');
@@ -414,7 +418,7 @@ export default function NewEvent() {
               <Body muted>{describeRecurrence(rec)}: {plans.length} round{plans.length === 1 ? '' : 's'} from {formatDate(start)} to {formatDate(end)}.</Body>
             ) : (
               <OptionRow label={asYouGo ? 'Rounds to plan now' : 'Number of rounds'}>
-                <Stepper value={count} min={1} max={asYouGo ? 30 : 12} onChange={setCount} />
+                <Stepper value={count} min={asYouGo ? 0 : 1} max={asYouGo ? 30 : 12} onChange={setCount} />
               </OptionRow>
             )}
             {asYouGo && <Text style={{ color: c.muted, fontSize: 13 }}>You can add more rounds from the event page any time during the season.</Text>}
@@ -460,7 +464,11 @@ export default function NewEvent() {
               />
             </Card>
           ))}
-          {next('matchups', 'Next: matchups', roundsProblem)}
+          {plans.length === 0 ? (
+            <Button title={fromRound ? 'Create season and go back to my round' : 'Create event'} onPress={create} />
+          ) : (
+            next('matchups', 'Next: matchups', roundsProblem)
+          )}
         </>
       )}
 

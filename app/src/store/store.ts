@@ -230,6 +230,8 @@ interface State {
   addEvent: (e: EventRecord) => void;
   /** A round added to an event as it's played ("play as you go"). */
   addEventRound: (eventId: string, round: EventRound) => void;
+  /** Add players to an event (e.g. a season round with someone new). */
+  addEventPlayers: (eventId: string, ids: string[]) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
   upsertPlayer: (p: SavedPlayer) => void;
@@ -470,6 +472,11 @@ export const useStore = create<State>()(
         })),
 
       addEvent: (e) => set((s) => ({ events: [e, ...s.events] })),
+      addEventPlayers: (eventId, ids) =>
+        set((s) => ({
+          events: s.events.map((e) => (e.id === eventId ? { ...e, playerIds: [...e.playerIds, ...ids.filter((id) => !e.playerIds.includes(id))] } : e)),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
       addEventRound: (eventId, round) =>
         set((s) => ({
           events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: [...(e.rounds ?? []), { ...round, number: (e.rounds?.length ?? 0) + 1 }] } : e)),
