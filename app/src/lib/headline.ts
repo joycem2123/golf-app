@@ -1,7 +1,7 @@
 import { half, type GameResult, type MatchStatus, type Player } from '@golf/engine';
 
 import { toPar } from './format';
-import { TEAM_A, TEAM_B } from './games';
+import { teamIdName } from './games';
 
 export interface Headline {
   /** Who is ahead, e.g. "Mike & Dave". Empty when all square. */
@@ -17,7 +17,7 @@ export interface Headline {
 }
 
 const playerName = (id: string, players: Player[]) =>
-  id === TEAM_A ? 'Team A' : id === TEAM_B ? 'Team B' : (players.find((p) => p.id === id)?.name ?? id);
+  teamIdName(id) ?? players.find((p) => p.id === id)?.name ?? id;
 
 function matchLine(s: MatchStatus, nameA: string, nameB: string) {
   if (s.thru === 0) return { leader: '', side: null, big: 'All Square', small: 'Not started' } as const;
@@ -86,7 +86,7 @@ export function headline(result: GameResult, players: Player[]): Headline {
       const lead = result.standings.filter((s) => s.position === 1);
       return {
         leader: lead.length > 1 ? 'Tied' : playerName(lead[0].id, players),
-        side: lead.length > 1 ? null : lead[0].id === TEAM_A ? 0 : lead[0].id === TEAM_B ? 1 : null,
+        side: lead.length > 1 ? null : teamIdName(lead[0].id) === 'Team A' ? 0 : teamIdName(lead[0].id) === 'Team B' ? 1 : null,
         big: result.thru || result.standings.some((s) => s.thru) ? toPar(lead[0].value) : '–',
         small,
         extra: result.standings.length > 2 ? result.standings.slice(1).map((s) => `${s.position}. ${playerName(s.id, players)}  ${toPar(s.value)}`) : [],

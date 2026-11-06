@@ -55,15 +55,63 @@ export const GAMES: GameInfo[] = [
 export const gameInfo = (k: GameKind) => GAMES.find((g) => g.kind === k)!;
 export const isMatchFormat = (k: GameKind) => !!gameInfo(k).teamSizes;
 
-/** Team sizes that split this many players evenly into matches. */
-export function teamSizesFor(k: GameKind, n: number): number[] {
-  return (gameInfo(k).teamSizes ?? []).filter((s) => n >= 2 * s && n % (2 * s) === 0);
+/** Player id → team letter ('A', 'B', 'C'…) from the Teams step. */
+export type TeamOf = Record<string, string>;
+type TeamLookup = (id: string) => string | undefined;
+
+const lookup = (t?: TeamOf | TeamLookup): TeamLookup | undefined => (typeof t === 'function' ? t : t ? (id) => t[id] : undefined);
+/** Every player is on a team. */
+export const teamsSet = (ids: string[], t?: TeamOf | TeamLookup) => {
+  const f = lookup(t);
+  return !!f && ids.length > 0 && ids.every((id) => !!f(id));
+};
+
+/** Split each team into sides of `size` players; null if a team doesn't divide evenly. */
+function sidesByTeam(ids: string[], team: TeamLookup, size: number): { t: string; sides: string[][] }[] | null {
+  const letters = [...new Set(ids.map((id) => team(id)!))].sort();
+  const out = [];
+  for (const t of letters) {
+    const members = ids.filter((id) => team(id) === t);
+    if (members.length % size) return null;
+    out.push({ t, sides: chunk(members, size) });
+  }
+  return out;
 }
 
-/** Why this game can't be played with this many players (null = it can). */
-export function gameFitProblem(g: GameInfo, n: number): string | null {
+/** Pair sides from different teams (A v B, C v D…). Null if it can't be done evenly. */
+function pairSides(pools: { t: string; sides: string[][] }[]): Matchup[] | null {
+  const left = pools.map((p) => ({ t: p.t, sides: [...p.sides] }));
+  const out: Matchup[] = [];
+  for (;;) {
+    const open = left.filter((p) => p.sides.length).sort((x, y) => y.sides.length - x.sides.length || x.t.localeCompare(y.t));
+    if (open.length === 0) return out;
+    if (open.length === 1) return null;
+    const [p1, p2] = open[0].t < open[1].t ? [open[0], open[1]] : [open[1], open[0]];
+    out.push({ a: p1.sides.shift()!, b: p2.sides.shift()!, ta: p1.t, tb: p2.t });
+  }
+}
+
+/** Team sizes that split these players evenly into matches (respecting teams when they're set). */
+export function teamSizesFor(k: GameKind, idsOrCount: string[] | number, t?: TeamOf | TeamLookup): number[] {
+  const ids = typeof idsOrCount === 'number' ? Array.from({ length: idsOrCount }, (_, i) => String(i)) : idsOrCount;
+  const team = lookup(t);
+  const n = ids.length;
+  return (gameInfo(k).teamSizes ?? []).filter((s) => {
+    if (n < 2 * s || n % (2 * s)) return false;
+    if (!team || !teamsSet(ids, team)) return true;
+    const pools = sidesByTeam(ids, team, s);
+    return !!pools && !!pairSides(pools);
+  });
+}
+
+/** Why this game can't be played with these players (null = it can). */
+export function gameFitProblem(g: GameInfo, idsOrCount: string[] | number, t?: TeamOf | TeamLookup): string | null {
+  const n = typeof idsOrCount === 'number' ? idsOrCount : idsOrCount.length;
+  const ids = typeof idsOrCount === 'number' ? null : idsOrCount;
+  if (g.teams && !g.teamSizes && ids && t && !teamsSet(ids, t)) return 'Set up teams first';
   if (g.teamSizes) {
-    if (teamSizesFor(g.kind, n).length) return null;
+    if (teamSizesFor(g.kind, ids ?? n, t).length) return null;
+    if (ids && t && teamsSet(ids, t) && teamSizesFor(g.kind, n).length) return 'Your teams can’t be split into even matches for this game';
     const groups = [...new Set(g.teamSizes.map((s) => 2 * s))];
     if (groups.length === 1 && groups[0] === 2) return 'Needs an even number of players';
     return `Needs groups of ${groups.join(' or ')} (e.g. ${groups.map((x) => `${x}, ${x * 2}`).join(' or ')} players)`;
@@ -77,6 +125,9 @@ export function gameFitProblem(g: GameInfo, n: number): string | null {
 export interface Matchup {
   a: string[];
   b: string[];
+  /** Team letters for each side (from the Teams step). */
+  ta?: string;
+  tb?: string;
 }
 
 export interface GameDraft {
@@ -85,8 +136,8 @@ export interface GameDraft {
   mode: HandicapMode;
   /** Percent, e.g. 90. */
   allowancePct: number;
-  /** player id -> 'A' | 'B' (scramble/shamble teams) */
-  teamOf: Record<string, 'A' | 'B'>;
+  /** player id → team letter from the Teams step */
+  teamOf: TeamOf;
   /** Match formats: players per side, and who plays whom. */
   teamSize: number;
   matches: Matchup[];
@@ -104,23 +155,24 @@ export interface GameDraft {
 const chunk = <T,>(arr: T[], size: number) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
 /**
- * Pair players into matches of `size` v `size`, in order. With event teams (Ryder Cup),
- * every match is one team against the other.
+ * Make matches of `size` v `size`. With teams set, each match is one team's side against
+ * another team's (A v B, C v D…); otherwise players are paired in order.
  */
-export function buildMatches(ids: string[], size: number, teamOf?: (id: string) => 'A' | 'B' | undefined): Matchup[] {
-  if (teamOf && ids.some((id) => teamOf(id))) {
-    const a = chunk(ids.filter((id) => teamOf(id) === 'A'), size);
-    const b = chunk(ids.filter((id) => teamOf(id) !== 'A'), size);
-    return a.map((side, i) => ({ a: side, b: b[i] ?? [] }));
+export function buildMatches(ids: string[], size: number, t?: TeamOf | TeamLookup): Matchup[] {
+  const team = lookup(t);
+  if (team && teamsSet(ids, team)) {
+    const pools = sidesByTeam(ids, team, size);
+    const paired = pools && pairSides(pools);
+    if (paired) return paired;
   }
   return chunk(ids, size * 2).map((g) => ({ a: g.slice(0, size), b: g.slice(size) }));
 }
 
-export function newDraft(kind: GameKind, players: { id: string }[], teamOf?: (id: string) => 'A' | 'B' | undefined): GameDraft {
+export function newDraft(kind: GameKind, players: { id: string }[], t?: TeamOf | TeamLookup): GameDraft {
   const info = gameInfo(kind);
-  const half = Math.ceil(players.length / 2);
+  const team = lookup(t);
   const ids = players.map((p) => p.id);
-  const sizes = teamSizesFor(kind, ids.length);
+  const sizes = teamSizesFor(kind, ids, team);
   // Best ball: prefer 2 v 2 matches when the group allows it.
   const teamSize = sizes.includes(2) ? 2 : (sizes[0] ?? info.teamSizes?.[0] ?? 1);
   return {
@@ -128,9 +180,9 @@ export function newDraft(kind: GameKind, players: { id: string }[], teamOf?: (id
     net: true,
     mode: 'offLow',
     allowancePct: Math.round((info.defaultAllowance ?? 1) * 100),
-    teamOf: Object.fromEntries(players.map((p, i) => [p.id, teamOf?.(p.id) ?? (i < half ? 'A' : 'B')])),
+    teamOf: Object.fromEntries(ids.map((id) => [id, team?.(id) ?? ''])),
     teamSize,
-    matches: info.teamSizes ? buildMatches(ids, teamSize, teamOf) : [],
+    matches: info.teamSizes ? buildMatches(ids, teamSize, team) : [],
     carryovers: kind === 'skins',
     validation: 'none',
     wolfTies: 'noPoints',
@@ -146,7 +198,7 @@ export function newDraft(kind: GameKind, players: { id: string }[], teamOf?: (id
 /** Why this game can't be played with these players (null = OK). */
 export function draftProblem(d: GameDraft, players: Player[]): string | null {
   const info = gameInfo(d.kind);
-  const fit = gameFitProblem(info, players.length);
+  const fit = gameFitProblem(info, players.map((p) => p.id), d.teamOf);
   if (fit) return `${info.name}: ${fit.toLowerCase()}`;
   if (info.teamSizes) {
     const used = d.matches.flatMap((m) => [...m.a, ...m.b]);
@@ -157,10 +209,9 @@ export function draftProblem(d: GameDraft, players: Player[]): string | null {
     return null;
   }
   if (info.teams) {
-    const a = players.filter((p) => d.teamOf[p.id] === 'A').length;
-    const b = players.length - a;
-    if (a === 0 || b === 0) return 'Put players on both teams';
-    if (d.kind === 'scramble' && (a > 4 || b > 4)) return 'Scramble teams are 2–4 players';
+    const counts = Object.values(teamCounts(d.teamOf, players.map((p) => p.id)));
+    if (counts.length < 2) return 'Put players on at least two teams';
+    if (d.kind === 'scramble' && counts.some((n) => n < 2 || n > 4)) return 'Scramble teams need 2–4 players each';
   }
   return null;
 }
@@ -170,21 +221,33 @@ export const TEAM_B = 'teamB';
 
 const handicap = (d: GameDraft): { net: boolean; mode: HandicapMode; allowance: number } => ({ net: d.net, mode: d.mode, allowance: d.allowancePct / 100 });
 
+/** Players per team letter. */
+export function teamCounts(teamOf: TeamOf, ids: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const id of ids) if (teamOf[id]) out[teamOf[id]] = (out[teamOf[id]] ?? 0) + 1;
+  return out;
+}
+
+/** "team-C" → "Team C" (also the older "teamA"/"teamB" ids). */
+export function teamIdName(id: string): string | null {
+  const m = /^team-([A-Z])$/.exec(id) ?? /^team([AB])$/.exec(id);
+  return m ? `Team ${m[1]}` : null;
+}
+
 /** Turn the setup screen's choices into the engine's games: one per match for match formats. */
 export function draftToConfigs(d: GameDraft, players: Player[]): GameConfig[] {
   const ids = players.map((p) => p.id);
-  const a = ids.filter((id) => d.teamOf[id] === 'A');
-  const b = ids.filter((id) => d.teamOf[id] === 'B');
-  const teamA = { id: TEAM_A, members: a };
-  const teamB = { id: TEAM_B, members: b };
+  const letters = [...new Set(ids.map((id) => d.teamOf[id]).filter(Boolean))].sort();
+  const teams = letters.map((L) => ({ id: `team-${L}`, name: `Team ${L}`, members: ids.filter((id) => d.teamOf[id] === L) }));
   const hc = handicap(d);
 
   if (isMatchFormat(d.kind)) {
     return d.matches.map((m, i): GameConfig => {
       const id = `match-${i + 1}`;
       const single = d.teamSize === 1;
-      const sideA = single ? { id: m.a[0], members: m.a } : { id: `${id}-a`, members: m.a };
-      const sideB = single ? { id: m.b[0], members: m.b } : { id: `${id}-b`, members: m.b };
+      // Side ids carry the team letter (match-1-A) so live scoring can label and colour them.
+      const sideA = single ? { id: m.a[0], members: m.a } : { id: `${id}-${m.ta ?? 'A'}`, members: m.a };
+      const sideB = single ? { id: m.b[0], members: m.b } : { id: `${id}-${m.tb ?? 'B'}`, members: m.b };
       switch (d.kind) {
         case 'singles':
           return { type: 'matchPlay', id, format: 'singles', sideA, sideB, handicap: hc };
@@ -216,9 +279,9 @@ export function draftToConfigs(d: GameDraft, players: Player[]): GameConfig[] {
     case 'stableford':
       return [{ type: 'stableford', playerIds: ids, system: d.stablefordSystem, handicap: hc }];
     case 'scramble':
-      return [{ type: 'scramble', teams: [teamA, teamB], handicap: { net: d.net, mode: d.mode } }];
+      return [{ type: 'scramble', teams, handicap: { net: d.net, mode: d.mode } }];
     case 'shamble':
-      return [{ type: 'shamble', teams: [teamA, teamB], countBest: d.countBest, handicap: hc }];
+      return [{ type: 'shamble', teams, countBest: d.countBest, handicap: hc }];
     default:
       return [{ type: 'strokePlay', playerIds: ids, handicap: hc }];
   }

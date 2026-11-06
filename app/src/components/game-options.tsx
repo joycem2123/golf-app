@@ -1,9 +1,9 @@
 import type { Player, WolfPoints } from '@golf/engine';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { gameInfo, type GameDraft } from '@/lib/games';
+import { gameInfo, type GameDraft, type TeamOf } from '@/lib/games';
 import { MatchupsEditor } from './matchups';
-import { space, useColors } from '@/theme';
+import { radius, space, teamColor, useColors } from '@/theme';
 import { Body, Card, Chip, H2, Label, OptionRow, Segmented, Stepper, Toggle, styles } from './ui';
 
 const WOLF_POINT_LABELS: [keyof WolfPoints, string][] = [
@@ -24,7 +24,7 @@ export function GameOptions({
   draft: GameDraft;
   players: Player[];
   onChange: (d: GameDraft) => void;
-  teamOf?: (id: string) => 'A' | 'B' | undefined;
+  teamOf?: TeamOf;
 }) {
   const c = useColors();
   const info = gameInfo(draft.kind);
@@ -37,25 +37,16 @@ export function GameOptions({
       {showTeams && (
         <Card>
           <H2>Teams</H2>
-          <Label style={{ textTransform: 'none' }}>Tap a player to switch teams</Label>
-          {(['A', 'B'] as const).map((team) => (
-            <View key={team} style={{ gap: space.xs }}>
-              <Body bold>Team {team}</Body>
-              <View style={styles.wrap}>
-                {players
-                  .filter((p) => draft.teamOf[p.id] === team)
-                  .map((p) => (
-                    <Chip
-                      key={p.id}
-                      label={p.name}
-                      selected
-                      color={team === 'A' ? c.primary : c.accent}
-                      onPress={() => set('teamOf', { ...draft.teamOf, [p.id]: team === 'A' ? 'B' : 'A' })}
-                    />
-                  ))}
+          <Label style={{ textTransform: 'none' }}>Set in the Teams step. Go back to change them.</Label>
+          {[...new Set(players.map((p) => draft.teamOf[p.id]).filter(Boolean))].sort().map((team) => {
+            const tc = teamColor(team);
+            return (
+              <View key={team} style={{ backgroundColor: tc.soft, borderRadius: radius.md, padding: space.md, borderLeftWidth: 4, borderLeftColor: tc.color, gap: 2 }}>
+                <Text style={{ color: tc.color, fontWeight: '800', fontSize: 12, letterSpacing: 1.2 }}>TEAM {team}</Text>
+                <Body>{players.filter((p) => draft.teamOf[p.id] === team).map((p) => p.name).join(', ')}</Body>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </Card>
       )}
 

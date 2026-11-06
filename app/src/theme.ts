@@ -19,13 +19,28 @@ const palette = {
   /** Under par is red, as on a traditional leaderboard. */
   under: '#B3261E',
   over: '#1B2A22',
-  teamA: '#1F5A3D',
-  teamB: '#1F3A60',
-  teamASoft: '#EEF4EF',
-  teamBSoft: '#EEF2F8',
+  // Team colors: validated as a categorical set (colorblind-safe neighbours, readable on white).
+  teamA: '#2E7D4F',
+  teamB: '#3366B0',
+  teamASoft: '#ECF5EF',
+  teamBSoft: '#EDF2FA',
 };
 
 export type Colors = typeof palette;
+
+/** Team colors by letter (Team A, B, C…). A and B match the app's team green and navy. */
+const TEAM_COLORS: Record<string, { color: string; soft: string }> = {
+  A: { color: palette.teamA, soft: palette.teamASoft },
+  B: { color: palette.teamB, soft: palette.teamBSoft },
+  C: { color: '#B5831A', soft: '#F8F1E3' },
+  D: { color: '#B03E52', soft: '#F8ECEE' },
+  E: { color: '#00909C', soft: '#E6F4F5' },
+  F: { color: '#7354B8', soft: '#F1EDF8' },
+  G: { color: '#C2602E', soft: '#F9EEE8' },
+  H: { color: '#A8418F', soft: '#F7ECF4' },
+};
+export const teamColor = (letter: string) => TEAM_COLORS[letter] ?? TEAM_COLORS.H;
+export const TEAM_LETTERS = Object.keys(TEAM_COLORS);
 
 export function useColors(): Colors {
   return palette;

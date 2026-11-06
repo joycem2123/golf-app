@@ -2,14 +2,12 @@ import { half, type GameResult, type Player } from '@golf/engine';
 import { View } from 'react-native';
 
 import { toPar } from '@/lib/format';
-import { TEAM_A, TEAM_B } from '@/lib/games';
+import { teamIdName } from '@/lib/games';
 import { useColors } from '@/theme';
 import { Body, Card, H2, Label, styles } from './ui';
 
 function nameFor(id: string, players: Player[]) {
-  if (id === TEAM_A) return 'Team A';
-  if (id === TEAM_B) return 'Team B';
-  return players.find((p) => p.id === id)?.name ?? id;
+  return teamIdName(id) ?? players.find((p) => p.id === id)?.name ?? id;
 }
 
 function Details({ result, players }: { result: GameResult; players: Player[] }) {

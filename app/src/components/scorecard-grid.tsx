@@ -76,8 +76,8 @@ export function ScorecardGrid({
   if (main?.type === 'matchPlay') outcomes = main.status.outcomes;
   if (main?.type === 'nassau') outcomes = main.segments[2].status.outcomes;
   const names = main?.type === 'matchPlay' ? [main.sideA.name, main.sideB.name] : null;
-  const letterA = teams || !names ? 'A' : names[0].slice(0, 1).toUpperCase();
-  const letterB = teams || !names ? 'B' : names[1].slice(0, 1).toUpperCase() === letterA ? names[1].slice(0, 2) : names[1].slice(0, 1).toUpperCase();
+  const letterA = teams ? teams[0].label.slice(-1) : !names ? 'A' : names[0].slice(0, 1).toUpperCase();
+  const letterB = teams ? (teams[1]?.label.slice(-1) ?? 'B') : !names ? 'B' : names[1].slice(0, 1).toUpperCase() === letterA ? names[1].slice(0, 2) : names[1].slice(0, 1).toUpperCase();
   const running: (number | null)[] = [];
   if (outcomes) {
     let lead = 0;
@@ -170,7 +170,7 @@ export function ScorecardGrid({
                 (h) => {
                   const v = running[h - 1];
                   if (v === null || v === undefined) return null;
-                  const color = v > 0 ? c.teamA : v < 0 ? c.teamB : c.muted;
+                  const color = v > 0 ? (teams?.[0].color ?? c.teamA) : v < 0 ? (teams?.[1]?.color ?? c.teamB) : c.muted;
                   return <Text style={{ color, fontWeight: '700', fontSize: 12, fontFamily: fonts.serif }}>{v === 0 ? 'AS' : `${v > 0 ? letterA : letterB}${Math.abs(v)}`}</Text>;
                 },
                 () => null,

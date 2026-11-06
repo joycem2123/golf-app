@@ -291,6 +291,7 @@ export default function Scorecard() {
         name={multi ? `${gameName(r.games[gi])} · ${matchLabel(r.games[gi])}` : gameName(r.games[gi])}
         result={results[gi]}
         players={r.players}
+        sideColors={teams && teams.length === 2 ? [teams[0].color, teams[1].color] : undefined}
         sideGames={r.games.map((g, i) => ({ g, i })).filter(({ i }) => i !== gi).map(({ g, i }) => ({ name: matchLabel(g) ?? gameName(g), result: results[i] }))}
       />
       {multi && (

@@ -1,7 +1,7 @@
 import type { GameConfig, GameResult } from '@golf/engine';
 
 import type { RoundRecord } from '@/store/store';
-import type { Colors } from '@/theme';
+import { teamColor, type Colors } from '@/theme';
 import { grossAt } from './round';
 
 export interface TeamGroup {
@@ -19,14 +19,12 @@ export function teamGroups(r: RoundRecord, c: Colors, gi = 0): TeamGroup[] | nul
   const g = r.games[gi];
   if (!g) return null;
   const name = (id: string) => r.players.find((p) => p.id === id)?.name ?? id;
-  const make = (id: string, i: number, members: string[], keys: string[]): TeamGroup => ({
-    id,
-    label: i === 0 ? 'Team A' : 'Team B',
-    names: members.map(name).join(' & '),
-    color: i === 0 ? c.teamA : c.teamB,
-    soft: i === 0 ? c.teamASoft : c.teamBSoft,
-    keys,
-  });
+  const make = (id: string, i: number, members: string[], keys: string[]): TeamGroup => {
+    // Team letter from the id ("match-2-C", "team-C", old "teamA"); otherwise by position.
+    const L = /-([A-Z])$/.exec(id)?.[1] ?? /^team([A-Z])$/.exec(id)?.[1] ?? String.fromCharCode(65 + i);
+    const tc = teamColor(L);
+    return { id, label: `Team ${L}`, names: members.map(name).join(' & '), color: tc.color, soft: tc.soft, keys };
+  };
   if ((g.type === 'matchPlay' && g.format === 'fourBall') || (g.type === 'nassau' && g.format === 'fourBall')) {
     return [g.sideA, g.sideB].map((s, i) => make(s.id, i, s.members, s.members));
   }

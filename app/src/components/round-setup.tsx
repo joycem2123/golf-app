@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatIndex } from '@/lib/format';
 import { GAME_RULES } from '@/lib/game-rules';
-import { gameFitProblem, gameInfo, GAMES, type GameKind } from '@/lib/games';
+import { gameFitProblem, gameInfo, GAMES, type GameKind, type TeamOf } from '@/lib/games';
 import type { SavedPlayer } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -216,7 +216,8 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
 }
 
 /** Drop-down to choose the main game. Games that don't fit the group size are shown greyed out with the reason. */
-export function GamePicker({ value, playerCount, onPick }: { value: GameKind | null; playerCount: number; onPick: (k: GameKind) => void }) {
+export function GamePicker({ value, playerIds, teamOf, onPick }: { value: GameKind | null; playerIds: string[]; teamOf?: TeamOf; onPick: (k: GameKind) => void }) {
+  const playerCount = playerIds.length;
   const c = useColors();
   const [open, setOpen] = useState(false);
   const info = value ? gameInfo(value) : null;
@@ -242,7 +243,7 @@ export function GamePicker({ value, playerCount, onPick }: { value: GameKind | n
       <Sheet visible={open} onClose={() => setOpen(false)} title="Choose a game">
         <Text style={{ color: c.muted, marginBottom: space.sm }}>{playerCount} player{playerCount === 1 ? '' : 's'} selected</Text>
         {GAMES.map((g, i) => {
-          const problem = gameFitProblem(g, playerCount);
+          const problem = gameFitProblem(g, playerIds, teamOf);
           const fits = !problem;
           const sel = g.kind === value;
           return (

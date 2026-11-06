@@ -10,16 +10,20 @@ export function StatusBanner({
   result,
   players,
   sideGames,
+  sideColors,
 }: {
   name: string;
   result: GameResult | { error: string } | undefined;
   players: Player[];
   sideGames: { name: string; result: GameResult | { error: string } | undefined }[];
+  /** Colours for side 0 and side 1 (e.g. Team C and Team D). */
+  sideColors?: [string, string];
 }) {
   const c = useColors();
   if (!result || 'error' in result) return null;
   const h = headline(result, players);
-  const color = h.side === 0 ? c.teamA : h.side === 1 ? c.teamB : c.primary;
+  const [ca, cb] = sideColors ?? [c.teamA, c.teamB];
+  const color = h.side === 0 ? ca : h.side === 1 ? cb : c.primary;
 
   return (
     <View style={{ backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border, paddingHorizontal: space.lg, paddingVertical: space.md, gap: 2 }}>

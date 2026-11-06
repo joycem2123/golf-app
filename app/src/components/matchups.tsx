@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { shuffle } from '@/lib/format';
-import { buildMatches, teamSizesFor, type GameDraft, type Matchup } from '@/lib/games';
-import { fonts, radius, space, useColors } from '@/theme';
+import { buildMatches, teamSizesFor, teamsSet, type GameDraft, type Matchup, type TeamOf } from '@/lib/games';
+import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { Sheet } from './round-setup';
 import { Card, H2, Label, Segmented } from './ui';
 
@@ -26,7 +26,7 @@ export function MatchupsEditor({
   draft: GameDraft;
   players: Player[];
   onChange: (d: GameDraft) => void;
-  teamOf?: (id: string) => 'A' | 'B' | undefined;
+  teamOf?: TeamOf;
 }) {
   const c = useColors();
   const [slot, setSlot] = useState<Slot | null>(null);
@@ -37,24 +37,26 @@ export function MatchupsEditor({
     return rest.length ? `${first} ${rest[rest.length - 1].slice(0, 1)}.` : first;
   };
   const ids = players.map((p) => p.id);
-  const sizes = teamSizesFor(draft.kind, players.length);
-  const cup = !!teamOf && ids.some((id) => teamOf(id));
+  const teams = teamsSet(ids, teamOf) ? teamOf : undefined;
+  const sizes = teamSizesFor(draft.kind, ids, teams);
   const n = draft.teamSize;
   const matchCount = Math.max(1, Math.floor(players.length / (2 * n)));
   const matches: Matchup[] = Array.from({ length: matchCount }, (_, i) => ({
     a: pad(draft.matches[i]?.a ?? [], n),
     b: pad(draft.matches[i]?.b ?? [], n),
+    ta: draft.matches[i]?.ta,
+    tb: draft.matches[i]?.tb,
   }));
   const placed = new Set(matches.flatMap((m) => [...m.a, ...m.b]).filter(Boolean));
   const unassigned = ids.filter((id) => !placed.has(id));
 
   const save = (next: Matchup[]) => onChange({ ...draft, matches: next });
-  const fill = (order: string[]) => onChange({ ...draft, matches: buildMatches(order, n, teamOf) });
+  // With teams set, matches always keep one team's players on each side (shuffling stays within teams).
+  const fill = (order: string[]) => onChange({ ...draft, matches: buildMatches(order, n, teams) });
   const autoFill = () => fill(ids);
-  const shuffleAll = () =>
-    fill(cup ? [...shuffle(ids.filter((id) => teamOf!(id) === 'A')), ...shuffle(ids.filter((id) => teamOf!(id) !== 'A'))] : shuffle(ids));
-  const clear = () => save(matches.map(() => ({ a: pad([], n), b: pad([], n) })));
-  const setSize = (size: number) => onChange({ ...draft, teamSize: size, matches: buildMatches(ids, size, teamOf) });
+  const shuffleAll = () => fill(shuffle(ids));
+  const clear = () => save(matches.map((m) => ({ ...m, a: pad([], n), b: pad([], n) })));
+  const setSize = (size: number) => onChange({ ...draft, teamSize: size, matches: buildMatches(ids, size, teams) });
 
   const removeAt = (s: Slot) =>
     save(matches.map((m, i) => (i !== s.match ? m : { ...m, [s.side]: m[s.side].map((x, k) => (k === s.pos ? '' : x)) })));
@@ -62,25 +64,26 @@ export function MatchupsEditor({
   /** Put a player in the chosen slot (moving them out of wherever they were). */
   const place = (id: string) => {
     if (!slot) return;
-    const next = matches.map((m) => ({ a: m.a.map((x) => (x === id ? '' : x)), b: m.b.map((x) => (x === id ? '' : x)) }));
+    const next = matches.map((m) => ({ ...m, a: m.a.map((x) => (x === id ? '' : x)), b: m.b.map((x) => (x === id ? '' : x)) }));
     next[slot.match][slot.side][slot.pos] = id;
     save(next);
     setSlot(null);
   };
 
-  // Who can go in the open slot: cups only allow that side's team.
-  const allowed = (id: string, side: 'a' | 'b') => !cup || teamOf!(id) === (side === 'a' ? 'A' : 'B');
+  // Who can go in the open slot: with teams, only that side's team.
+  const sideTeam = (m: Matchup, side: 'a' | 'b') => (side === 'a' ? m.ta : m.tb);
+  const allowed = (id: string, m: Matchup, side: 'a' | 'b') => !teams || !sideTeam(m, side) || teams[id] === sideTeam(m, side);
   const whereIs = (id: string) => {
     const i = matches.findIndex((m) => m.a.includes(id) || m.b.includes(id));
     return i < 0 ? null : `Match ${i + 1}`;
   };
 
   const sideCol = (m: Matchup, mi: number, side: 'a' | 'b') => {
-    const color = side === 'a' ? c.teamA : c.teamB;
-    const soft = side === 'a' ? c.teamASoft : c.teamBSoft;
+    const letter = sideTeam(m, side) ?? (side === 'a' ? 'A' : 'B');
+    const { color, soft } = teamColor(letter);
     return (
       <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
-        {n > 1 && <Text style={{ color, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>{side === 'a' ? 'TEAM A' : 'TEAM B'}</Text>}
+        {(n > 1 || teams) && <Text style={{ color, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>TEAM {letter}</Text>}
         {m[side].map((id, pos) =>
           id ? (
             <View
@@ -97,7 +100,7 @@ export function MatchupsEditor({
             <Pressable
               key={pos}
               accessibilityRole="button"
-              accessibilityLabel={`Add player to match ${mi + 1} ${side === 'a' ? 'Team A' : 'Team B'}`}
+              accessibilityLabel={`Add player to match ${mi + 1} Team ${letter}`}
               onPress={() => setSlot({ match: mi, side, pos })}
               style={({ pressed }) => ({
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11,
@@ -117,14 +120,14 @@ export function MatchupsEditor({
     </Pressable>
   );
 
-  const options = slot ? ids.filter((id) => allowed(id, slot.side) && matches[slot.match][slot.side][slot.pos] !== id) : [];
+  const options = slot ? ids.filter((id) => allowed(id, matches[slot.match], slot.side) && matches[slot.match][slot.side][slot.pos] !== id) : [];
   const free = options.filter((id) => !placed.has(id));
   const taken = options.filter((id) => placed.has(id));
 
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <H2>Teams</H2>
+        <H2>Matchups</H2>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {action('Auto-fill', autoFill)}
           {action('Shuffle', shuffleAll)}
@@ -164,7 +167,7 @@ export function MatchupsEditor({
       <Sheet
         visible={!!slot}
         onClose={() => setSlot(null)}
-        title={slot ? `${matches.length > 1 ? `Match ${slot.match + 1} · ` : ''}${slot.side === 'a' ? 'Team A' : 'Team B'}` : ''}>
+        title={slot ? `${matches.length > 1 ? `Match ${slot.match + 1} · ` : ''}Team ${sideTeam(matches[slot.match], slot.side) ?? (slot.side === 'a' ? 'A' : 'B')}` : ''}>
         {free.length > 0 && <Label>Not placed yet</Label>}
         {free.map((id) => (
           <Pressable key={id} onPress={() => place(id)} accessibilityRole="button" style={({ pressed }) => ({ paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: c.border, opacity: pressed ? 0.6 : 1 })}>

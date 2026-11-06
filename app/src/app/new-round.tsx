@@ -5,16 +5,17 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
 import { GamePicker, GameRulesButton, PlayerPicker, StepPills } from '@/components/round-setup';
+import { TeamsStep } from '@/components/teams-step';
 import { usePickBus } from '@/store/pick';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
-import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, sideMatchConfig, type GameDraft } from '@/lib/games';
+import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, sideMatchConfig, teamsSet, type GameDraft, type TeamOf } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { autoShare } from '@/sync/sync';
 import { space, useColors } from '@/theme';
 
-type Step = 'course' | 'players' | 'game';
+type Step = 'course' | 'players' | 'teams' | 'game';
 
 const teeLabel = (t: Tee) => `${t.name}${t.gender === 'F' ? ' (W)' : ''}`;
 
@@ -41,6 +42,16 @@ export default function NewRound() {
   const [roster, setRoster] = useState<{ id: string; teeId: string }[]>([]);
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [draft, setDraft] = useState<GameDraft | null>(null);
+  // Teams step: start with an empty Team A and Team B (a Ryder Cup event fills them in).
+  const [teamOf, setTeamOfState] = useState<TeamOf>(() =>
+    event?.teams ? Object.fromEntries([...event.teams.A.playerIds.map((id) => [id, 'A']), ...event.teams.B.playerIds.map((id) => [id, 'B'])]) : {},
+  );
+  const [letters, setLetters] = useState<string[]>(['A', 'B']);
+  const [noTeams, setNoTeams] = useState(false);
+  const setTeamOf = (t: TeamOf) => {
+    setTeamOfState(t);
+    setDraft(null);
+  };
   const [sideMatches, setSideMatches] = useState<[string, string][]>([]);
   const [pickSide, setPickSide] = useState<string | null>(null);
   const [statsEnabled, setStatsEnabled] = useState(false);
@@ -140,23 +151,27 @@ export default function NewRound() {
   };
 
   // ------------------------------------------------------------------ steps
-  const canGo = (st: Step) => st === 'course' || (st === 'players' && !!course) || (st === 'game' && !!course && players.length > 0);
+  const rosterIds = roster.map((r) => r.id);
+  const teamsDone = noTeams || teamsSet(rosterIds, (id) => (letters.includes(teamOf[id]) ? teamOf[id] : undefined));
+  const canGo = (st: Step) =>
+    st === 'course' || (st === 'players' && !!course) || (st === 'teams' && !!course && players.length > 0) || (st === 'game' && !!course && players.length > 0 && teamsDone);
   const stepBar = (
     <StepPills
       steps={[
         { value: 'course', label: 'Course' },
         { value: 'players', label: 'Players' },
+        { value: 'teams', label: 'Teams' },
         { value: 'game', label: 'Game' },
       ]}
       current={step}
-      isDone={(st) => (st === 'course' ? !!course : st === 'players' ? roster.length > 0 : !!draft)}
+      isDone={(st) => (st === 'course' ? !!course : st === 'players' ? roster.length > 0 : st === 'teams' ? teamsDone && roster.length > 0 : !!draft)}
       canGo={canGo}
       onGo={(st) => canGo(st) && setStep(st)}
     />
   );
 
   const pickGame = (kind: GameDraft['kind']) => {
-    const d = newDraft(kind, players, event?.teams ? teamOfEvent : undefined);
+    const d = newDraft(kind, players, noTeams ? undefined : teamOf);
     setDraft(d);
     setSideMatches([]);
   };
@@ -252,18 +267,47 @@ export default function NewRound() {
             );
           })}
 
-          <Button title="Next: choose game" disabled={roster.length === 0} onPress={() => setStep('game')} />
+          <Button title="Next: teams" disabled={roster.length === 0} onPress={() => setStep('teams')} />
+        </>
+      )}
+
+      {step === 'teams' && course && (
+        <>
+          <TeamsStep
+            players={players}
+            teamOf={teamOf}
+            onTeamOf={(t) => { setTeamOf(t); setNoTeams(false); }}
+            letters={letters}
+            onLetters={(l) => { setLetters(l); setDraft(null); }}
+            lockedReason={event?.teams ? `Teams come from ${event.name}.` : undefined}
+          />
+          <Button
+            title={teamsDone && !noTeams ? 'Next: choose game' : `Put every player on a team (${players.filter((p) => !letters.includes(teamOf[p.id])).length} left)`}
+            disabled={!teamsSet(rosterIds, (id) => (letters.includes(teamOf[id]) ? teamOf[id] : undefined))}
+            onPress={() => { setNoTeams(false); setStep('game'); }}
+          />
+          {!event?.teams && (
+            <Button
+              title="No teams (individual games)"
+              kind="ghost"
+              onPress={() => {
+                setNoTeams(true);
+                setDraft(null);
+                setStep('game');
+              }}
+            />
+          )}
         </>
       )}
 
       {step === 'game' && course && (
         <>
-          <GamePicker value={draft?.kind ?? null} playerCount={players.length} onPick={pickGame} />
+          <GamePicker value={draft?.kind ?? null} playerIds={rosterIds} teamOf={noTeams ? undefined : teamOf} onPick={pickGame} />
 
           {draft && (
             <>
               <GameRulesButton kind={draft.kind} />
-              <GameOptions draft={draft} players={players} onChange={setDraft} teamOf={event?.teams ? teamOfEvent : undefined} />
+              <GameOptions draft={draft} players={players} onChange={setDraft} teamOf={noTeams ? undefined : teamOf} />
 
               <Card>
                 <H2>Side matches</H2>
