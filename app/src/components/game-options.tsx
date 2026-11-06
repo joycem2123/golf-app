@@ -2,6 +2,7 @@ import type { Player, WolfPoints } from '@golf/engine';
 import { View } from 'react-native';
 
 import { gameInfo, type GameDraft } from '@/lib/games';
+import { MatchupsEditor } from './matchups';
 import { space, useColors } from '@/theme';
 import { Body, Card, Chip, H2, Label, OptionRow, Segmented, Stepper, Toggle, styles } from './ui';
 
@@ -14,14 +15,25 @@ const WOLF_POINT_LABELS: [keyof WolfPoints, string][] = [
   ['blindWolfLoss', 'Blind wolf loses (each opponent)'],
 ];
 
-export function GameOptions({ draft, players, onChange }: { draft: GameDraft; players: Player[]; onChange: (d: GameDraft) => void }) {
+export function GameOptions({
+  draft,
+  players,
+  onChange,
+  teamOf,
+}: {
+  draft: GameDraft;
+  players: Player[];
+  onChange: (d: GameDraft) => void;
+  teamOf?: (id: string) => 'A' | 'B' | undefined;
+}) {
   const c = useColors();
   const info = gameInfo(draft.kind);
   const set = <K extends keyof GameDraft>(k: K, v: GameDraft[K]) => onChange({ ...draft, [k]: v });
-  const showTeams = info.teams && !(draft.kind === 'nassau' && players.length === 2);
+  const showTeams = info.teams && !info.teamSizes;
 
   return (
     <>
+      {info.teamSizes && <MatchupsEditor draft={draft} players={players} onChange={onChange} teamOf={teamOf} />}
       {showTeams && (
         <Card>
           <H2>Teams</H2>

@@ -38,7 +38,9 @@ export default function ScheduleMatch() {
   if (!e) return <Body>Event not found.</Body>;
   const name = (pid: string) => players.find((p) => p.id === pid)?.name ?? '?';
   const headToHead = !kind || HEAD_TO_HEAD.includes(kind);
-  const perSide = kind ? (gameInfo(kind).pairs ? 2 : kind === 'singles' ? 1 : null) : null;
+  // Players per side for one scheduled match (best ball defaults to 2 v 2; Nassau to 1 v 1).
+  const sizes = kind ? gameInfo(kind).teamSizes : undefined;
+  const perSide = sizes ? (kind === 'nassau' ? 1 : sizes.includes(2) ? 2 : sizes[0]) : null;
   const time = hasTime ? `${pad(hour)}:${pad(minute)}` : undefined;
 
   // Tap a player: none → side A → side B → none (or simply in/out for individual games).

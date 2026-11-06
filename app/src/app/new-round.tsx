@@ -9,7 +9,7 @@ import { usePickBus } from '@/store/pick';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
-import { draftProblem, draftToConfig, gameInfo, GAMES, newDraft, sideMatchConfig, type GameDraft } from '@/lib/games';
+import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, sideMatchConfig, type GameDraft } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { autoShare } from '@/sync/sync';
 import { space, useColors } from '@/theme';
@@ -107,6 +107,11 @@ export default function NewRound() {
     if (!GAMES.some((g) => g.kind === kind)) return;
     const d = newDraft(kind, players);
     for (const p of players) d.teamOf[p.id] = scheduled.sideB.includes(p.id) ? 'B' : 'A';
+    // A scheduled match is one matchup: keep its sides as set on the schedule.
+    if (isMatchFormat(kind) && scheduled.sideA.length && scheduled.sideA.length === scheduled.sideB.length) {
+      d.teamSize = scheduled.sideA.length;
+      d.matches = [{ a: scheduled.sideA, b: scheduled.sideB }];
+    }
     setDraft(d);
   }, [players, scheduled]);
 
@@ -118,7 +123,7 @@ export default function NewRound() {
       createdAt: Date.now(),
       courseId: course.id,
       players,
-      games: [draftToConfig(draft, players), ...sideMatches.map(([a, b]) => sideMatchConfig(a, b))],
+      games: [...draftToConfigs(draft, players), ...sideMatches.map(([a, b]) => sideMatchConfig(a, b))],
       statsEnabled,
       ledger: {},
       stats: {},
@@ -151,8 +156,7 @@ export default function NewRound() {
   );
 
   const pickGame = (kind: GameDraft['kind']) => {
-    const d = newDraft(kind, players);
-    if (event?.teams) for (const p of players) d.teamOf[p.id] = teamOfEvent(p.id) ?? d.teamOf[p.id];
+    const d = newDraft(kind, players, event?.teams ? teamOfEvent : undefined);
     setDraft(d);
     setSideMatches([]);
   };
@@ -259,7 +263,7 @@ export default function NewRound() {
           {draft && (
             <>
               <GameRulesButton kind={draft.kind} />
-              <GameOptions draft={draft} players={players} onChange={setDraft} />
+              <GameOptions draft={draft} players={players} onChange={setDraft} teamOf={event?.teams ? teamOfEvent : undefined} />
 
               <Card>
                 <H2>Side matches</H2>
@@ -289,15 +293,14 @@ export default function NewRound() {
                         />
                       ))}
                     </View>
-                    {gameInfo(draft.kind).pairs && sideMatches.length === 0 && (
+                    {isMatchFormat(draft.kind) && draft.teamSize === 2 && draft.matches.length >= 1 && sideMatches.length === 0 && (
                       <Button
                         small
                         kind="secondary"
                         title="Match up the teams (A1 v B1, A2 v B2)"
                         onPress={() => {
-                          const a = players.filter((p) => draft.teamOf[p.id] === 'A');
-                          const b = players.filter((p) => draft.teamOf[p.id] === 'B');
-                          setSideMatches(a.slice(0, b.length).map((p, i) => [p.id, b[i].id]));
+                          // Within each match: A1 v B1 and A2 v B2.
+                          setSideMatches(draft.matches.flatMap((m) => m.a.map((id, i) => [id, m.b[i]] as [string, string]).filter(([, y]) => !!y)));
                         }}
                       />
                     )}

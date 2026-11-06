@@ -15,8 +15,9 @@ export interface TeamGroup {
 }
 
 /** Teams in the main game (null for individual games). */
-export function teamGroups(r: RoundRecord, c: Colors): TeamGroup[] | null {
-  const g = r.games[0];
+export function teamGroups(r: RoundRecord, c: Colors, gi = 0): TeamGroup[] | null {
+  const g = r.games[gi];
+  if (!g) return null;
   const name = (id: string) => r.players.find((p) => p.id === id)?.name ?? id;
   const make = (id: string, i: number, members: string[], keys: string[]): TeamGroup => ({
     id,
@@ -47,8 +48,8 @@ export interface TeamHole {
 const usesNet = (g: GameConfig) => g.handicap?.net !== false;
 
 /** The team's counting score on a hole, with which ball(s) count. */
-export function teamHole(r: RoundRecord, result: GameResult | undefined, team: TeamGroup, hole: number): TeamHole {
-  const g = r.games[0];
+export function teamHole(r: RoundRecord, result: GameResult | undefined, team: TeamGroup, hole: number, gi = 0): TeamHole {
+  const g = r.games[gi];
   const strokes = result?.strokes ?? {};
   const net = usesNet(g);
   const score = (k: string) => {

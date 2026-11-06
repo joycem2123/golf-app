@@ -125,3 +125,30 @@ describe('Nassau', () => {
     ).toThrow();
   });
 });
+
+describe('best ball with bigger teams', () => {
+  it('2 teams of 4: the best net ball of four counts', () => {
+    const r = round(
+      { a1: 0, a2: 0, a3: 0, a4: 0, b1: 0, b2: 0, b3: 0, b4: 0 },
+      {
+        a1: parCard(), a2: parCard(), a3: parCard(), a4: parCard({ 1: 3 }),
+        b1: parCard(), b2: parCard(), b3: parCard(), b4: parCard(),
+      },
+    );
+    const res = playMatch(r, {
+      type: 'matchPlay',
+      format: 'fourBall',
+      sideA: { id: 'A', name: 'Team A', members: ['a1', 'a2', 'a3', 'a4'] },
+      sideB: { id: 'B', name: 'Team B', members: ['b1', 'b2', 'b3', 'b4'] },
+    });
+    expect(res.status.outcomes[0]).toBe(1); // a4's birdie on hole 1 wins it
+    expect(res.summary).toBe('Team A wins 1 UP');
+  });
+
+  it('still rejects 5-player sides', () => {
+    const r = round({ a1: 0, a2: 0, a3: 0, a4: 0, a5: 0, b1: 0 }, {});
+    expect(() =>
+      playMatch(r, { type: 'matchPlay', format: 'fourBall', sideA: { id: 'A', members: ['a1', 'a2', 'a3', 'a4', 'a5'] }, sideB: { id: 'B', members: ['b1'] } }),
+    ).toThrow();
+  });
+});

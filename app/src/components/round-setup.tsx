@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatIndex } from '@/lib/format';
 import { GAME_RULES } from '@/lib/game-rules';
-import { gameInfo, GAMES, type GameKind } from '@/lib/games';
+import { gameFitProblem, gameInfo, GAMES, type GameKind } from '@/lib/games';
 import type { SavedPlayer } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -220,8 +220,6 @@ export function GamePicker({ value, playerCount, onPick }: { value: GameKind | n
   const c = useColors();
   const [open, setOpen] = useState(false);
   const info = value ? gameInfo(value) : null;
-  const need = (g: (typeof GAMES)[number]) =>
-    g.minPlayers === g.maxPlayers ? `Needs exactly ${g.minPlayers} players` : playerCount < g.minPlayers ? `Needs at least ${g.minPlayers} players` : `Up to ${g.maxPlayers} players`;
 
   return (
     <>
@@ -244,7 +242,8 @@ export function GamePicker({ value, playerCount, onPick }: { value: GameKind | n
       <Sheet visible={open} onClose={() => setOpen(false)} title="Choose a game">
         <Text style={{ color: c.muted, marginBottom: space.sm }}>{playerCount} player{playerCount === 1 ? '' : 's'} selected</Text>
         {GAMES.map((g, i) => {
-          const fits = playerCount >= g.minPlayers && playerCount <= g.maxPlayers;
+          const problem = gameFitProblem(g, playerCount);
+          const fits = !problem;
           const sel = g.kind === value;
           return (
             <Pressable
@@ -262,7 +261,7 @@ export function GamePicker({ value, playerCount, onPick }: { value: GameKind | n
               })}>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: c.text, fontSize: 16, fontWeight: '700' }}>{g.name}</Text>
-                <Text style={{ color: c.muted, fontSize: 13 }}>{fits ? g.blurb : need(g)}</Text>
+                <Text style={{ color: c.muted, fontSize: 13 }}>{problem ?? g.blurb}</Text>
               </View>
               {sel && <Text style={{ color: c.primary, fontSize: 18, fontWeight: '900' }}>✓</Text>}
             </Pressable>

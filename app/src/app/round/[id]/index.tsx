@@ -14,7 +14,7 @@ import { ShareCard } from '@/components/share-card';
 import { useMe } from '@/lib/me';
 import { StatusBanner } from '@/components/status-banner';
 import { Body, Button, Card, Chip, H2, Label, Segmented, Stepper, styles } from '@/components/ui';
-import { gameName } from '@/lib/games';
+import { gameKeys, gameName, matchLabel } from '@/lib/games';
 import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, shortCourseName, teeFor, type ScoreKey } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import { useRound, useStore, type RoundRecord } from '@/store/store';
@@ -190,7 +190,8 @@ function NassauPress({ r, index, hole }: { r: RoundRecord; index: number; hole: 
   );
 }
 
-function TeamBox({ r, results, team, index, hole, keys }: {
+function TeamBox({ r, results, team, index, hole, keys, gi }: {
+  gi: number;
   r: RoundRecord;
   results: ReturnType<typeof evaluate>;
   team: NonNullable<ReturnType<typeof teamGroups>>[number];
@@ -199,10 +200,10 @@ function TeamBox({ r, results, team, index, hole, keys }: {
   keys: ScoreKey[];
 }) {
   const c = useColors();
-  const main = isResult(results[0]) ? results[0] : undefined;
-  const teams = teamGroups(r, c)!;
-  const th = teamHole(r, main, team, hole);
-  const winner = holeWinner(teams.map((t) => teamHole(r, main, t, hole)));
+  const main = isResult(results[gi]) ? results[gi] : undefined;
+  const teams = teamGroups(r, c, gi)!;
+  const th = teamHole(r, main, team, hole, gi);
+  const winner = holeWinner(teams.map((t) => teamHole(r, main, t, hole, gi)));
   const won = winner === index;
   return (
     <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: won ? 2 : 1, borderColor: won ? team.color : c.border, overflow: 'hidden' }}>
@@ -246,6 +247,7 @@ export default function Scorecard() {
   const names = useStore((s) => s.names);
   const me = useStore((s) => s.me);
   const [view, setView] = useState<'hole' | 'card'>('hole');
+  const [focus, setFocus] = useState(0);
   const [quitting, setQuitting] = useState(false);
   const deleteRound = useStore((s) => s.deleteRound);
 
@@ -253,14 +255,20 @@ export default function Scorecard() {
 
   const course = courseFor(r);
   const hole = r.currentHole;
-  const keys = scoreKeys(r);
   const results = evaluate(r);
-  const mainStrokes = isResult(results[0]) ? results[0].strokes : {};
+  // Several matches in one round: each group focuses on its own match.
+  const matchIdx = r.games.map((g, i) => (matchLabel(g) ? i : -1)).filter((i) => i >= 0);
+  const multi = matchIdx.length > 1;
+  const gi = multi && matchIdx.includes(focus) ? focus : multi ? matchIdx[0] : 0;
+  const focusKeys = new Set(gameKeys(r.games[gi]));
+  const allKeys = scoreKeys(r);
+  const keys = multi ? allKeys.filter((k) => focusKeys.has(k.key)) : allKeys;
+  const mainStrokes = isResult(results[gi]) ? results[gi].strokes : {};
   const firstTee = teeFor(r, r.players[0].id);
   const h = firstTee.holes[hole - 1];
   const done = (n: number) => keys.every((k) => grossAt(r, k.key, n) !== null);
-  const allDone = Array.from({ length: 18 }, (_, i) => done(i + 1)).every(Boolean);
-  const teams = teamGroups(r, c);
+  const allDone = Array.from({ length: 18 }, (_, i) => allKeys.every((k) => grossAt(r, k.key, i + 1) !== null)).every(Boolean);
+  const teams = teamGroups(r, c, gi);
   const inTeams = new Set(teams?.flatMap((t) => t.keys) ?? []);
   const solo = keys.filter((k) => !inTeams.has(k.key));
 
@@ -280,11 +288,34 @@ export default function Scorecard() {
     <>
       <Stack.Screen options={{ title: shortCourseName(course.name) }} />
       <StatusBanner
-        name={gameName(r.games[0])}
-        result={results[0]}
+        name={multi ? `${gameName(r.games[gi])} · ${matchLabel(r.games[gi])}` : gameName(r.games[gi])}
+        result={results[gi]}
         players={r.players}
-        sideGames={r.games.slice(1).map((g, i) => ({ name: gameName(g), result: results[i + 1] }))}
+        sideGames={r.games.map((g, i) => ({ g, i })).filter(({ i }) => i !== gi).map(({ g, i }) => ({ name: matchLabel(g) ?? gameName(g), result: results[i] }))}
       />
+      {multi && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border }} contentContainerStyle={{ paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.sm }}>
+          {matchIdx.map((i) => {
+            const g = r.games[i];
+            const sel = i === gi;
+            const who = gameKeys(g).map((k) => allKeys.find((x) => x.key === k)?.label.split(' ')[0] ?? '').filter(Boolean);
+            const res = results[i];
+            return (
+              <Pressable
+                key={i}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: sel }}
+                onPress={() => setFocus(i)}
+                style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1.5, borderColor: sel ? c.primary : c.border, backgroundColor: sel ? c.primary : c.card }}>
+                <Text style={{ color: sel ? c.onPrimary : c.text, fontWeight: '700', fontSize: 13 }}>{matchLabel(g)}</Text>
+                <Text numberOfLines={1} style={{ color: sel ? '#ffffffcc' : c.muted, fontSize: 11, maxWidth: 160 }}>
+                  {isResult(res) && res.thru ? res.summary : who.join(', ')}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
         <Segmented
           options={[{ value: 'hole', label: 'Hole by hole' }, { value: 'card', label: 'Full scorecard' }]}
@@ -308,7 +339,7 @@ export default function Scorecard() {
 
         {view === 'card' ? (
           <>
-            <ScorecardGrid r={r} results={results} onPickHole={(n) => { setHole(r.id, n); setView('hole'); }} />
+            <ScorecardGrid r={r} results={results} focus={gi} onPickHole={(n) => { setHole(r.id, n); setView('hole'); }} />
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot. Tap a score to edit that hole.
             </Label>
@@ -350,7 +381,7 @@ export default function Scorecard() {
               return null;
             })}
 
-            {teams?.map((t, i) => <TeamBox key={t.id} r={r} results={results} team={t} index={i} hole={hole} keys={keys} />)}
+            {teams?.map((t, i) => <TeamBox key={t.id} r={r} results={results} team={t} index={i} hole={hole} keys={keys} gi={gi} />)}
 
             {solo.map((k) => (
               <ScoreRow key={k.key} r={r} k={k} hole={hole} strokes={mainStrokes[k.key]?.[hole - 1] ?? 0} />
@@ -358,7 +389,7 @@ export default function Scorecard() {
 
             {hole < 18 && done(hole) && <Button title={`Next hole: ${hole + 1} ›`} onPress={() => setHole(r.id, hole + 1)} />}
 
-            {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
+            {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' && (!multi || i === gi) ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
           </>
         )}
 

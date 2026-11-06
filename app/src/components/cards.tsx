@@ -4,7 +4,7 @@ import { Pressable } from 'react-native-gesture-handler';
 
 import { Body, Card, H2, Label, styles } from '@/components/ui';
 import { cupScore, eventPhase, eventStandings, formatPoints } from '@/lib/events';
-import { gameName } from '@/lib/games';
+import { gameName, matchLabel } from '@/lib/games';
 import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, useColors } from '@/theme';
@@ -62,7 +62,12 @@ export function RoundCard({ r }: { r: RoundRecord }) {
           {main && isResult(main) ? (
             <Body bold style={{ color: main.finished ? c.primary : c.text }}>{main.summary}</Body>
           ) : null}
-          {r.games.length > 1 ? <Label style={{ textTransform: 'none' }}>+ {r.games.length - 1} side game{r.games.length > 2 ? 's' : ''}</Label> : null}
+          {(() => {
+            const matches = r.games.filter((g) => matchLabel(g)).length;
+            const extra = r.games.length - Math.max(matches, 1);
+            const parts = [matches > 1 ? `${matches} matches` : null, extra > 0 ? `${extra} side game${extra > 1 ? 's' : ''}` : null].filter(Boolean);
+            return parts.length ? <Label style={{ textTransform: 'none' }}>{parts.join(' · ')}</Label> : null;
+          })()}
         </Card>
       )}
     </Pressable>

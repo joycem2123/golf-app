@@ -1,6 +1,7 @@
 import type { GameResult, HoleOutcome } from '@golf/engine';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { gameKeys, matchLabel } from '@/lib/games';
 import { grossAt, scoreKeys, teeFor } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import type { RoundRecord } from '@/store/store';
@@ -45,17 +46,22 @@ export function ScorecardGrid({
   r,
   results,
   onPickHole,
+  focus = 0,
 }: {
   r: RoundRecord;
   results: (GameResult | { error: string })[];
   onPickHole: (hole: number) => void;
+  /** Which game (match) the card is about. */
+  focus?: number;
 }) {
   const c = useColors();
-  const main = results[0] && !('error' in results[0]) ? results[0] : undefined;
+  const main = results[focus] && !('error' in results[focus]) ? results[focus] : undefined;
   const strokes = main?.strokes ?? {};
   const tee = teeFor(r, r.players[0].id);
-  const keys = scoreKeys(r);
-  const teams = teamGroups(r, c);
+  const multi = r.games.filter((g) => matchLabel(g)).length > 1;
+  const focusKeys = new Set(gameKeys(r.games[focus]));
+  const keys = scoreKeys(r).filter((k) => !multi || focusKeys.has(k.key));
+  const teams = teamGroups(r, c, focus);
   const label = (k: string) => keys.find((x) => x.key === k)?.label ?? k;
   const front = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   const back = [10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -139,11 +145,11 @@ export function ScorecardGrid({
               {t.keys.map(playerRow)}
               {t.keys.length > 1 &&
                 row(
-                  nameText(r.games[0].type === 'vegas' ? 'Team #' : 'Team', t.color),
+                  nameText(r.games[focus].type === 'vegas' ? 'Team #' : 'Team', t.color),
                   nineCells(
                     (h) => {
-                      const th = teamHole(r, main, t, h);
-                      const w = holeWinner(teams.map((x) => teamHole(r, main, x, h)));
+                      const th = teamHole(r, main, t, h, focus);
+                      const w = holeWinner(teams.map((x) => teamHole(r, main, x, h, focus)));
                       return <Text style={{ color: t.color, fontWeight: w === ti ? '800' : '500', fontSize: th.score !== null && th.score >= 100 ? 11 : 14, textDecorationLine: w === ti ? 'underline' : 'none' }}>{th.score ?? ''}</Text>;
                     },
                     () => null,

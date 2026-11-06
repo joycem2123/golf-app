@@ -52,7 +52,8 @@ export interface MatchOutcomes {
 
 function checkSize(format: MatchFormat, side: Side) {
   const n = side.members.length;
-  const ok = format === 'singles' ? n === 1 : format === 'foursomes' ? n === 2 : n >= 1 && n <= 2;
+  // Best ball can be 2 v 2 up to 4 v 4 (best ball of the team counts).
+  const ok = format === 'singles' ? n === 1 : format === 'foursomes' ? n === 2 : n >= 1 && n <= 4;
   if (!ok) throw new Error(`${FORMAT_LABEL[format]}: side "${side.id}" has ${n} players`);
 }
 
