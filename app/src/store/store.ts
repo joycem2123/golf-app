@@ -49,6 +49,8 @@ export interface RoundRecord {
   eventId?: string;
   /** e.g. "Day 1 · Best Ball" */
   label?: string;
+  /** Team letter for each player, from the Teams step ("A", "B", "C"…). */
+  teamOf?: Record<string, string>;
   /** Set once the round is shared online (live leaderboard / other scorekeepers). */
   remote?: Remote;
 }
@@ -323,6 +325,7 @@ export const useStore = create<State>()(
               games: s.dirtyRounds.includes(r.id) ? r.games : round.games,
               status: s.dirtyRounds.includes(r.id) ? r.status : round.status,
               eventId: round.eventId ?? r.eventId,
+              teamOf: round.teamOf ?? r.teamOf,
               remote: r.remote?.role === 'owner' ? r.remote : round.remote ?? r.remote,
             })),
           };

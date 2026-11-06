@@ -143,6 +143,7 @@ export default function NewRound() {
       notices: [],
       eventId: event?.id,
       label: scheduled?.label,
+      teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
     };
     addRound(round);
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });

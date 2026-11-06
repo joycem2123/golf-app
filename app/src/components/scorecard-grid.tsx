@@ -13,7 +13,7 @@ const NAME = 92;
 const H = 38;
 
 /** Traditional scorecard marks: circle = birdie, double circle = eagle, square = bogey, double square = double+. */
-function Mark({ gross, par, dot }: { gross: number | null; par: number; dot: number }) {
+export function Mark({ gross, par, dot }: { gross: number | null; par: number; dot: number }) {
   const c = useColors();
   if (gross === null) {
     return (
