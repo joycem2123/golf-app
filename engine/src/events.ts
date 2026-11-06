@@ -78,6 +78,8 @@ export interface CupMatch {
   result: MatchOutcome | null;
   /** Points the match is worth (default 1; a halve earns half each). */
   points?: number;
+  /** Points each side actually won, for matches that pay split points (a Nassau won 2.5–0.5). Used once the match is finished. */
+  split?: { A: number; B: number };
 }
 
 export interface CupStandings {
@@ -111,6 +113,15 @@ export function cupStandings(
   let projA = 0;
   let projB = 0;
   for (const m of matches) {
+    if (m.split && m.result !== null) {
+      // Split-points match: each side keeps what it won.
+      total += m.split.A + m.split.B;
+      teamA += m.split.A;
+      teamB += m.split.B;
+      projA += m.split.A;
+      projB += m.split.B;
+      continue;
+    }
     const pts = m.points ?? 1;
     total += pts;
     const r = m.result ?? opts.liveLeaders?.[m.id] ?? null;

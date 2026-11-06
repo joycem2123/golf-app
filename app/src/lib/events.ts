@@ -20,6 +20,8 @@ export interface EventMatch {
   date: string;
   /** Nassau: points each side won (front, back, overall, presses). */
   points?: { A: number; B: number };
+  /** Points the match is worth (Nassau: 3 plus presses; others 1). */
+  worth?: number;
 }
 
 function sidesOf(r: RoundRecord, i: number): [string[], string[]] | null {
@@ -50,6 +52,7 @@ export function eventMatches(e: EventRecord, rounds: RoundRecord[]): EventMatch[
       let [sideA, sideB] = sides;
       let { result, leader } = outcome(res, aId);
       let points = res.type === 'nassau' ? { ...res.points } : undefined;
+      const worth = res.type === 'nassau' ? 3 + res.presses.length : undefined;
       // Cup: orient every match so side A is the event's Team A.
       if (e.teams && sideA.every((p) => e.teams!.B.playerIds.includes(p))) {
         [sideA, sideB] = [sideB, sideA];
@@ -70,6 +73,7 @@ export function eventMatches(e: EventRecord, rounds: RoundRecord[]): EventMatch[
         thru: res.thru,
         date: new Date(r.createdAt).toISOString().slice(0, 10),
         points,
+        worth,
       });
     });
   }
@@ -81,9 +85,15 @@ const isCupMatch = (e: EventRecord, m: EventMatch) =>
 
 export function cupScore(e: EventRecord, rounds: RoundRecord[]) {
   const matches = eventMatches(e, rounds).filter((m) => isCupMatch(e, m));
-  const cup: CupMatch[] = matches.map((m) => ({ id: m.id, sideA: m.sideA, sideB: m.sideB, result: m.result }));
-  // Matches not yet set up still count toward the points on offer.
-  const unplanned = (e.cupPoints ?? 0) - cup.length;
+  // Nassau matches pay their own points (front, back, overall and presses); others are worth 1.
+  const cup: CupMatch[] = matches.map((m) => ({ id: m.id, sideA: m.sideA, sideB: m.sideB, result: m.result, points: m.worth, split: m.points }));
+  // Matches not yet played still count toward the points on offer.
+  const started = new Set(rounds.filter((r) => r.eventId === e.id).map((r) => r.id));
+  const unplanned = e.rounds
+    ? e.rounds
+        .filter((x) => !x.roundId || !started.has(x.roundId))
+        .reduce((s, x) => s + (x.draft ? x.draft.matches.length * (x.draft.kind === 'nassau' ? 3 : 1) : 0), 0)
+    : (e.cupPoints ?? 0) - cup.reduce((s, m) => s + (m.points ?? 1), 0);
   if (unplanned > 0) cup.push({ id: 'unplayed', sideA: [], sideB: [], result: null, points: unplanned });
   const liveLeaders = Object.fromEntries(matches.filter((m) => m.result === null && m.leader).map((m) => [m.id, m.leader!]));
   return { matches, standings: cupStandings(cup, { holder: e.holder, liveLeaders }) };

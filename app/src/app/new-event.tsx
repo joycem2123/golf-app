@@ -177,7 +177,8 @@ export default function NewEvent() {
   const build = () => {
     const chosen = saved.filter((p) => ids.includes(p.id));
     const teamIds = (L: string) => ids.filter((id) => teamOf[id] === L);
-    const cupPoints = plans.reduce((s, p) => s + (p.draft && isMatchFormat(p.draft.kind) ? p.draft.matches.length : 0), 0);
+    // Each match is worth 1 point; a Nassau is worth 3 (front, back, overall).
+    const cupPoints = plans.reduce((s, p) => s + (p.draft && isMatchFormat(p.draft.kind) ? p.draft.matches.length * (p.draft.kind === 'nassau' ? 3 : 1) : 0), 0);
     const e: EventRecord = {
       id: newId(),
       name: name.trim(),

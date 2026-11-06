@@ -117,3 +117,18 @@ describe('stats', () => {
     expect(s.scoring).toMatchObject({ birdies: 1, pars: 1, bogeys: 1 });
   });
 });
+
+describe('cup standings with split-points matches', () => {
+  it('a Nassau won 2.5–0.5 and one halved 1.5–1.5 give 4–2', async () => {
+    const { cupStandings } = await import('../src');
+    const s = cupStandings([
+      { id: 'n1', sideA: ['a'], sideB: ['b'], result: 'halved', points: 3, split: { A: 1.5, B: 1.5 } },
+      { id: 'n2', sideA: ['c'], sideB: ['d'], result: 'A', points: 3, split: { A: 2.5, B: 0.5 } },
+      { id: 'later', sideA: [], sideB: [], result: null, points: 4 },
+    ]);
+    expect(s.teamA).toBe(4);
+    expect(s.teamB).toBe(2);
+    expect(s.totalPoints).toBe(10);
+    expect(s.toWin).toBe(5.5);
+  });
+});
