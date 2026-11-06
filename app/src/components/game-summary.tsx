@@ -1,4 +1,4 @@
-import type { GameResult, Player } from '@golf/engine';
+import { half, type GameResult, type Player } from '@golf/engine';
 import { View } from 'react-native';
 
 import { toPar } from '@/lib/format';
@@ -27,7 +27,7 @@ function Details({ result, players }: { result: GameResult; players: Player[] })
               Press {p.segment} from #{p.startHole}: {p.status.lead === 0 ? p.status.display : `${p.status.lead > 0 ? 'A' : 'B'} ${p.status.display}`}
             </Body>
           ))}
-          <Body bold>Points: A {result.points.A} – B {result.points.B}</Body>
+          <Body bold>Points: A {half(result.points.A)} – B {half(result.points.B)}</Body>
         </View>
       );
     case 'skins': {

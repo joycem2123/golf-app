@@ -1,4 +1,4 @@
-import type { GameResult, MatchStatus, Player } from '@golf/engine';
+import { half, type GameResult, type MatchStatus, type Player } from '@golf/engine';
 
 import { toPar } from './format';
 import { TEAM_A, TEAM_B } from './games';
@@ -52,12 +52,21 @@ export function headline(result: GameResult, players: Player[]): Headline {
       return { ...matchLine(result.status, result.sideA.name, result.sideB.name), extra: [] };
     case 'nassau': {
       const [front, back, overall] = result.segments;
-      const pts = result.points.A === result.points.B ? null : result.points.A > result.points.B ? 0 : 1;
+      const { A, B } = result.points;
+      const pts: 0 | 1 | null = A === B ? null : A > B ? 0 : 1;
+      const final = result.finished
+        ? {
+            leader: pts === null ? '' : result.standings[pts].name,
+            side: pts,
+            big: pts === null ? `Tied ${half(A)}–${half(B)}` : `Win ${half(Math.max(A, B))}–${half(Math.min(A, B))}`,
+            small: 'Final',
+          }
+        : matchLine(overall.status, result.standings[0].name, result.standings[1].name);
       return {
-        ...matchLine(overall.status, result.standings[0].name, result.standings[1].name),
+        ...final,
         extra: [
           `Front ${segStatus(front.status)}  ·  Back ${segStatus(back.status)}  ·  18 ${segStatus(overall.status)}`,
-          `Points  A ${result.points.A} – ${result.points.B} B${pts === null ? '' : ''}${result.presses.length ? `  ·  ${result.presses.length} press${result.presses.length > 1 ? 'es' : ''}` : ''}`,
+          `Points  A ${half(A)} – ${half(B)} B${result.presses.length ? `  ·  ${result.presses.length} press${result.presses.length > 1 ? 'es' : ''}` : ''}`,
         ],
       };
     }

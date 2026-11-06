@@ -90,9 +90,10 @@ describe('Nassau', () => {
     expect(withCarry.segments[1].carriedForward).toBe(true);
     expect(withCarry.points).toEqual({ A: 3, B: 0 });
 
+    // Without carryovers a halved nine is split: front A, back halved, 18 A = 2½–½.
     const noCarry = playNassau(r, { type: 'nassau', format: 'singles', ...sides });
-    expect(noCarry.points).toEqual({ A: 2, B: 0 });
-    expect(noCarry.summary).toBe('A wins the Nassau 2-0');
+    expect(noCarry.points).toEqual({ A: 2.5, B: 0.5 });
+    expect(noCarry.summary).toBe('A wins the Nassau 2½-½');
   });
 
   it('manual press runs to the end of its nine', () => {
@@ -104,8 +105,17 @@ describe('Nassau', () => {
       presses: [{ segment: 'back', startHole: 12, pressedBy: 'B' }],
     });
     expect(res.presses[0].awardedTo).toBe('B');
-    expect(res.points).toEqual({ A: 1, B: 2 });
+    // front A 1, back B 1, press B 1, 18 halved ½ each
+    expect(res.points).toEqual({ A: 1.5, B: 2.5 });
     expect(res.winnerIds).toEqual(['B']);
+  });
+
+  it('a halved 18 with carryovers is split instead of left hanging', () => {
+    const r = round({ a: 0, b: 0 }, { a: parCard({ 1: 3 }), b: parCard({ 10: 3 }) });
+    const res = playNassau(r, { type: 'nassau', format: 'singles', ...sides, carryovers: true });
+    expect(res.points).toEqual({ A: 1.5, B: 1.5 });
+    expect(res.summary).toBe('Nassau tied 1½-1½');
+    expect(res.unresolvedCarry).toBe(0);
   });
 
   it('rejects a press outside its nine', () => {

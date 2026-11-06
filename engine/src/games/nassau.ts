@@ -51,8 +51,15 @@ export interface NassauResult extends BaseResult {
   segments: NassauSegmentResult[];
   presses: NassauPressResult[];
   points: { A: number; B: number };
-  /** Points still carried with nowhere to go (overall halved with carryovers on). */
+  /** Always 0: a halved 18 is split, so carried points never go unresolved. */
   unresolvedCarry: number;
+}
+
+/** 2.5 -> "2½", 0.5 -> "½" */
+export function half(n: number): string {
+  const whole = Math.floor(n);
+  if (n - whole !== 0.5) return String(n);
+  return whole === 0 ? '½' : `${whole}½`;
 }
 
 export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
@@ -71,9 +78,16 @@ export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
     if (status.winner === 'A' || status.winner === 'B') {
       awardedTo = status.winner;
       points[status.winner] += value;
-    } else if (status.winner === 'halved' && cfg.carryovers) {
-      carry = value;
-      carriedForward = true;
+    } else if (status.winner === 'halved') {
+      if (cfg.carryovers && segment !== 'overall') {
+        // Carryovers: a halved nine pushes its point to the next bet.
+        carry = value;
+        carriedForward = true;
+      } else {
+        // Otherwise a halved bet is split: half a point each.
+        points.A += value / 2;
+        points.B += value / 2;
+      }
     }
     return { segment, status, value, awardedTo, carriedForward };
   });
@@ -86,6 +100,10 @@ export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
     const status = slice(p.startHole, to);
     const awardedTo = status.winner === 'A' || status.winner === 'B' ? status.winner : null;
     if (awardedTo) points[awardedTo] += 1;
+    else if (status.winner === 'halved') {
+      points.A += 0.5;
+      points.B += 0.5;
+    }
     return { ...p, status, awardedTo };
   });
 
@@ -93,9 +111,9 @@ export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
   const nameA = sideName(round, cfg.sideA);
   const nameB = sideName(round, cfg.sideB);
   const winner = !finished ? null : points.A > points.B ? 'A' : points.B > points.A ? 'B' : null;
-  const score = `${Math.max(points.A, points.B)}-${Math.min(points.A, points.B)}`;
+  const score = `${half(Math.max(points.A, points.B))}-${half(Math.min(points.A, points.B))}`;
   const summary = !finished
-    ? `${nameA} ${points.A} - ${points.B} ${nameB} (in progress)`
+    ? `${nameA} ${half(points.A)} - ${half(points.B)} ${nameB} (in progress)`
     : winner
       ? `${winner === 'A' ? nameA : nameB} ${wins(winner === 'A' ? nameA : nameB)} the Nassau ${score}`
       : `Nassau tied ${score}`;
