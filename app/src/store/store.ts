@@ -169,6 +169,10 @@ interface State {
   removePlayer: (id: string) => void;
   addRound: (r: RoundRecord) => void;
   deleteRound: (id: string) => void;
+  /** Put back a deleted round (Undo). */
+  restoreRound: (r: RoundRecord, matches: RecordedMatch[]) => void;
+  /** Put back a deleted event and re-link its rounds (Undo). */
+  restoreEvent: (e: EventRecord, roundIds: string[]) => void;
   setScore: (roundId: string, key: string, hole: number, gross: number | null) => void;
   setStats: (roundId: string, playerId: string, hole: number, stats: HoleStats | null) => void;
   setHole: (roundId: string, hole: number) => void;
@@ -343,6 +347,16 @@ export const useStore = create<State>()(
       removePlayer: (id) => set((s) => ({ players: s.players.filter((p) => p.id !== id) })),
 
       addRound: (r) => set((s) => ({ rounds: [r, ...s.rounds] })),
+      restoreRound: (r, matches) =>
+        set((s) => ({
+          rounds: s.rounds.some((x) => x.id === r.id) ? s.rounds : [...s.rounds, r].sort((a, b) => b.createdAt - a.createdAt),
+          history: [...s.history.filter((m) => m.eventId !== r.id), ...matches],
+        })),
+      restoreEvent: (e, roundIds) =>
+        set((s) => ({
+          events: s.events.some((x) => x.id === e.id) ? s.events : [...s.events, e].sort((a, b) => b.createdAt - a.createdAt),
+          rounds: s.rounds.map((r) => (roundIds.includes(r.id) ? { ...r, eventId: e.id } : r)),
+        })),
       deleteRound: (id) =>
         set((s) => ({ rounds: s.rounds.filter((r) => r.id !== id), history: s.history.filter((m) => m.eventId !== id) })),
 

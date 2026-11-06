@@ -1,6 +1,7 @@
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SyncProvider } from '@/sync/sync-provider';
 import { fonts, useColors } from '@/theme';
@@ -15,6 +16,7 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={{ ...DefaultTheme, colors: { ...DefaultTheme.colors, background: c.bg, card: c.card, primary: c.primary, text: c.text, border: c.border } }}>
       <Stack
         screenOptions={{
@@ -40,5 +42,6 @@ export default function RootLayout() {
       </Stack>
       <SyncProvider />
     </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

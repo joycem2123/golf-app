@@ -1,10 +1,12 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable as GHPressable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EventCard, RoundCard } from '@/components/cards';
 import { LegacyClaimCard } from '@/components/legacy-claim';
+import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
 import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { gameName } from '@/lib/games';
@@ -56,10 +58,12 @@ export default function Home() {
   const incoming = useFriendRequests((s) => s.incoming);
   const requestCount = incoming.length;
   const requestName = incoming[0]?.display_name || incoming[0]?.username || 'Someone';
+  const { deleteRound, deleteEvent, bar } = useDeleteWithUndo();
   const firstName = myPlayer ? myPlayer.name.split(' ')[0] : me && names[me] ? names[me].split(' ')[0] : null;
 
   return (
-    <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: space.xl }}>
+    <View style={{ flex: 1 }}>
+    <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: space.xl * 3 }}>
       {/* Banner */}
       <View style={{ backgroundColor: c.primary, paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xl + (live ? 56 : 0) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
@@ -75,7 +79,9 @@ export default function Home() {
 
       {/* Live round, overlapping the banner */}
       {live && (
-        <Pressable onPress={() => router.push(`/round/${live.id}`)} style={{ marginHorizontal: space.lg, marginTop: -56 }}>
+        <View style={{ marginHorizontal: space.lg, marginTop: -56 }}>
+        <SwipeToDelete label="round" onDelete={() => deleteRound(live.id)}>
+        <GHPressable onPress={() => router.push(`/round/${live.id}`)}>
           <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
             <View style={{ height: 3, backgroundColor: c.accent }} />
             <View style={{ padding: space.lg, gap: 4 }}>
@@ -90,7 +96,9 @@ export default function Home() {
               <Text style={{ color: c.primary, fontWeight: '700', marginTop: 4 }}>Resume scoring ›</Text>
             </View>
           </View>
-        </Pressable>
+        </GHPressable>
+        </SwipeToDelete>
+        </View>
       )}
 
       <View style={{ padding: space.lg, gap: space.lg }}>
@@ -115,14 +123,22 @@ export default function Home() {
         {events.length > 0 && (
           <View style={{ gap: space.sm }}>
             <Label>Events</Label>
-            {events.map((e) => <EventCard key={e.id} e={e} rounds={rounds} />)}
+            {events.map((e) => (
+              <SwipeToDelete key={e.id} label={`event ${e.name}`} onDelete={() => deleteEvent(e.id)}>
+                <EventCard e={e} rounds={rounds} />
+              </SwipeToDelete>
+            ))}
           </View>
         )}
 
         {active.length > 1 && (
           <View style={{ gap: space.sm }}>
             <Label>Also in progress</Label>
-            {active.slice(1).map((r) => <RoundCard key={r.id} r={r} />)}
+            {active.slice(1).map((r) => (
+              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
+                <RoundCard r={r} />
+              </SwipeToDelete>
+            ))}
           </View>
         )}
 
@@ -132,7 +148,11 @@ export default function Home() {
               <Label>Recent results</Label>
               <Pressable onPress={() => router.push('/scores')}><Label style={{ color: c.primary }}>See all ›</Label></Pressable>
             </View>
-            {recent.map((r) => <RoundCard key={r.id} r={r} />)}
+            {recent.map((r) => (
+              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
+                <RoundCard r={r} />
+              </SwipeToDelete>
+            ))}
           </View>
         )}
 
@@ -144,5 +164,7 @@ export default function Home() {
         )}
       </View>
     </ScrollView>
+    {bar}
+    </View>
   );
 }

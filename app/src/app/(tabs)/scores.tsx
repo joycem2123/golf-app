@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { RoundCard } from '@/components/cards';
+import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
 import { HeadToHeadView } from '@/components/head-to-head-view';
 import { TabHeader } from '@/components/tab-header';
 import { MeBadge, StatTiles } from '@/components/people';
@@ -100,8 +101,10 @@ function History() {
 }
 
 export default function Scores() {
+  const c = useColors();
   const rounds = useStore((s) => s.rounds);
   const [section, setSection] = useState<Section>('rounds');
+  const { deleteRound, bar } = useDeleteWithUndo();
   const active = rounds.filter((r) => r.status === 'active');
   const done = rounds.filter((r) => r.status === 'complete');
 
@@ -117,15 +120,25 @@ export default function Scores() {
         {section === 'rounds' && (
           <>
             {active.length > 0 && <Label>In progress</Label>}
-            {active.map((r) => <RoundCard key={r.id} r={r} />)}
+            {active.map((r) => (
+              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
+                <RoundCard r={r} />
+              </SwipeToDelete>
+            ))}
             {done.length > 0 && <Label>Completed</Label>}
-            {done.map((r) => <RoundCard key={r.id} r={r} />)}
+            {done.map((r) => (
+              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
+                <RoundCard r={r} />
+              </SwipeToDelete>
+            ))}
+            {rounds.length > 0 && <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Swipe a round left to delete it.</Text>}
             {rounds.length === 0 && <Body muted>No rounds yet. Start one from Home.</Body>}
           </>
         )}
         {section === 'history' && <History />}
         {section === 'h2h' && <HeadToHeadView />}
       </ScrollView>
+      {bar}
     </View>
   );
 }
