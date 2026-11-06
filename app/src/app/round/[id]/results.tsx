@@ -207,7 +207,7 @@ export default function Results() {
                   </View>
                 );
               })}
-              <Text style={{ color: c.muted, fontSize: 12 }}>1 point for a win, ½ for a halved match.</Text>
+              <Text style={{ color: c.muted, fontSize: 12 }}>{matches.some((m) => r.games[m.gi].type === 'nassau') ? 'Nassau matches count their points (front 9, back 9, overall and presses). Other matches: 1 point for a win, ½ for a halve.' : '1 point for a win, ½ for a halved match.'}</Text>
             </Card>
           )}
 

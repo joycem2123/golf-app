@@ -18,6 +18,8 @@ export interface EventMatch {
   summary: string;
   thru: number;
   date: string;
+  /** Nassau: points each side won (front, back, overall, presses). */
+  points?: { A: number; B: number };
 }
 
 function sidesOf(r: RoundRecord, i: number): [string[], string[]] | null {
@@ -47,12 +49,14 @@ export function eventMatches(e: EventRecord, rounds: RoundRecord[]): EventMatch[
       const aId = g.type === 'vegas' ? g.teamA.id : (g as { sideA: { id: string } }).sideA.id;
       let [sideA, sideB] = sides;
       let { result, leader } = outcome(res, aId);
+      let points = res.type === 'nassau' ? { ...res.points } : undefined;
       // Cup: orient every match so side A is the event's Team A.
       if (e.teams && sideA.every((p) => e.teams!.B.playerIds.includes(p))) {
         [sideA, sideB] = [sideB, sideA];
         const flip = (x: typeof result) => (x === 'A' ? 'B' : x === 'B' ? 'A' : x);
         result = flip(result);
         leader = flip(leader);
+        if (points) points = { A: points.B, B: points.A };
       }
       out.push({
         id: `${r.id}-${i}`,
@@ -65,6 +69,7 @@ export function eventMatches(e: EventRecord, rounds: RoundRecord[]): EventMatch[
         summary: res.summary,
         thru: res.thru,
         date: new Date(r.createdAt).toISOString().slice(0, 10),
+        points,
       });
     });
   }
@@ -89,9 +94,23 @@ export function eventStandings(e: EventRecord, rounds: RoundRecord[]) {
     .filter((m) => m.result !== null)
     .map((m) => ({ id: m.id, date: m.date, format: m.name, sideA: m.sideA, sideB: m.sideB, result: m.result! }));
   const rows = seasonStandings(recorded, e.points);
+  // Nassau matches pay their own points instead of win / halve / loss points.
+  for (const m of eventMatches(e, rounds)) {
+    if (m.result === null || !m.points) continue;
+    const std = m.result === 'A' ? [e.points.win, e.points.loss] : m.result === 'B' ? [e.points.loss, e.points.win] : [e.points.halve, e.points.halve];
+    const adjust = (ids: string[], earned: number, standard: number) => {
+      for (const id of ids) {
+        const row = rows.find((x) => x.playerId === id);
+        if (row) row.points += earned - standard;
+      }
+    };
+    adjust(m.sideA, m.points.A, std[0]);
+    adjust(m.sideB, m.points.B, std[1]);
+  }
   // Include players with no matches yet.
   for (const id of e.playerIds) if (!rows.some((r) => r.playerId === id)) rows.push({ playerId: id, played: 0, wins: 0, losses: 0, halves: 0, points: 0, position: 0 });
   rows.forEach((r) => (r.position = 1 + rows.filter((o) => o.points > r.points).length));
+  rows.sort((a, b) => a.position - b.position);
   return rows;
 }
 

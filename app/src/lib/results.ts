@@ -18,7 +18,7 @@ export interface MatchOutcome {
   winner: 'a' | 'b' | 'halved' | null;
   /** e.g. "wins 3&2", "Halved", "2 UP thru 14". */
   detail: string;
-  /** Points each side earns toward the team total (1 win, ½ halve). */
+  /** Points each side earns toward the team total (1 win, ½ halve; Nassau: its points). */
   pointsA: number;
   pointsB: number;
 }
@@ -74,7 +74,11 @@ export function matchOutcomes(r: RoundRecord, results: (GameResult | { error: st
       detail = winner === 'halved' ? 'Halved' : winner ? st.display : st.lead === 0 ? `All square thru ${st.thru}` : `${st.display} thru ${st.thru}`;
     } else if (res.type === 'nassau') detail = `${res.points.A % 1 ? res.points.A.toFixed(1) : res.points.A} – ${res.points.B % 1 ? res.points.B.toFixed(1) : res.points.B} pts`;
     else if (res.type === 'vegas') detail = `${Math.abs(res.totalA)} pts`;
-    const pts = winner === 'a' ? [1, 0] : winner === 'b' ? [0, 1] : winner === 'halved' ? [0.5, 0.5] : [0, 0];
+    // Nassau pays its own points (front, back, overall and presses); other matches are 1 for a win, ½ each for a halve.
+    const pts =
+      res.type === 'nassau'
+        ? [res.points.A, res.points.B]
+        : winner === 'a' ? [1, 0] : winner === 'b' ? [0, 1] : winner === 'halved' ? [0.5, 0.5] : [0, 0];
     const label = matchLabel(g);
     out.push({ gi, title: label ? `${label === 'Side match' ? 'Side match' : label} · ${gameName(g)}` : gameName(g), a, b, winner, detail, pointsA: pts[0], pointsB: pts[1] });
   });

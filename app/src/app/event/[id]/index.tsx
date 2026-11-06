@@ -162,7 +162,7 @@ export default function EventScreen() {
                   <Text style={{ width: 44, textAlign: 'right', fontFamily: fonts.serif, fontWeight: '700', fontSize: 17, color: c.text }}>{formatPoints(row.points)}</Text>
                 </View>
               ))}
-              <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Win 1 · halve ½ · every match counts, including side matches.</Label>
+              <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Win 1 · halve ½ · Nassau matches count their points · every match counts, including side matches.</Label>
             </Card>
             {e.rounds?.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
