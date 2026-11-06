@@ -19,7 +19,7 @@ import { useMe } from '@/lib/me';
 import { matchOutcomes, teamTotals, type MatchOutcome } from '@/lib/results';
 import { storyHoles } from '@/lib/story';
 import { teamGroups, teamHole } from '@/lib/teams';
-import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor } from '@/lib/round';
+import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor, roundHoleCount } from '@/lib/round';
 import { useRound, useStore } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { track } from '@/lib/usage';
@@ -277,7 +277,7 @@ export default function Results() {
                       <Text style={{ width: 46, textAlign: 'center', color: c.text, fontSize: 17, fontWeight: '800', fontFamily: fonts.serif }}>{x.tot}</Text>
                       <Text style={{ width: 40, textAlign: 'center', color: x.toPar < 0 ? c.under : c.text, fontSize: 14, fontWeight: '700' }}>{toPar(x.toPar)}</Text>
                     </Pressable>
-                    {x.holes < 18 && <Text style={{ color: c.muted, fontSize: 11, marginTop: -8, marginBottom: 6 }}>{x.holes} holes played</Text>}
+                    {x.holes < roundHoleCount(r) && <Text style={{ color: c.muted, fontSize: 11, marginTop: -8, marginBottom: 6 }}>{x.holes} holes played</Text>}
                     {isOpen && <PlayerCard g={x.g} tee={x.tee} />}
                   </View>
                 );
@@ -391,8 +391,9 @@ function PlayerCard({ g, tee }: { g: (h: number) => number | null; tee: ReturnTy
   };
   return (
     <View style={{ gap: space.sm, paddingBottom: space.md }}>
-      {nine(FRONT, 'OUT')}
-      {nine(BACK, 'IN')}
+      {/* A nine-hole round shows only the nine that was played. */}
+      {(FRONT.some((h) => g(h) !== null) || !BACK.some((h) => g(h) !== null)) && nine(FRONT, 'OUT')}
+      {(BACK.some((h) => g(h) !== null) || !FRONT.some((h) => g(h) !== null)) && nine(BACK, 'IN')}
       <Text style={{ color: c.muted, fontSize: 11 }}>○ birdie  ◎ eagle  □ bogey  ⧈ double+</Text>
     </View>
   );

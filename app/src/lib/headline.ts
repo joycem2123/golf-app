@@ -103,7 +103,7 @@ export function headline(result: GameResult, players: Player[]): Headline {
         pos: started ? `${tied(s.position) ? 'T' : ''}${s.position}` : '–',
         name: playerName(s.id, players),
         value: started ? toPar(s.value) : '–',
-        thru: s.thru >= 18 ? 'F' : s.thru > 0 ? String(s.thru) : '–',
+        thru: s.thru >= (result.holeOrder?.length ?? 18) ? 'F' : s.thru > 0 ? String(s.thru) : '–',
       }));
       const lead = result.standings.filter((s) => s.position === 1);
       return {

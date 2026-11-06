@@ -8,7 +8,7 @@ import type { RecordedMatch } from '@golf/engine';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { supabase } from '@/sync/supabase';
 import { fonts, radius, space, useColors } from '@/theme';
-import { courseFor, holesComplete, shortCourseName } from '@/lib/round';
+import { courseFor, holesComplete, playedHoles, shortCourseName } from '@/lib/round';
 import { gameName } from '@/lib/games';
 import { canDeleteEvent } from '@/lib/events';
 
@@ -16,7 +16,7 @@ import { canDeleteEvent } from '@/lib/events';
  * A round can be deleted while it's in progress. Once it has been finished with all 18 holes scored it's
  * part of everyone's history (even if reopened to fix a score). A round finished early and reopened can still go.
  */
-export const canDeleteRound = (r: RoundRecord) => r.status !== 'complete' && (!r.completedAt || holesComplete(r) < 18);
+export const canDeleteRound = (r: RoundRecord) => r.status !== 'complete' && (!r.completedAt || holesComplete(r) < playedHoles(r).length);
 
 /** Swipe a card left to reveal a trash can. */
 export function SwipeToDelete({ children, onDelete, label, disabled }: { children: ReactNode; onDelete: () => void; label: string; disabled?: boolean }) {

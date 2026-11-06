@@ -128,6 +128,8 @@ export interface Matchup {
   /** Team letters for each side (from the Teams step). */
   ta?: string;
   tb?: string;
+  /** Hole this match starts on (default 1). */
+  start?: number;
 }
 
 export interface GameDraft {
@@ -150,6 +152,10 @@ export interface GameDraft {
   tenPlusRule: 'highFirst' | 'standard';
   stablefordSystem: 'standard' | 'modified';
   countBest: number;
+  /** 9 or 18 holes, the same for every match (older drafts: 18). */
+  holes?: 9 | 18;
+  /** Starting hole for games that aren't split into matches (default 1). */
+  start?: number;
 }
 
 const chunk = <T,>(arr: T[], size: number) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
@@ -192,6 +198,8 @@ export function newDraft(kind: GameKind, players: { id: string }[], t?: TeamOf |
     tenPlusRule: 'highFirst',
     stablefordSystem: 'standard',
     countBest: 1,
+    holes: 18,
+    start: 1,
   };
 }
 
@@ -200,6 +208,7 @@ export function draftProblem(d: GameDraft, players: Player[]): string | null {
   const info = gameInfo(d.kind);
   const fit = gameFitProblem(info, players.map((p) => p.id), d.teamOf);
   if (fit) return `${info.name}: ${fit.toLowerCase()}`;
+  if (d.kind === 'nassau' && d.holes === 9) return 'Nassau needs 18 holes (front 9, back 9 and overall). Choose 18 holes or another game.';
   if (info.teamSizes) {
     const used = d.matches.flatMap((m) => [...m.a, ...m.b]);
     const empty = used.filter((id) => !id).length;
@@ -219,6 +228,13 @@ export function draftProblem(d: GameDraft, players: Player[]): string | null {
 export const TEAM_A = 'teamA';
 export const TEAM_B = 'teamB';
 
+/** 9 or 18 holes from a starting hole; undefined for the usual 18 from hole 1. */
+export function playSpec(holes: 9 | 18 | undefined, start: number | undefined): GameConfig['play'] {
+  const h = holes === 9 ? 9 : 18;
+  const s = start && start >= 1 && start <= 18 ? start : 1;
+  return h === 18 && s === 1 ? undefined : { holes: h, start: s };
+}
+
 const handicap = (d: GameDraft): { net: boolean; mode: HandicapMode; allowance: number } => ({ net: d.net, mode: d.mode, allowance: d.allowancePct / 100 });
 
 /** Players per team letter. */
@@ -235,7 +251,7 @@ export function teamIdName(id: string): string | null {
 }
 
 /** Turn the setup screen's choices into the engine's games: one per match for match formats. */
-export function draftToConfigs(d: GameDraft, players: Player[]): GameConfig[] {
+function draftToConfigsRaw(d: GameDraft, players: Player[]): GameConfig[] {
   const ids = players.map((p) => p.id);
   const letters = [...new Set(ids.map((id) => d.teamOf[id]).filter(Boolean))].sort();
   const teams = letters.map((L) => ({ id: `team-${L}`, name: `Team ${L}`, members: ids.filter((id) => d.teamOf[id] === L) }));
@@ -287,6 +303,16 @@ export function draftToConfigs(d: GameDraft, players: Player[]): GameConfig[] {
   }
 }
 
+/** The draft as game configs, each with its holes and starting hole. */
+export function draftToConfigs(d: GameDraft, players: Player[]): GameConfig[] {
+  const configs = draftToConfigsRaw(d, players);
+  const match = isMatchFormat(d.kind);
+  return configs.map((g, i) => {
+    const play = playSpec(d.holes, match ? d.matches[i]?.start : d.start);
+    return play ? { ...g, play } : g;
+  });
+}
+
 /** "Match 2" for one of several matches in a round (null for a single match or other games). */
 export function matchLabel(game: GameConfig): string | null {
   const m = /^match-(\d+)$/.exec((game as { id?: string }).id ?? '');
@@ -313,8 +339,9 @@ export function gameKeys(g: GameConfig): string[] {
   }
 }
 
-export function sideMatchConfig(a: string, b: string): MatchPlayConfig {
+export function sideMatchConfig(a: string, b: string, play?: GameConfig['play']): GameConfig {
   return {
+    ...(play ? { play } : {}),
     type: 'matchPlay',
     id: `side-${a}-${b}`,
     title: 'Side match',

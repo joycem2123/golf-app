@@ -3,7 +3,7 @@ import { cupStandings, seasonStandings, type CupMatch, type GameResult, type Rec
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { gameName } from './games';
 import { roundTeamScore, type TeamTotal } from './results';
-import { evaluate, isResult, holesComplete } from './round';
+import { evaluate, isResult, holesComplete, playedHoles } from './round';
 
 export interface EventMatch {
   id: string;
@@ -164,7 +164,7 @@ export function eventPhase(e: EventRecord, rounds: RoundRecord[]): EventPhase {
 
 /** Events can only be deleted before any of their rounds are finished. */
 export function canDeleteEvent(e: EventRecord, rounds: RoundRecord[]): boolean {
-  return !rounds.some((r) => r.eventId === e.id && (r.status === 'complete' || (r.completedAt && holesComplete(r) >= 18)));
+  return !rounds.some((r) => r.eventId === e.id && (r.status === 'complete' || (r.completedAt && holesComplete(r) >= playedHoles(r).length)));
 }
 
 /** Team points across every round of the event (for events with teams). */

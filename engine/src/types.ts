@@ -123,4 +123,6 @@ export interface BaseResult {
   standings: Standing[];
   /** Strokes received on each hole, keyed by player id (or team id for team-card formats). */
   strokes: Record<string, number[]>;
+  /** Real hole numbers this game covers, in playing order (only set for 9 holes or a different start). */
+  holeOrder?: number[];
 }

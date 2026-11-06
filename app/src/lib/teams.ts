@@ -60,7 +60,7 @@ export function teamHole(r: RoundRecord, result: GameResult | undefined, team: T
   const vals = scores as number[];
 
   if (g.type === 'vegas' && result?.type === 'vegas') {
-    const h = result.holes[hole - 1];
+    const h = result.holes.find((x) => x.hole === hole);
     if (!h) return empty;
     const isA = team.id === g.teamA.id;
     const flipped = h.flipped === (isA ? 'A' : 'B');

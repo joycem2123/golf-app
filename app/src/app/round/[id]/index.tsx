@@ -15,7 +15,7 @@ import { useMe } from '@/lib/me';
 import { StatusBanner } from '@/components/status-banner';
 import { Body, Button, Card, Chip, H2, Label, Segmented, Stepper, styles } from '@/components/ui';
 import { gameKeys, gameName, matchLabel } from '@/lib/games';
-import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, shortCourseName, teeFor, type ScoreKey } from '@/lib/round';
+import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, shortCourseName, teeFor, type ScoreKey, allHolesScored, gameHoles } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import { useRound, useStore, type RoundRecord } from '@/store/store';
 import { flush, shareRound } from '@/sync/sync';
@@ -135,7 +135,7 @@ function WolfPanel({ r, index, result, hole }: { r: RoundRecord; index: number; 
   const updateGame = useStore((s) => s.updateGame);
   const game = r.games[index] as WolfConfig;
   const name = (id: string) => r.players.find((p) => p.id === id)?.name ?? id;
-  const entry = result.holes[hole - 1];
+  const entry = result.holes.find((x) => x.hole === hole);
   if (!entry) {
     return (
       <Card>
@@ -170,11 +170,15 @@ function WolfPanel({ r, index, result, hole }: { r: RoundRecord; index: number; 
 function NassauPress({ r, index, hole }: { r: RoundRecord; index: number; hole: number }) {
   const updateGame = useStore((s) => s.updateGame);
   const game = r.games[index] as NassauConfig;
-  const segment = hole <= 9 ? 'front' : 'back';
+  // Front/back = the first and second nine played (a match can start on hole 10 or any hole).
+  const order = gameHoles(game);
+  const segment = order.indexOf(hole) < 9 ? 'front' : 'back';
+  const nineName = order[0] === 1 ? segment : segment === 'front' ? 'first' : 'second';
   const presses = game.presses ?? [];
-  const add = (seg: 'front' | 'back' | 'overall') =>
+  const add = (seg: 'front' | 'back' | 'overall') => {
     updateGame(r.id, index, { ...game, presses: [...presses, { segment: seg, startHole: hole }] });
     track('press_added');
+  };
   return (
     <Card>
       <H2>Nassau presses</H2>
@@ -184,7 +188,7 @@ function NassauPress({ r, index, hole }: { r: RoundRecord; index: number; hole: 
         <Body muted>A press starts a new bet from this hole to the end of the nine.</Body>
       )}
       <View style={styles.row}>
-        <Button small kind="secondary" title={`Press ${segment} 9 from #${hole}`} onPress={() => add(segment)} />
+        <Button small kind="secondary" title={`Press ${nineName} 9 from #${hole}`} onPress={() => add(segment)} />
         <Button small kind="ghost" title="Press 18" onPress={() => add('overall')} />
       </View>
       {presses.length > 0 && (
@@ -274,10 +278,10 @@ function SinglesBox({ r, k, hole, gi, side, result, strokes }: { r: RoundRecord;
   );
 }
 
-/** First hole where someone in this match has no score yet (where a new match should open). */
-function firstOpenHole(r: RoundRecord, keys: string[]): number {
-  for (let h = 1; h <= 18; h++) if (keys.some((k) => grossAt(r, k, h) === null)) return h;
-  return 18;
+/** First hole (in playing order) where someone in this match has no score yet: where a match opens. */
+function firstOpenHole(r: RoundRecord, keys: string[], order: number[]): number {
+  for (const h of order) if (keys.some((k) => grossAt(r, k, h) === null)) return h;
+  return order[order.length - 1] ?? 18;
 }
 
 export default function Scorecard() {
@@ -307,8 +311,15 @@ export default function Scorecard() {
   const focusKeys = new Set(gameKeys(r.games[gi]));
   // Each match keeps its own hole, so groups can score at the same time.
   const holeKey = multi ? (r.games[gi].id ?? String(gi)) : undefined;
-  if (holeKey && !r.matchHoles?.[holeKey] && opened[holeKey] === undefined) setOpened({ ...opened, [holeKey]: firstOpenHole(r, gameKeys(r.games[gi])) });
-  const hole = (holeKey && (r.matchHoles?.[holeKey] || opened[holeKey] || firstOpenHole(r, gameKeys(r.games[gi])))) || r.currentHole;
+  // The holes this match plays, in order (9 or 18, from its starting hole).
+  const order = gameHoles(r.games[gi]);
+  if (holeKey && !r.matchHoles?.[holeKey] && opened[holeKey] === undefined) setOpened({ ...opened, [holeKey]: firstOpenHole(r, gameKeys(r.games[gi]), order) });
+  const rawHole = (holeKey && (r.matchHoles?.[holeKey] || opened[holeKey] || firstOpenHole(r, gameKeys(r.games[gi]), order))) || r.currentHole;
+  // Older rounds (or a hole outside this match) fall back to the match's first hole.
+  const hole = order.includes(rawHole) ? rawHole : order[0];
+  const pos = order.indexOf(hole);
+  const prevHole = pos > 0 ? order[pos - 1] : null;
+  const nextHole = pos >= 0 && pos < order.length - 1 ? order[pos + 1] : null;
   const goHole = (n: number) => setHole(r.id, n, holeKey);
   const allKeys = scoreKeys(r);
   const keys = multi ? allKeys.filter((k) => focusKeys.has(k.key)) : allKeys;
@@ -316,7 +327,7 @@ export default function Scorecard() {
   const firstTee = teeFor(r, r.players[0].id);
   const h = firstTee.holes[hole - 1];
   const done = (n: number) => keys.every((k) => grossAt(r, k.key, n) !== null);
-  const allDone = Array.from({ length: 18 }, (_, i) => allKeys.every((k) => grossAt(r, k.key, i + 1) !== null)).every(Boolean);
+  const allDone = allHolesScored(r);
   const teams = teamGroups(r, c, gi);
   const inTeams = new Set(teams?.flatMap((t) => t.keys) ?? []);
   const solo = keys.filter((k) => !inTeams.has(k.key));
@@ -402,16 +413,16 @@ export default function Scorecard() {
           <>
             {/* Hole header */}
             <View style={[styles.row, { justifyContent: 'space-between' }]}>
-              <Button small kind="secondary" title="‹ Prev" disabled={hole === 1} onPress={() => goHole(hole - 1)} />
+              <Button small kind="secondary" title="‹ Prev" disabled={prevHole === null} onPress={() => prevHole && goHole(prevHole)} />
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 32, fontFamily: fonts.serif, fontWeight: '700', color: c.primary }}>Hole {hole}</Text>
                 <Text style={{ color: c.muted, fontWeight: '600', letterSpacing: 0.5 }}>Par {h.par} · Hcp {h.strokeIndex} · {h.yards} yds</Text>
               </View>
-              <Button small kind="secondary" title="Next ›" disabled={hole === 18} onPress={() => goHole(hole + 1)} />
+              <Button small kind="secondary" title="Next ›" disabled={nextHole === null} onPress={() => nextHole && goHole(nextHole)} />
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => (
+              {order.map((n) => (
                 <Pressable key={n} onPress={() => goHole(n)} hitSlop={3}>
                   <View
                     style={{
@@ -440,7 +451,7 @@ export default function Scorecard() {
               return <SinglesBox key={k.key} r={r} k={k} hole={hole} gi={gi} side={side} result={results[gi]} strokes={mainStrokes[k.key]?.[hole - 1] ?? 0} />;
             })}
 
-            {hole < 18 && done(hole) && <Button title={`Next hole: ${hole + 1} ›`} onPress={() => goHole(hole + 1)} />}
+            {nextHole !== null && done(hole) && <Button title={`Next hole: ${nextHole} ›`} onPress={() => goHole(nextHole)} />}
 
             {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' && (!multi || i === gi) ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
           </>

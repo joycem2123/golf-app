@@ -3,7 +3,7 @@ import type { GameResult, HoleOutcome } from '@golf/engine';
 import type { RoundRecord } from '@/store/store';
 import type { Colors } from '@/theme';
 import type { MatchOutcome } from './results';
-import { grossAt, teeFor } from './round';
+import { grossAt, teeFor, gameHoles } from './round';
 import { teamGroups, teamHole } from './teams';
 
 export interface StoryHole {
@@ -24,9 +24,11 @@ export interface StoryHole {
 export function storyHoles(r: RoundRecord, res: GameResult | undefined, m: MatchOutcome, c: Colors): StoryHole[] {
   if (!res) return [];
   const status = res.type === 'matchPlay' ? res.status : res.type === 'nassau' ? res.segments[2].status : (res.type === 'scramble' || res.type === 'shamble') && res.match ? res.match : null;
-  // Holes after the match was closed out don't count.
-  const outcomes: HoleOutcome[] = (status?.outcomes ?? []).map((o, i) => (status?.closedOutOnHole && i + 1 > status.closedOutOnHole ? null : o));
   const g = r.games[m.gi];
+  // Holes in the order they were played (a match can be 9 holes, or start on hole 10 or any hole).
+  const order = res.holeOrder ?? gameHoles(g);
+  // Holes after the match was closed out don't count.
+  const outcomes: (HoleOutcome | null)[] = order.map((h, i) => (status?.closedOutOnHole && i + 1 > status.closedOutOnHole ? null : (status?.outcomes[h - 1] ?? null)));
   const net = g.handicap?.net !== false;
   const teams = teamGroups(r, c, m.gi);
   const name = (id: string) => r.players.find((p) => p.id === id)?.name.split(' ')[0] ?? id;
@@ -38,11 +40,10 @@ export function storyHoles(r: RoundRecord, res: GameResult | undefined, m: Match
   };
   const keys = [...new Set([...m.a.members, ...m.b.members, ...(teams?.flatMap((t) => t.keys) ?? [])])];
   let lead = 0;
-  return Array.from({ length: 18 }, (_, i) => {
-    const h = i + 1;
+  return order.map((h, i) => {
     const o = outcomes[i] ?? null;
     if (o !== null) lead += o;
-    const par = teeFor(r, m.a.members[0]).holes[i].par;
+    const par = teeFor(r, m.a.members[0]).holes[h - 1].par;
     const birdies = keys.filter((k) => {
       const gross = grossAt(r, k, h);
       return gross !== null && gross < par && r.players.some((p) => p.id === k);
@@ -69,8 +70,9 @@ export function localStory(m: MatchOutcome, holes: StoryHole[]): string {
     if (h.lead! > maxA) { maxA = h.lead!; maxAHole = h.hole; }
     if (-h.lead! > maxB) { maxB = -h.lead!; maxBHole = h.hole; }
   }
-  const turn = holes[8].lead;
-  const back = played.filter((h) => h.hole >= 10);
+  // "The turn" only exists in an 18-hole match; the back nine is the second nine played.
+  const turn = holes.length > 9 ? holes[8].lead : null;
+  const back = holes.length > 9 ? played.filter((h) => holes.indexOf(h) >= 9) : [];
   const last = played[played.length - 1];
   const parts: string[] = [];
 
@@ -83,7 +85,7 @@ export function localStory(m: MatchOutcome, holes: StoryHole[]): string {
     const sign = aWon ? 1 : -1;
     const backWins = winsOf(sign as 1 | -1, back);
     if (deficit > 0) {
-      parts.push(`${W} ${verb(W)} ${deficit} down after the ${ordinal(deficitHole)} but fought back${back.length > 1 && backWins > 1 ? `, winning ${backWins} of ${back.length} holes on the back nine,` : ''} to take the match ${m.detail}.`);
+      parts.push(`${W} ${verb(W)} ${deficit} down after the ${ordinal(deficitHole)} but fought back${back.length > 1 && backWins > 1 ? `, winning ${backWins} of ${back.length} holes on the ${holes[0]?.hole === 1 ? 'back' : 'second'} nine,` : ''} to take the match ${m.detail}.`);
     } else if (turn !== null && turn * sign > 0) {
       parts.push(`${W} led from the start, made the turn ${Math.abs(turn)} up and never let ${L} back in, closing it out ${m.detail} on the ${ordinal(last.hole)}.`);
     } else {

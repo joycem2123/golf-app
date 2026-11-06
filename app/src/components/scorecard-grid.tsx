@@ -2,7 +2,7 @@ import type { GameResult, HoleOutcome } from '@golf/engine';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { gameKeys, matchLabel } from '@/lib/games';
-import { grossAt, scoreKeys, teeFor } from '@/lib/round';
+import { grossAt, scoreKeys, teeFor, gameHoles } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import type { RoundRecord } from '@/store/store';
 import { fonts, useColors } from '@/theme';
@@ -63,8 +63,11 @@ export function ScorecardGrid({
   const keys = scoreKeys(r).filter((k) => !multi || focusKeys.has(k.key));
   const teams = teamGroups(r, c, focus);
   const label = (k: string) => keys.find((x) => x.key === k)?.label ?? k;
-  const front = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  const back = [10, 11, 12, 13, 14, 15, 16, 17, 18];
+  // A nine-hole match shows only the nine it plays.
+  const order = main?.holeOrder ?? gameHoles(r.games[focus]);
+  const nineOf = (list: number[]) => (list.some((h) => order.includes(h)) ? list : []);
+  const front = nineOf([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  const back = nineOf([10, 11, 12, 13, 14, 15, 16, 17, 18]);
   const parOf = (k: string, h: number) => teeFor(r, keys.find((x) => x.key === k)?.members[0] ?? r.players[0].id).holes[h - 1].par;
   const sum = (k: string, holes: number[]) => {
     const v = holes.map((h) => grossAt(r, k, h));
@@ -79,14 +82,16 @@ export function ScorecardGrid({
   const names = main?.type === 'matchPlay' ? [main.sideA.name, main.sideB.name] : null;
   const letterA = teams ? teams[0].label.slice(-1) : !names ? 'A' : names[0].slice(0, 1).toUpperCase();
   const letterB = teams ? (teams[1]?.label.slice(-1) ?? 'B') : !names ? 'B' : names[1].slice(0, 1).toUpperCase() === letterA ? names[1].slice(0, 2) : names[1].slice(0, 1).toUpperCase();
-  const running: (number | null)[] = [];
+  // Running match status, added up in the order the holes are played (by real hole number).
+  const running: (number | null)[] = new Array(18).fill(null);
   if (outcomes) {
     let lead = 0;
-    outcomes.forEach((o, i) => {
-      if (o === null) return running.push(null); // not played yet (later holes still count)
+    for (const h of order) {
+      const o = outcomes[h - 1];
+      if (o === null || o === undefined) continue; // not played yet (later holes still count)
       lead += o;
-      running.push(lead);
-    });
+      running[h - 1] = lead;
+    }
   }
 
   const cell = (content: React.ReactNode, w = W, bg?: string, key?: string | number) => (
@@ -103,9 +108,9 @@ export function ScorecardGrid({
   );
   const nineCells = (fn: (h: number) => React.ReactNode, sumFn: (holes: number[], which: string) => React.ReactNode, bg?: string) => [
     ...front.map((h) => cell(fn(h), W, bg, h)),
-    cell(sumFn(front, 'out'), SUM, bg ?? c.chip, 'out'),
+    ...(front.length ? [cell(sumFn(front, 'out'), SUM, bg ?? c.chip, 'out')] : []),
     ...back.map((h) => cell(fn(h), W, bg, h)),
-    cell(sumFn(back, 'in'), SUM, bg ?? c.chip, 'in'),
+    ...(back.length ? [cell(sumFn(back, 'in'), SUM, bg ?? c.chip, 'in')] : []),
     cell(sumFn([...front, ...back], 'tot'), SUM, bg ?? c.chip, 'tot'),
   ];
   const nameText = (t: string, color = c.text) => <Text numberOfLines={1} style={{ color, fontWeight: '600', fontSize: 13 }}>{t}</Text>;

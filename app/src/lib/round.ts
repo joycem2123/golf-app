@@ -1,6 +1,8 @@
 import {
   courseAsOf,
   evaluateGame,
+  holeOrder,
+  type GameConfig,
   ledgerToScorecard,
   postingReminders,
   type Course,
@@ -11,7 +13,7 @@ import {
 
 import type { RoundRecord } from '@/store/store';
 import { getCourse } from './courses';
-import { teamCardKeys } from './games';
+import { gameKeys, teamCardKeys } from './games';
 
 export interface ScoreKey {
   key: string;
@@ -81,11 +83,36 @@ export function grossAt(r: RoundRecord, key: string, hole: number): number | nul
   return r.ledger[`${key}#${hole}`]?.gross ?? null;
 }
 
+/** Real hole numbers a game covers, in the order they're played (9 or 18, from its starting hole). */
+export const gameHoles = (g: GameConfig): number[] => holeOrder(g.play);
+
+/** Every hole any game in the round covers, lowest first. */
+export function playedHoles(r: RoundRecord): number[] {
+  const s = new Set<number>(r.games.flatMap(gameHoles));
+  return s.size ? [...s].sort((a, b) => a - b) : Array.from({ length: 18 }, (_, i) => i + 1);
+}
+
+/** 9 or 18: how many holes each match plays. */
+export const roundHoleCount = (r: RoundRecord): number => (r.games[0]?.play?.holes === 9 ? 9 : 18);
+
+/** Score rows that play this hole in at least one game. */
+function keysOnHole(r: RoundRecord, keys: ScoreKey[], hole: number): ScoreKey[] {
+  const playing = new Set(r.games.filter((g) => gameHoles(g).includes(hole)).flatMap(gameKeys));
+  return keys.filter((k) => playing.has(k.key) || k.members.some((m) => playing.has(m)));
+}
+
+/** Holes where everyone playing that hole has a score. */
 export function holesComplete(r: RoundRecord): number {
   const keys = scoreKeys(r);
-  let n = 0;
-  for (let h = 1; h <= 18; h++) if (keys.every((k) => grossAt(r, k.key, h) !== null)) n++;
-  return n;
+  return playedHoles(r).filter((h) => keysOnHole(r, keys, h).every((k) => grossAt(r, k.key, h) !== null)).length;
+}
+
+/** Every game has a score from everyone on every one of its holes. */
+export function allHolesScored(r: RoundRecord): boolean {
+  return r.games.every((g) => {
+    const keys = gameKeys(g);
+    return gameHoles(g).every((h) => keys.every((k) => grossAt(r, k, h) !== null));
+  });
 }
 
 /** Finished head-to-head matches from this round, for history and standings. */

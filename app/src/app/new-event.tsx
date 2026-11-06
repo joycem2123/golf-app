@@ -5,6 +5,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Calendar } from '@/components/calendar';
 import { GameOptions } from '@/components/game-options';
+import { HolesSetup } from '@/components/holes-setup';
 import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/components/round-setup';
 import { TeamsStep } from '@/components/teams-step';
 import { Body, Button, Card, Field, H2, Label, OptionRow, Segmented, Stepper, Toggle } from '@/components/ui';
@@ -514,6 +515,12 @@ export default function NewEvent() {
             players={players}
             teamOf={teams}
             hideMatchups={current > 0 && !!plan.tbd}
+            onChange={(d) => setPlans((ps) => ps.map((x) => (x.id === plan.id ? { ...x, draft: d } : x)))}
+          />
+          <HolesSetup
+            draft={plan.draft}
+            name={(id) => players.find((p) => p.id === id)?.name ?? ''}
+            hideStarts={current > 0 && !!plan.tbd}
             onChange={(d) => setPlans((ps) => ps.map((x) => (x.id === plan.id ? { ...x, draft: d } : x)))}
           />
 

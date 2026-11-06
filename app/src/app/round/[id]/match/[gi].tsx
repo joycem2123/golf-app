@@ -112,9 +112,9 @@ export default function MatchDetail() {
             {head('MATCH', 62)}
           </View>
           {holes.slice(0, 9).map(row)}
-          {totalRow('OUT', holes.slice(0, 9))}
+          {holes.length > 9 && totalRow(holes[0]?.hole === 1 ? 'OUT' : '1ST 9', holes.slice(0, 9))}
           {holes.slice(9).map(row)}
-          {totalRow('IN', holes.slice(9))}
+          {holes.length > 9 && totalRow(holes[0]?.hole === 1 ? 'IN' : '2ND 9', holes.slice(9))}
           {totalRow('TOT', holes)}
         </View>
       </Card>

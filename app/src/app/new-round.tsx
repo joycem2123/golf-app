@@ -11,7 +11,8 @@ import { usePickBus } from '@/store/pick';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
-import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, sideMatchConfig, teamsSet, type GameDraft, type TeamOf } from '@/lib/games';
+import { HolesSetup } from '@/components/holes-setup';
+import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, playSpec, sideMatchConfig, teamsSet, type GameDraft, type TeamOf } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { autoShare } from '@/sync/sync';
 import { radius, space, teamColor, useColors } from '@/theme';
@@ -185,11 +186,12 @@ export default function NewRound() {
       courseId: course.id,
       course,
       players,
-      games: [...draftToConfigs(draft, players), ...sideMatches.map(([a, b]) => sideMatchConfig(a, b))],
+      games: [...draftToConfigs(draft, players), ...sideMatches.map(([a, b]) => sideMatchConfig(a, b, playSpec(draft.holes, draft.matches.find((m) => m.a.includes(a) || m.b.includes(a))?.start ?? draft.start)))],
       statsEnabled,
       ledger: {},
       stats: {},
-      currentHole: 1,
+      // Scoring opens on the first match's starting hole.
+      currentHole: draftToConfigs(draft, players)[0]?.play?.start ?? 1,
       status: 'active',
       notices: [],
       eventId: event?.id ?? season?.id,
@@ -232,7 +234,8 @@ export default function NewRound() {
 
   const pickGame = (kind: GameDraft['kind']) => {
     const d = newDraft(kind, players, noTeams ? undefined : teamOf);
-    setDraft(d);
+    // Keep the holes chosen so far when switching games.
+    setDraft(draft ? { ...d, holes: draft.holes, start: draft.start } : d);
     setSideMatches([]);
   };
 
@@ -401,6 +404,7 @@ export default function NewRound() {
             <>
               <GameRulesButton kind={draft.kind} />
               <GameOptions draft={draft} players={players} onChange={setDraft} teamOf={noTeams ? undefined : teamOf} />
+              <HolesSetup draft={draft} onChange={setDraft} name={name} />
 
               <Card>
                 <H2>Side matches</H2>

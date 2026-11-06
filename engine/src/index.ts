@@ -8,3 +8,4 @@ export * from './events';
 export * from './sync';
 export * from './stats';
 export * from './courses';
+export * from './play';
