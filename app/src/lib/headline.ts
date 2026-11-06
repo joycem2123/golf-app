@@ -15,7 +15,7 @@ export interface Headline {
   /** Compact extra lines (Nassau bets etc). */
   extra: string[];
   /** Stroke play: the top of the leaderboard (shown instead of leader / big). */
-  board?: { id: string; pos: string; name: string; value: string }[];
+  board?: { id: string; pos: string; name: string; value: string; thru: string }[];
 }
 
 const playerName = (id: string, players: Player[]) =>
@@ -103,13 +103,14 @@ export function headline(result: GameResult, players: Player[]): Headline {
         pos: started ? `${tied(s.position) ? 'T' : ''}${s.position}` : '–',
         name: playerName(s.id, players),
         value: started ? toPar(s.value) : '–',
+        thru: s.thru >= 18 ? 'F' : s.thru > 0 ? String(s.thru) : '–',
       }));
       const lead = result.standings.filter((s) => s.position === 1);
       return {
         leader: '',
         side: lead.length > 1 ? null : teamIdName(lead[0].id) === 'Team A' ? 0 : teamIdName(lead[0].id) === 'Team B' ? 1 : null,
         big: '',
-        small,
+        small: result.finished ? 'Final' : '',
         extra: result.standings.length > 3 ? [`+${result.standings.length - 3} more`] : [],
         board,
       };

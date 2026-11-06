@@ -2,7 +2,6 @@ import { adjustForMode, courseHandicap, DEFAULT_ALLOWANCES, scrambleTeamHandicap
 import { compareScores, scoreMatch, type MatchStatus } from '../matchplay';
 import {
   bestNSum,
-  consecutiveThru,
   findPlayer,
   findTee,
   individualBook,
@@ -111,7 +110,7 @@ function finish(
   };
 }
 
-/** Totals for one scorecard (or a team's combined best-N card) over consecutive completed holes. */
+/** Totals for one scorecard (or a team's combined best-N card) over every completed hole (groups may start on different holes). */
 function totalsFor(
   holeCount: number,
   holeScore: (i: number, net: boolean) => number | null,
@@ -119,11 +118,13 @@ function totalsFor(
   net: boolean,
   handicap: number,
 ): StrokeTotals {
-  const thru = consecutiveThru((i) => holeScore(i, false) !== null, holeCount);
+  let thru = 0;
   let gross = 0;
   let netSum = 0;
   let par = 0;
-  for (let i = 0; i < thru; i++) {
+  for (let i = 0; i < holeCount; i++) {
+    if (holeScore(i, false) === null) continue;
+    thru++;
     gross += holeScore(i, false)!;
     netSum += holeScore(i, true)!;
     par += holePar(i);

@@ -90,7 +90,7 @@ export default function Home() {
               </View>
               <Text style={{ color: c.muted, fontSize: 13 }}>{gameName(live.games[0])}</Text>
               <Text style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: liveHead?.side === 1 ? c.teamB : c.primary }}>
-                {liveHead ? (liveHead.board ? (liveHead.board[0] ? `${liveHead.board[0].pos === 'T1' ? 'Tied: ' : ''}${liveHead.board[0].name} ${liveHead.board[0].value}` : '') : liveHead.leader ? `${liveHead.leader} ${liveHead.big}` : liveHead.big) : ''}
+                {liveHead ? (liveHead.board ? (liveHead.board[0] ? `${liveHead.board[0].pos === 'T1' ? 'Tied: ' : ''}${liveHead.board[0].name} ${liveHead.board[0].value}${liveHead.board[0].thru !== '–' ? ` · ${liveHead.board[0].thru === 'F' ? 'F' : `thru ${liveHead.board[0].thru}`}` : ''}` : '') : liveHead.leader ? `${liveHead.leader} ${liveHead.big}` : liveHead.big) : ''}
               </Text>
               <Text style={{ color: c.primary, fontWeight: '700', marginTop: 4 }}>Resume scoring ›</Text>
             </View>

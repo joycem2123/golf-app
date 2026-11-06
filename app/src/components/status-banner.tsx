@@ -33,7 +33,14 @@ export function StatusBanner({
       <View style={{ height: 3, backgroundColor: c.accent, marginHorizontal: -space.lg, marginTop: -space.md, marginBottom: space.sm }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' }}>{name}</Text>
-        <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' }}>{h.small}</Text>
+        {h.board ? (
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <Text style={{ width: 52, textAlign: 'right', color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>TO PAR</Text>
+            <Text style={{ width: 40, textAlign: 'right', color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>THRU</Text>
+          </View>
+        ) : (
+          <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' }}>{h.small}</Text>
+        )}
       </View>
       {h.board ? (
         <View style={{ gap: 3, marginTop: 2 }}>
@@ -44,7 +51,8 @@ export function StatusBanner({
               <View key={row.id} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.sm }}>
                 <Text style={{ width: 30, color: c.muted, fontWeight: '800', fontSize: 14 }}>{row.pos}</Text>
                 <Text numberOfLines={1} style={{ flex: 1, color: rc, fontFamily: fonts.serif, fontSize: 18, fontWeight: '700' }}>{row.name}</Text>
-                <Text style={{ color: row.value.startsWith('-') ? c.under : c.text, fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{row.value}</Text>
+                <Text style={{ width: 52, textAlign: 'right', color: row.value.startsWith('-') ? c.under : c.text, fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{row.value}</Text>
+                <Text style={{ width: 40, textAlign: 'right', color: c.muted, fontSize: 15, fontWeight: '700' }}>{row.thru}</Text>
               </View>
             );
           })}
