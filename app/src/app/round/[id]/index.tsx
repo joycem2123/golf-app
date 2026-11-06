@@ -238,6 +238,12 @@ function TeamBox({ r, results, team, index, hole, keys, gi }: {
   );
 }
 
+/** First hole where someone in this match has no score yet (where a new match should open). */
+function firstOpenHole(r: RoundRecord, keys: string[]): number {
+  for (let h = 1; h <= 18; h++) if (keys.some((k) => grossAt(r, k, h) === null)) return h;
+  return 18;
+}
+
 export default function Scorecard() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const r = useRound(id);
@@ -255,13 +261,16 @@ export default function Scorecard() {
   if (!r) return <Body>Round not found.</Body>;
 
   const course = courseFor(r);
-  const hole = r.currentHole;
   const results = evaluate(r);
   // Several matches in one round: each group focuses on its own match.
   const matchIdx = r.games.map((g, i) => (matchLabel(g) ? i : -1)).filter((i) => i >= 0);
   const multi = matchIdx.length > 1;
   const gi = multi && matchIdx.includes(focus) ? focus : multi ? matchIdx[0] : 0;
   const focusKeys = new Set(gameKeys(r.games[gi]));
+  // Each match keeps its own hole, so groups can score at the same time.
+  const holeKey = multi ? (r.games[gi].id ?? String(gi)) : undefined;
+  const hole = (holeKey && r.matchHoles?.[holeKey]) || (holeKey ? firstOpenHole(r, gameKeys(r.games[gi])) : r.currentHole);
+  const goHole = (n: number) => setHole(r.id, n, holeKey);
   const allKeys = scoreKeys(r);
   const keys = multi ? allKeys.filter((k) => focusKeys.has(k.key)) : allKeys;
   const mainStrokes = isResult(results[gi]) ? results[gi].strokes : {};
@@ -341,7 +350,7 @@ export default function Scorecard() {
 
         {view === 'card' ? (
           <>
-            <ScorecardGrid r={r} results={results} focus={gi} onPickHole={(n) => { setHole(r.id, n); setView('hole'); }} />
+            <ScorecardGrid r={r} results={results} focus={gi} onPickHole={(n) => { goHole(n); setView('hole'); }} />
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot. Tap a score to edit that hole.
             </Label>
@@ -353,17 +362,17 @@ export default function Scorecard() {
           <>
             {/* Hole header */}
             <View style={[styles.row, { justifyContent: 'space-between' }]}>
-              <Button small kind="secondary" title="‹ Prev" disabled={hole === 1} onPress={() => setHole(r.id, hole - 1)} />
+              <Button small kind="secondary" title="‹ Prev" disabled={hole === 1} onPress={() => goHole(hole - 1)} />
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 32, fontFamily: fonts.serif, fontWeight: '700', color: c.primary }}>Hole {hole}</Text>
                 <Text style={{ color: c.muted, fontWeight: '600', letterSpacing: 0.5 }}>Par {h.par} · Hcp {h.strokeIndex} · {h.yards} yds</Text>
               </View>
-              <Button small kind="secondary" title="Next ›" disabled={hole === 18} onPress={() => setHole(r.id, hole + 1)} />
+              <Button small kind="secondary" title="Next ›" disabled={hole === 18} onPress={() => goHole(hole + 1)} />
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => (
-                <Pressable key={n} onPress={() => setHole(r.id, n)} hitSlop={3}>
+                <Pressable key={n} onPress={() => goHole(n)} hitSlop={3}>
                   <View
                     style={{
                       width: 13, height: 13, borderRadius: 7,
@@ -389,7 +398,7 @@ export default function Scorecard() {
               <ScoreRow key={k.key} r={r} k={k} hole={hole} strokes={mainStrokes[k.key]?.[hole - 1] ?? 0} />
             ))}
 
-            {hole < 18 && done(hole) && <Button title={`Next hole: ${hole + 1} ›`} onPress={() => setHole(r.id, hole + 1)} />}
+            {hole < 18 && done(hole) && <Button title={`Next hole: ${hole + 1} ›`} onPress={() => goHole(hole + 1)} />}
 
             {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' && (!multi || i === gi) ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
           </>

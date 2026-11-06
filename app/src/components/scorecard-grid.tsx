@@ -82,7 +82,7 @@ export function ScorecardGrid({
   if (outcomes) {
     let lead = 0;
     outcomes.forEach((o, i) => {
-      if (o === null || (i > 0 && running[i - 1] === null)) return running.push(null);
+      if (o === null) return running.push(null); // not played yet (later holes still count)
       lead += o;
       running.push(lead);
     });

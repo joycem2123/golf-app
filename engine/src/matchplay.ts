@@ -29,11 +29,13 @@ export function scoreMatch(outcomes: HoleOutcome[]): MatchStatus {
   let lead = 0;
   let thru = 0;
   let closed: number | null = null;
+  // Count every hole that's been played, even if an earlier one is still blank
+  // (a group that started on another hole, or a score not entered yet).
   for (let i = 0; i < n; i++) {
     const o = outcomes[i];
-    if (o === null) break;
+    if (o === null) continue;
     lead += o;
-    thru = i + 1;
+    thru += 1;
     if (n - thru > 0 && Math.abs(lead) > n - thru) {
       closed = thru;
       break;

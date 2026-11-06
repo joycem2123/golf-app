@@ -152,3 +152,15 @@ describe('best ball with bigger teams', () => {
     ).toThrow();
   });
 });
+
+describe('match status with blank holes', () => {
+  it('counts holes played after a blank one (a group that started elsewhere)', async () => {
+    const { scoreMatch } = await import('../src/matchplay');
+    const outcomes = [null, 1, 0, 1, ...Array(14).fill(null)] as (1 | 0 | -1 | null)[];
+    const s = scoreMatch(outcomes);
+    expect(s.thru).toBe(3);
+    expect(s.lead).toBe(2);
+    expect(s.display).toBe('2 UP thru 3');
+    expect(s.finished).toBe(false);
+  });
+});

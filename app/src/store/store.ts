@@ -42,6 +42,8 @@ export interface RoundRecord {
   ledger: ScoreLedger;
   stats: Record<string, (HoleStats | null)[]>;
   currentHole: number;
+  /** Hole each match is on, by game id (several matches play at once). */
+  matchHoles?: Record<string, number>;
   status: 'active' | 'complete';
   completedAt?: number;
   notices: (ScoreConflictNotice & { at: number })[];
@@ -179,7 +181,7 @@ interface State {
   restoreEvent: (e: EventRecord, roundIds: string[]) => void;
   setScore: (roundId: string, key: string, hole: number, gross: number | null) => void;
   setStats: (roundId: string, playerId: string, hole: number, stats: HoleStats | null) => void;
-  setHole: (roundId: string, hole: number) => void;
+  setHole: (roundId: string, hole: number, gameId?: string) => void;
   updateGame: (roundId: string, index: number, game: GameConfig) => void;
   completeRound: (roundId: string, matches: RecordedMatch[]) => void;
   reopenRound: (roundId: string) => void;
@@ -409,7 +411,12 @@ export const useStore = create<State>()(
           }),
         })),
 
-      setHole: (roundId, hole) => set((s) => ({ rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, currentHole: hole })) })),
+      setHole: (roundId, hole, gameId) =>
+        set((s) => ({
+          rounds: mapRound(s.rounds, roundId, (r) =>
+            gameId ? { ...r, matchHoles: { ...r.matchHoles, [gameId]: hole } } : { ...r, currentHole: hole },
+          ),
+        })),
 
       updateGame: (roundId, index, game) =>
         set((s) => ({
