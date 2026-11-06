@@ -8,6 +8,7 @@
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+import { evaluate, isResult, recordedMatches } from '@/lib/round';
 import { useStore, type EventRecord, type Remote, type RoundRecord } from '@/store/store';
 import { ensureSession } from './auth';
 import { supabase } from './supabase';
@@ -116,16 +117,31 @@ export async function autoShare(roundId: string) {
 // ------------------------------------------------------------------ join
 
 async function pullRound(roundId: string, role?: Remote['role']) {
-  const [{ data: row }, { data: scores }] = await Promise.all([
+  const [{ data: row, error }, { data: scores }] = await Promise.all([
     supabase.from('rounds').select('id, share_code, event_id, status, data').eq('id', roundId).maybeSingle(),
     supabase.from('scores').select('*').eq('round_id', roundId),
   ]);
-  if (!row) return;
+  if (!row) {
+    // Gone from the server (the owner deleted it): drop my unfinished copy of someone else's round.
+    const local = useStore.getState().rounds.find((r) => r.id === roundId);
+    if (!error && local?.remote && local.remote.role !== 'owner' && local.status !== 'complete') useStore.getState().deleteRound(roundId);
+    return;
+  }
   const st = useStore.getState();
   const local = st.rounds.find((r) => r.id === roundId);
   const resolvedRole = role ?? local?.remote?.role ?? (await myRole('round_members', 'round_id', roundId));
   st.upsertRemoteRound(roundFromRow(row as RoundRow, resolvedRole));
   if (scores?.length) st.applyRemoteScores(roundId, (scores as ScoreRow[]).map(toEntry));
+  // Someone else finished it: put the results in my records too.
+  const now = useStore.getState();
+  const r = now.rounds.find((x) => x.id === roundId);
+  if (r?.status === 'complete' && !now.history.some((m) => m.eventId === roundId)) {
+    try {
+      now.recordRemoteResults(roundId, recordedMatches(r, evaluate(r).filter(isResult)));
+    } catch {
+      /* course or game missing on this phone */
+    }
+  }
   await loadNames((scores as ScoreRow[] | null)?.map((s) => s.entered_by) ?? []);
 }
 
@@ -157,6 +173,115 @@ export async function joinByCode(code: string, role: 'scorer' | 'viewer', name?:
   if (res.kind === 'round') await pullRound(res.id, role);
   else await pullEvent(res.id, role);
   return res;
+}
+
+// ------------------------------------------------------------------ playing together
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Account ids of the MatchDay players among these player ids (not me). */
+function accountIds(playerIds: string[]): string[] {
+  const st = useStore.getState();
+  const out = new Set<string>();
+  for (const id of playerIds) {
+    const uid = st.players.find((p) => p.id === id)?.userId ?? (UUID.test(id) ? id : undefined);
+    if (uid && uid !== st.me) out.add(uid);
+  }
+  return [...out].sort();
+}
+
+const offline = (msg: string) => /fetch|network|timeout/i.test(msg);
+
+/** What each round/event has already been shared with this session (so we don't ask again). */
+const sharedWith = new Map<string, string>();
+let sharing = false;
+
+/**
+ * Put my live rounds and events online for the MatchDay players in them, so the game
+ * shows up on their phones too. Only friends can be added (the server checks).
+ */
+export async function shareWithPlayers() {
+  if (sharing) return;
+  sharing = true;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (!user || user.is_anonymous) return;
+    for (const e of useStore.getState().events) {
+      if (e.status === 'complete' || e.remote?.role === 'viewer') continue;
+      const ids = accountIds([...e.playerIds, ...(e.schedule ?? []).flatMap((m) => [...m.sideA, ...m.sideB])]);
+      const sig = ids.join(',');
+      if (!ids.length || sharedWith.get(`e:${e.id}`) === sig) continue;
+      try {
+        if (!e.remote) await shareEvent(e.id);
+        const { error } = await supabase.rpc('share_event_with', { eid: e.id, users: ids });
+        if (!error || !offline(error.message)) sharedWith.set(`e:${e.id}`, sig);
+      } catch {
+        /* offline: try again later */
+      }
+    }
+    for (const r of useStore.getState().rounds) {
+      if (r.status === 'complete' || r.remote?.role === 'viewer') continue;
+      const ids = accountIds(r.players.map((p) => p.id));
+      const sig = ids.join(',');
+      if (!ids.length || sharedWith.get(`r:${r.id}`) === sig) continue;
+      try {
+        if (!r.remote) await shareRound(r.id);
+        const { error } = await supabase.rpc('share_round_with', { rid: r.id, users: ids });
+        if (!error || !offline(error.message)) sharedWith.set(`r:${r.id}`, sig);
+      } catch {
+        /* offline: try again later */
+      }
+    }
+  } finally {
+    sharing = false;
+  }
+}
+
+/** Bring in every round and event I've been added to (and drop ones that were deleted). */
+export async function pullMine() {
+  const { data } = await supabase.auth.getSession();
+  const uid = data.session?.user.id;
+  if (!uid) return;
+  const [rm, em] = await Promise.all([
+    supabase.from('round_members').select('round_id, role').eq('user_id', uid),
+    supabase.from('event_members').select('event_id, role').eq('user_id', uid),
+  ]);
+  if (rm.error || em.error) return;
+  const st = useStore.getState();
+  for (const m of em.data ?? []) if (!st.events.some((e) => e.id === m.event_id)) await pullEvent(m.event_id, m.role as Remote['role']);
+  for (const m of rm.data ?? []) if (!useStore.getState().rounds.some((r) => r.id === m.round_id)) await pullRound(m.round_id, m.role as Remote['role']);
+  // Someone else's unfinished round I can no longer see: check whether it was deleted.
+  const roundIds = new Set((rm.data ?? []).map((m) => m.round_id as string));
+  const eventIds = new Set((em.data ?? []).map((m) => m.event_id as string));
+  for (const r of useStore.getState().rounds) {
+    if (!r.remote || r.remote.role === 'owner' || r.status === 'complete' || roundIds.has(r.id) || (r.eventId && eventIds.has(r.eventId))) continue;
+    await pullRound(r.id);
+  }
+}
+
+let mineChannel: RealtimeChannel | null = null;
+
+/** Hear straight away when someone adds me to a round or event. */
+export function watchMine(uid: string | null) {
+  if (mineChannel) {
+    void supabase.removeChannel(mineChannel);
+    mineChannel = null;
+  }
+  if (!uid) return;
+  mineChannel = supabase
+    .channel(`mine:${uid}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'round_members', filter: `user_id=eq.${uid}` }, (p) => {
+      const row = p.new as { round_id: string; role: Remote['role'] };
+      void pullRound(row.round_id, row.role);
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'event_members', filter: `user_id=eq.${uid}` }, (p) => {
+      const row = p.new as { event_id: string; role: Remote['role'] };
+      void pullEvent(row.event_id, row.role);
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') void pullMine();
+    });
 }
 
 // ------------------------------------------------------------------ upload

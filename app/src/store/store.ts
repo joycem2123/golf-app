@@ -162,6 +162,8 @@ interface State {
   /** Insert or update a round that came from the server. */
   upsertRemoteRound: (round: RoundRecord) => void;
   upsertRemoteEvent: (e: EventRecord) => void;
+  /** Results of a shared round someone else finished (for my records and head-to-head). */
+  recordRemoteResults: (roundId: string, matches: RecordedMatch[]) => void;
   addEvent: (e: EventRecord) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
@@ -325,6 +327,12 @@ export const useStore = create<State>()(
             })),
           };
         }),
+
+      recordRemoteResults: (roundId, matches) =>
+        set((s) => ({
+          history: [...s.history.filter((m) => m.eventId !== roundId), ...matches],
+          rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, completedAt: r.completedAt ?? Date.now() })),
+        })),
 
       upsertRemoteEvent: (e) =>
         set((s) => ({

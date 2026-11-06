@@ -8,7 +8,7 @@ import { useStore } from '@/store/store';
 import { restoreMe } from './auth';
 import { pullFriends, watchFriends } from './friends';
 import { supabase } from './supabase';
-import { flush, resetSubscriptions, syncSubscriptions } from './sync';
+import { flush, pullMine, resetSubscriptions, shareWithPlayers, syncSubscriptions, watchMine } from './sync';
 
 /** Load the signed-in account's own data (or the phone's guest data), then start syncing it. */
 async function loadAccountFor(session: Session | null) {
@@ -25,8 +25,10 @@ async function loadAccountFor(session: Session | null) {
   if (user) await restoreMe().catch(() => undefined);
   autoLinkMyRounds();
   watchFriends(user?.id ?? null);
+  watchMine(user?.id ?? null);
   syncSubscriptions();
   void flush();
+  void shareWithPlayers();
 }
 
 /** Runs in the background: keeps the right account loaded, live subscriptions open, and queued scores sent. */
@@ -43,7 +45,10 @@ export function SyncProvider() {
 
     // Re-check subscriptions whenever rounds/events change; send new scores right away.
     const unsub = useStore.subscribe((s, prev) => {
-      if (s.rounds !== prev.rounds || s.events !== prev.events) syncSubscriptions();
+      if (s.rounds !== prev.rounds || s.events !== prev.events) {
+        syncSubscriptions();
+        void shareWithPlayers();
+      }
       if (s.myPlayerId !== prev.myPlayerId || s.rounds.length !== prev.rounds.length || (s.players !== prev.players && s.myPlayerId)) autoLinkMyRounds();
       if (s.outbox.length > lastOutbox || s.dirtyRounds.length > prev.dirtyRounds.length || s.dirtyEvents.length > prev.dirtyEvents.length) void flush();
       lastOutbox = s.outbox.length;
@@ -53,6 +58,7 @@ export function SyncProvider() {
     const app = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void pullFriends().catch(() => undefined);
+        void pullMine();
         resetSubscriptions();
         syncSubscriptions();
         void flush();
