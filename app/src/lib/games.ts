@@ -150,6 +150,8 @@ export function draftProblem(d: GameDraft, players: Player[]): string | null {
   if (fit) return `${info.name}: ${fit.toLowerCase()}`;
   if (info.teamSizes) {
     const used = d.matches.flatMap((m) => [...m.a, ...m.b]);
+    const empty = used.filter((id) => !id).length;
+    if (empty) return `Fill every team slot (${empty} empty)`;
     if (d.matches.some((m) => m.a.length !== d.teamSize || m.b.length !== d.teamSize)) return `Every match needs ${d.teamSize} v ${d.teamSize}`;
     if (used.length !== players.length || new Set(used).size !== used.length) return 'Put every player in exactly one match';
     return null;

@@ -193,7 +193,7 @@ export function PlayerPicker({
 
 // ------------------------------------------------------------------ game drop-down
 
-function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
