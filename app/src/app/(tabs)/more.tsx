@@ -4,17 +4,17 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { TabHeader } from '@/components/tab-header';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { Body, Button, Card, Label } from '@/components/ui';
+import { Body, Button, Card } from '@/components/ui';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
 import { signOut, useSession } from '@/sync/auth';
 import { SEED_COURSES } from '@golf/engine';
 import { space, useColors } from '@/theme';
 
-function Row({ title, sub, href }: { title: string; sub: string; href: Href }) {
+function Row({ title, sub, href, onPress }: { title: string; sub: string; href?: Href; onPress?: () => void }) {
   const c = useColors();
   return (
-    <Pressable onPress={() => router.push(href)}>
+    <Pressable onPress={() => (onPress ? onPress() : href && router.push(href))}>
       {({ pressed }) => (
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: c.border, opacity: pressed ? 0.6 : 1 }}>
           <View style={{ flex: 1 }}>
@@ -38,32 +38,15 @@ export default function More() {
       <TabHeader title="More" />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Card style={{ paddingVertical: 0 }}>
+          {signedIn ? (
+            <Row title="Account information" sub={email ? `${email} · change email or password` : 'Change email or password'} href="/account" />
+          ) : (
+            <Row title="Create account or sign in" sub="You’re using RIVL as a guest" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
+          )}
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
-          <Row title="New event" sub="Trip, Ryder Cup or season" href="/new-event" />
-          <Row title="Join with code" sub="Follow a leaderboard or keep score" href="/join" />
-          <Row title="Head to head" sub="Records between any two players" href="/head-to-head" />
-        </Card>
-        <Label>Courses</Label>
-        <Card style={{ paddingVertical: 0 }}>
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
         </Card>
-        {signedIn ? (
-          <>
-            <Label>Account</Label>
-            <Card style={{ paddingVertical: 0 }}>
-              <Row title="Account information" sub={email ? `Signed in as ${email} · change email or password` : 'Change email or password'} href="/account" />
-            </Card>
-            <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />
-          </>
-        ) : (
-          <>
-            <Label>Account</Label>
-            <Card>
-              <Body muted>You’re using RIVL as a guest.</Body>
-              <Button title="Create account or sign in" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
-            </Card>
-          </>
-        )}
+        {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
         <Body muted style={{ textAlign: 'center' }}>RIVL · preview build</Body>
       </ScrollView>
       <ConfirmDialog

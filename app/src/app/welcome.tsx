@@ -156,11 +156,11 @@ export default function Welcome() {
               </>
             )}
             <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-            <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 6 characters" secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
+            <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'At least 8 characters' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
               title={busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-              disabled={busy || !email.includes('@') || password.length < 6 || (mode === 'signUp' && !detailsOk)}
+              disabled={busy || !email.includes('@') || (mode === 'signUp' ? password.length < 8 : password.length === 0) || (mode === 'signUp' && !detailsOk)}
               onPress={() =>
                 run(async () => {
                   if (mode === 'signIn') {
