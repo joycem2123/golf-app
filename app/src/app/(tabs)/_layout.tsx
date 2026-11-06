@@ -34,7 +34,8 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <TabIcon ios="house.fill" glyph="⌂" color={color} /> }} />
       <Tabs.Screen name="scores" options={{ title: 'Scores', tabBarIcon: ({ color }) => <TabIcon ios="list.number" glyph="≡" color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarBadge: requests || undefined, tabBarBadgeStyle: { backgroundColor: c.under }, tabBarIcon: ({ color }) => <TabIcon ios="person.crop.circle" glyph="◉" color={color} /> }} />
+      <Tabs.Screen name="friends" options={{ title: 'Friends', tabBarBadge: requests || undefined, tabBarBadgeStyle: { backgroundColor: c.under }, tabBarIcon: ({ color }) => <TabIcon ios="person.2.fill" glyph="☺" color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <TabIcon ios="person.crop.circle" glyph="◉" color={color} /> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <TabIcon ios="ellipsis.circle" glyph="⋯" color={color} /> }} />
     </Tabs>
   );

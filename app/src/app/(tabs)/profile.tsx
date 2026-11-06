@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { FriendRequestsCard, FriendsList, MeCard, StatTiles } from '@/components/people';
+import { AnalyticsSection } from '@/components/analytics-section';
+import { MeCard, StatTiles } from '@/components/people';
 import { TabHeader } from '@/components/tab-header';
 import { Body, Button, Card, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
@@ -26,7 +27,6 @@ export default function Profile() {
     <View style={{ flex: 1 }}>
       <TabHeader title={me?.name ?? 'Profile'} sub={guest ? 'Playing as a guest' : user?.email} />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
-        <FriendRequestsCard />
         <Label>Me</Label>
         <MeCard />
         {stats && (
@@ -39,10 +39,7 @@ export default function Profile() {
           />
         )}
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: space.sm }}>
-          <Label>Friends · {friends.length}</Label>
-        </View>
-        <FriendsList />
+        <AnalyticsSection />
 
         {guest ? (
           <Card>

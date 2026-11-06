@@ -96,7 +96,7 @@ export default function Home() {
       <View style={{ padding: space.lg, gap: space.lg }}>
         <LegacyClaimCard />
         {requestCount > 0 && (
-          <Pressable onPress={() => router.push('/profile')}>
+          <Pressable onPress={() => router.push('/friends')}>
             <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent, flexDirection: 'row', alignItems: 'center' }}>
               <Body bold style={{ flex: 1 }}>
                 {requestCount === 1 ? `${requestName} wants to be friends` : `${requestCount} friend requests`}
@@ -109,7 +109,7 @@ export default function Home() {
           <Tile primary title="New Round" sub="Pick a course, players and games" icon={glyph('+', '#fff')} onPress={() => router.push('/new-round')} />
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
           <Tile title="Join with Code" sub="Follow live or keep score" icon={glyph('#', c.primary)} onPress={() => router.push('/join')} />
-          <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/players')} />
+          <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
         </View>
 
         {events.length > 0 && (
