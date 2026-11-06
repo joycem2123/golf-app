@@ -107,9 +107,35 @@ export async function restoreMe() {
   await pullFriends();
 }
 
-export async function signIn(email: string, password: string) {
+/** Sign in with an email or a username. A username is swapped for its email only if the password is right. */
+export async function signIn(emailOrUsername: string, password: string) {
+  let email = emailOrUsername.trim();
+  if (!email.includes('@') || email.startsWith('@')) {
+    const { data, error } = await supabase.rpc('login_email', { u: email, pw: password });
+    if (error) {
+      throw new Error(
+        /too_many_attempts/.test(error.message)
+          ? 'Too many wrong tries for that username. Wait 15 minutes, or sign in with your email.'
+          : /fetch|network/i.test(error.message)
+            ? 'No connection. Try again when you have signal.'
+            : 'Could not sign in. Try again.',
+      );
+    }
+    if (!data) throw new Error('That username and password don’t match.');
+    email = data as string;
+  }
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(
+      /invalid login|invalid credentials/i.test(error.message)
+        ? 'That email and password don’t match.'
+        : /not confirmed/i.test(error.message)
+          ? 'Confirm your email first: tap the link we sent you.'
+          : /fetch|network/i.test(error.message)
+            ? 'No connection. Try again when you have signal.'
+            : error.message,
+    );
+  }
 }
 
 /** Email a reset link. The link opens a page on clutchupgolf.com where the new password is set. */

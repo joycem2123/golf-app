@@ -159,7 +159,11 @@ export default function Welcome() {
                 <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
               </>
             )}
-            <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+            {mode === 'signIn' ? (
+              <Field label="Email or username" value={email} onChangeText={setEmail} placeholder="you@example.com or username" autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" />
+            ) : (
+              <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+            )}
             <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'Create a strong password' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
             {mode === 'signUp' && password.length > 0 && <PasswordChecklist password={password} />}
             {mode === 'signUp' && (
@@ -171,7 +175,7 @@ export default function Welcome() {
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
               title={busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-              disabled={busy || !email.includes('@') || (mode === 'signUp' ? !passwordOk(password) || password2 !== password : password.length === 0) || (mode === 'signUp' && !detailsOk)}
+              disabled={busy || (mode === 'signIn' ? email.trim().replace(/^@/, '').length < 3 : !email.includes('@')) || (mode === 'signUp' ? !passwordOk(password) || password2 !== password : password.length === 0) || (mode === 'signUp' && !detailsOk)}
               onPress={() =>
                 run(async () => {
                   if (mode === 'signIn') {
@@ -200,7 +204,7 @@ export default function Welcome() {
             />
             {mode === 'signIn' && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Pressable hitSlop={8} onPress={() => { setMode('forgotPw'); setMessage(null); }}>
+                <Pressable hitSlop={8} onPress={() => { setMode('forgotPw'); setMessage(null); if (!email.includes('@')) setEmail(''); }}>
                   <Text style={{ color: c.primary, fontWeight: '600' }}>Forgot password?</Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => { setMode('forgotEmail'); setMessage(null); setLookup(''); }}>
@@ -215,7 +219,7 @@ export default function Welcome() {
         {mode === 'forgotPw' && (
           <Card style={{ gap: space.md }}>
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>Reset your password</Text>
-            <Body>Enter the email you sign in with. We’ll email you a link to choose a new password.</Body>
+            <Body>Enter the email on your account. We’ll email you a link to choose a new password.</Body>
             <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
@@ -235,7 +239,7 @@ export default function Welcome() {
         {mode === 'forgotEmail' && (
           <Card style={{ gap: space.md }}>
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>Find your email</Text>
-            <Body>You sign in with your email. Enter your Clutch Up username and we’ll show you a hint of the email on your account.</Body>
+            <Body>Enter your Clutch Up username and we’ll show you a hint of the email on your account. You can also sign in with your username instead.</Body>
             <Field label="Username" value={lookup} onChangeText={setLookup} placeholder="e.g. matt_joyce" autoCapitalize="none" autoCorrect={false} />
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
