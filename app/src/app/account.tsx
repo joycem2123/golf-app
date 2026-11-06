@@ -152,7 +152,7 @@ export default function Account() {
         <Field label="Current password" value={current} onChangeText={setCurrent} secureTextEntry autoComplete="current-password" textContentType="password" />
         <Field label="New password" value={next} onChangeText={setNext} secureTextEntry autoComplete="new-password" textContentType="newPassword" placeholder="Create a strong password" />
         {next.length > 0 && <PasswordChecklist password={next} />}
-        <Field label="New password again" value={again} onChangeText={setAgain} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
+        <Field label="Retype new password" value={again} onChangeText={setAgain} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
         {pwProblem ? <Text style={{ color: c.danger, fontSize: 13 }}>{pwProblem}</Text> : null}
         {pwMsg && <Message {...pwMsg} />}
         <Button title={busy === 'password' ? 'Saving…' : 'Change password'} disabled={!current || !passwordOk(next) || next !== again || busy !== null} onPress={savePassword} />

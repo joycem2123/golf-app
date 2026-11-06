@@ -27,6 +27,7 @@ export default function Welcome() {
   const name = `${firstName.trim()} ${lastName.trim()}`.trim();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [password2, setPassword2] = useState('');
   const [index, setIndex] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const upsertPlayer = useStore((s) => s.upsertPlayer);
@@ -160,10 +161,16 @@ export default function Welcome() {
             <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'Create a strong password' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
             {mode === 'signUp' && password.length > 0 && <PasswordChecklist password={password} />}
+            {mode === 'signUp' && (
+              <Field label="Retype password" value={password2} onChangeText={setPassword2} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
+            )}
+            {mode === 'signUp' && password2.length > 0 && password2 !== password && (
+              <Text style={{ color: c.danger, fontSize: 13 }}>The passwords don’t match.</Text>
+            )}
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
               title={busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-              disabled={busy || !email.includes('@') || (mode === 'signUp' ? !passwordOk(password) : password.length === 0) || (mode === 'signUp' && !detailsOk)}
+              disabled={busy || !email.includes('@') || (mode === 'signUp' ? !passwordOk(password) || password2 !== password : password.length === 0) || (mode === 'signUp' && !detailsOk)}
               onPress={() =>
                 run(async () => {
                   if (mode === 'signIn') {

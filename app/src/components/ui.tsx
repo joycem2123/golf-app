@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Switch, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { useState, type ReactNode } from 'react';
+import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -149,15 +150,42 @@ export function Toggle({ label, value, onChange, hint }: { label: string; value:
 
 export function Field(props: TextInputProps & { label: string }) {
   const c = useColors();
-  const { label, style, ...rest } = props;
+  const { label, style, secureTextEntry, ...rest } = props;
+  // Password boxes get an eye button to show or hide what was typed.
+  const [shown, setShown] = useState(false);
+  const input = (
+    <TextInput
+      placeholderTextColor={c.muted}
+      {...rest}
+      secureTextEntry={secureTextEntry && !shown}
+      autoCapitalize={secureTextEntry ? 'none' : rest.autoCapitalize}
+      autoCorrect={secureTextEntry ? false : rest.autoCorrect}
+      style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, secureTextEntry && { paddingRight: 48 }, style]}
+    />
+  );
   return (
     <View style={{ gap: space.xs, flex: 1 }}>
       <Label>{label}</Label>
-      <TextInput
-        placeholderTextColor={c.muted}
-        {...rest}
-        style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, style]}
-      />
+      {secureTextEntry ? (
+        <View style={{ justifyContent: 'center' }}>
+          {input}
+          <Pressable
+            onPress={() => setShown((v) => !v)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={shown ? 'Hide password' : 'Show password'}
+            style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 48, alignItems: 'center', justifyContent: 'center' }}
+          >
+            {Platform.OS === 'ios' ? (
+              <SymbolView name={shown ? 'eye.slash' : 'eye'} tintColor={c.muted} size={20} />
+            ) : (
+              <Text style={{ color: c.muted, fontSize: 13, fontWeight: '600' }}>{shown ? 'Hide' : 'Show'}</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : (
+        input
+      )}
     </View>
   );
 }
