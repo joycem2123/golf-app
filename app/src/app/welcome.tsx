@@ -75,12 +75,12 @@ export default function Welcome() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.primary }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.brand }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + space.xl * 2, paddingBottom: insets.bottom + space.xl, paddingHorizontal: space.xl }} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'center', gap: space.md, marginBottom: space.xl * 1.5 }}>
-          <LogoMark size={88} />
-          <Wordmark size={44} color="#FFFFFF" />
-          <Text style={{ color: c.accent, fontSize: 12, fontWeight: '700', letterSpacing: 3 }}>MATCHES · GAMES · BRAGGING RIGHTS</Text>
+          <LogoMark size={150} />
+          <Wordmark size={46} color="#FFFFFF" />
+          <Text style={{ color: c.brandGold, fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textAlign: 'center' }}>RIVALRIES · MATCHES · BRAGGING RIGHTS</Text>
         </View>
 
         {mode === 'choose' && (

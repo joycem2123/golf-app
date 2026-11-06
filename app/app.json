@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MatchDay",
+    "name": "RIVL",
     "slug": "golf-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,12 +8,12 @@
     "scheme": "golfapp",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.joycem2123.golfapp"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#14352A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -29,9 +29,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FAF8F2",
+          "backgroundColor": "#14352A",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 170
         }
       ],
       "expo-sharing"

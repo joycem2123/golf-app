@@ -70,7 +70,7 @@ export function StepPills<T extends string>({
 
 // ------------------------------------------------------------------ player picker
 
-/** Searchable checklist: tick 1 to many players; search MatchDay for someone new. */
+/** Searchable checklist: tick 1 to many players; search RIVL for someone new. */
 export function PlayerPicker({
   people,
   selected,
@@ -111,7 +111,7 @@ export function PlayerPicker({
         <TextInput
           value={q}
           onChangeText={setQ}
-          placeholder={allowNew ? 'Search friends or MatchDay' : 'Search players'}
+          placeholder={allowNew ? 'Search friends or RIVL' : 'Search players'}
           placeholderTextColor={c.muted}
           autoCapitalize="none"
           autoCorrect={false}
@@ -186,7 +186,7 @@ export function PlayerPicker({
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '600' }}>+</Text>
           </View>
           <Text style={{ flex: 1, color: c.primary, fontSize: 16, fontWeight: '600' }}>
-            {term ? `Search MatchDay for “${q.trim()}”` : 'Add someone new'}
+            {term ? `Search RIVL for “${q.trim()}”` : 'Add someone new'}
           </Text>
           <Text style={{ color: c.primary, fontSize: 18 }}>›</Text>
         </Pressable>

@@ -38,7 +38,7 @@ export default function More() {
         <Card style={{ paddingVertical: 0 }}>
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
         </Card>
-        <Body muted style={{ textAlign: 'center' }}>MatchDay · preview build</Body>
+        <Body muted style={{ textAlign: 'center' }}>RIVL · preview build</Body>
       </ScrollView>
     </View>
   );

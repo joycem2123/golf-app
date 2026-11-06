@@ -34,7 +34,7 @@ export function ShareCard({ remote, what, onShare }: { remote?: Remote; what: 'r
           small
           kind="secondary"
           title="Send code"
-          onPress={() => Share.share({ message: `Join my ${what === 'event' ? 'event' : 'round'} in MatchDay with code ${remote.shareCode}` })}
+          onPress={() => Share.share({ message: `Join my ${what === 'event' ? 'event' : 'round'} in RIVL with code ${remote.shareCode}` })}
         />
       </Card>
     );

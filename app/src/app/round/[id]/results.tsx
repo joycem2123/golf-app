@@ -7,6 +7,7 @@ import { captureRef } from 'react-native-view-shot';
 
 import { Confetti } from '@/components/confetti';
 import { GameSummaryCard } from '@/components/game-summary';
+import { LogoMark } from '@/components/logo';
 import { MatchStory, SideRow } from '@/components/match-result';
 import { MeBadge } from '@/components/people';
 import { Mark } from '@/components/scorecard-grid';
@@ -132,7 +133,7 @@ export default function Results() {
       lines.push(`${m.title}: ${m.a.names} v ${m.b.names}: ${w ? `${w} ${m.detail}` : m.detail}`);
     }
     if (rows.length) lines.push(rows.map((x) => `${x.k.label} ${x.tot}`).join(', '));
-    lines.push('Scored with MatchDay');
+    lines.push('Scored with RIVL');
     return lines.join('\n');
   };
 
@@ -281,7 +282,10 @@ export default function Results() {
             </Card>
           )}
 
-          <Text style={{ textAlign: 'center', color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, paddingBottom: 4 }}>SCORED WITH MATCHDAY</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 4 }}>
+            <LogoMark size={22} badge />
+            <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }}>SCORED WITH RIVL</Text>
+          </View>
         </View>
 
         <Button title={sharing ? 'Getting it ready…' : 'Share results'} onPress={share} disabled={sharing} />

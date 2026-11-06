@@ -1,5 +1,5 @@
 /**
- * Friends on MatchDay. Adding someone sends a friend request; the friendship
+ * Friends on RIVL. Adding someone sends a friend request; the friendship
  * exists (for both people) once they accept.
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';

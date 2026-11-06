@@ -64,12 +64,12 @@ export default function Home() {
     <View style={{ flex: 1 }}>
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: space.xl * 3 }}>
       {/* Banner */}
-      <View style={{ backgroundColor: c.primary, paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xl + (live ? 56 : 0) }}>
+      <View style={{ backgroundColor: c.brand, paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xl + (live ? 56 : 0) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <LogoMark size={44} />
+          <LogoMark size={46} />
           <Wordmark size={30} color="#FFFFFF" />
         </View>
-        <View style={{ height: 1, backgroundColor: c.accent, opacity: 0.6, marginVertical: space.lg }} />
+        <View style={{ height: 1, backgroundColor: c.brandGold, opacity: 0.6, marginVertical: space.lg }} />
         <Text style={{ color: '#ffffffcc', fontSize: 14, letterSpacing: 0.5 }}>{greeting()}{firstName ? `, ${firstName}` : ''}</Text>
         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 26, fontWeight: '700', marginTop: 2 }}>
           {live ? 'You have a round in play' : 'Ready for a match?'}
@@ -123,7 +123,7 @@ export default function Home() {
 
         {rounds.length === 0 && events.length === 0 && (
           <Card>
-            <H2>Welcome to MatchDay</H2>
+            <H2>Welcome to RIVL</H2>
             <Body muted>Start a round to pick a course, add your group and choose your games. Scores save on your phone, even without signal.</Body>
           </Card>
         )}

@@ -7,7 +7,7 @@ export interface GameRules {
   howItWorks: string[];
   /** How the winner is decided. */
   scoring: string[];
-  /** How handicaps are applied by default in MatchDay. */
+  /** How handicaps are applied by default in RIVL. */
   handicaps: string;
   /** Settings you can change when setting up the game. */
   options?: string[];
@@ -15,7 +15,7 @@ export interface GameRules {
   example?: string;
 }
 
-/** Rules and scoring for each format, as MatchDay scores them. */
+/** Rules and scoring for each format, as RIVL scores them. */
 export const GAME_RULES: Record<GameKind, GameRules> = {
   singles: {
     overview: 'One player against another, decided hole by hole rather than by total strokes.',

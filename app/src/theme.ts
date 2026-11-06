@@ -10,6 +10,10 @@ const palette = {
   text: '#1B2A22',
   muted: '#6E746B',
   border: '#E3DDCF',
+  /** Deep green from the RIVL logo (banners, welcome, splash). */
+  brand: '#14352A',
+  /** Gold from the RIVL logo. */
+  brandGold: '#B48954',
   primary: '#1F5A3D',
   onPrimary: '#FFFFFF',
   primarySoft: '#EDF2EC',

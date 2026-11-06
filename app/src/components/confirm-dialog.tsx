@@ -2,7 +2,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 
 import { fonts, radius, space, useColors } from '@/theme';
 
-/** MatchDay-styled confirmation pop-up. */
+/** RIVL-styled confirmation pop-up. */
 export function ConfirmDialog({
   visible,
   title,

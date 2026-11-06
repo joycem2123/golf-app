@@ -27,7 +27,7 @@ export interface SavedPlayer {
   gender: 'M' | 'F';
   firstName?: string;
   lastName?: string;
-  /** Set for people on MatchDay (their account id is also their player id). */
+  /** Set for people on RIVL (their account id is also their player id). */
   userId?: string;
   username?: string;
   /** I sent them a friend request that they haven't accepted yet. */
