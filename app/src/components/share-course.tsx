@@ -73,7 +73,7 @@ export function ShareCourseSheet({ course, visible, onClose }: { course: Course;
               <Text style={{ color: c.text, fontSize: 15, textAlign: 'center' }}>
                 Sent to {done.names.length <= 3 ? done.names.join(', ').replace(/, ([^,]*)$/, ' and $1') : `${done.names.slice(0, 2).join(', ')} and ${done.names.length - 2} others`}.
               </Text>
-              <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>It’s in their Courses next time they open RallyCap, and they’ll get any changes you make.</Text>
+              <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>It’s in their Courses next time they open Clutch Up, and they’ll get any changes you make.</Text>
             </>
           )}
           <View style={{ alignSelf: 'stretch', gap: space.sm, marginTop: space.sm }}>
@@ -82,7 +82,7 @@ export function ShareCourseSheet({ course, visible, onClose }: { course: Course;
           </View>
         </View>
       ) : online.length === 0 ? (
-        <Body muted>Add friends on RallyCap first (Friends tab), then you can share courses with them.</Body>
+        <Body muted>Add friends on Clutch Up first (Friends tab), then you can share courses with them.</Body>
       ) : (
         <View style={{ gap: space.sm }}>
           <Text style={{ color: c.muted, fontSize: 13 }}>They’ll get {course.name} in their Courses. If you change it later, they get the update.</Text>

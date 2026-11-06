@@ -27,12 +27,12 @@ export interface SavedPlayer {
   gender: 'M' | 'F';
   firstName?: string;
   lastName?: string;
-  /** Set for people on RallyCap (their account id is also their player id). */
+  /** Set for people on Clutch Up (their account id is also their player id). */
   userId?: string;
   username?: string;
   /** I sent them a friend request that they haven't accepted yet. */
   pending?: boolean;
-  /** When they last updated (or confirmed) their handicap index on RallyCap (ISO time). */
+  /** When they last updated (or confirmed) their handicap index on Clutch Up (ISO time). */
   handicapUpdatedAt?: string;
 }
 

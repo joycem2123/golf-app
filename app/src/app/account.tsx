@@ -40,7 +40,7 @@ export default function Account() {
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
         <Card>
           <H2>No account yet</H2>
-          <Body muted>You’re using RallyCap as a guest. Create an account to keep your history and change these details.</Body>
+          <Body muted>You’re using Clutch Up as a guest. Create an account to keep your history and change these details.</Body>
           <Button title="Create account or sign in" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
         </Card>
       </ScrollView>

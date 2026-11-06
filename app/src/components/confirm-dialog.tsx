@@ -2,7 +2,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 
 import { fonts, radius, space, useColors } from '@/theme';
 
-/** RallyCap-styled confirmation pop-up. */
+/** Clutch Up-styled confirmation pop-up. */
 export function ConfirmDialog({
   visible,
   title,

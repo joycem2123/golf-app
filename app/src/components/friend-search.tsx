@@ -9,7 +9,7 @@ import { radius, space, useColors } from '@/theme';
 import { PlayerForm } from './player-form';
 import { Body, Button, Card } from './ui';
 
-/** Find people on RallyCap as you type, or add someone who isn't on the app. */
+/** Find people on Clutch Up as you type, or add someone who isn't on the app. */
 export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p: SavedPlayer) => void; onClose?: () => void; initialQuery?: string }) {
   const c = useColors();
   const players = useStore((s) => s.players);
@@ -47,7 +47,7 @@ export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p:
   if (offlineForm) {
     return (
       <View style={{ gap: space.sm }}>
-        <Body muted>Adding someone who isn’t on RallyCap. You can link them later if they join.</Body>
+        <Body muted>Adding someone who isn’t on Clutch Up. You can link them later if they join.</Body>
         <PlayerForm
           initial={q.trim() ? { id: '', name: q.trim(), handicapIndex: 0, gender: 'M' } : undefined}
           onCancel={() => setOfflineForm(false)}
@@ -82,7 +82,7 @@ export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p:
       </View>
 
       {error ? <Body style={{ color: c.danger }}>{error}</Body> : null}
-      {q.trim() !== '' && !busy && !error && hits.length === 0 && <Body muted>No one on RallyCap matches “{q.trim()}”.</Body>}
+      {q.trim() !== '' && !busy && !error && hits.length === 0 && <Body muted>No one on Clutch Up matches “{q.trim()}”.</Body>}
 
       {hits.map((h) => {
         const existing = players.find((p) => p.id === h.id);
@@ -147,7 +147,7 @@ export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p:
       <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.xs }}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => setOfflineForm(true)}>
-            <Text style={{ color: c.primary, fontWeight: '600', paddingVertical: 8 }}>Not on RallyCap? Add by name ›</Text>
+            <Text style={{ color: c.primary, fontWeight: '600', paddingVertical: 8 }}>Not on Clutch Up? Add by name ›</Text>
           </Pressable>
         </View>
         {onClose && <Button small kind="ghost" title="Done" onPress={onClose} />}

@@ -26,7 +26,7 @@ export function ago(at: string | null | undefined): string {
   return `${Math.round(days / 30)} months ago`;
 }
 
-// Show requests as banners even while RallyCap is open.
+// Show requests as banners even while Clutch Up is open.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
 });

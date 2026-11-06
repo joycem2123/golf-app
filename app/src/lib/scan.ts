@@ -17,7 +17,7 @@ interface ScannedCard {
 export async function pickScorecard(source: 'camera' | 'library'): Promise<string | null> {
   if (source === 'camera') {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) throw new Error('RallyCap needs camera access to scan a scorecard. Turn it on in Settings, or choose a photo instead.');
+    if (!perm.granted) throw new Error('Clutch Up needs camera access to scan a scorecard. Turn it on in Settings, or choose a photo instead.');
   }
   const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1, allowsEditing: false };
   const res = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);

@@ -1,5 +1,5 @@
 /**
- * Friends on RallyCap. Adding someone sends a friend request; the friendship
+ * Friends on Clutch Up. Adding someone sends a friend request; the friendship
  * exists (for both people) once they accept.
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';

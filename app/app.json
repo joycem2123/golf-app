@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "RallyCap",
+    "name": "Clutch Up",
     "slug": "golf-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -38,8 +38,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "RallyCap uses the camera to scan golf scorecards.",
-          "photosPermission": "RallyCap reads a scorecard photo you choose to fill in the course."
+          "cameraPermission": "Clutch Up uses the camera to scan golf scorecards.",
+          "photosPermission": "Clutch Up reads a scorecard photo you choose to fill in the course."
         }
       ],
       [

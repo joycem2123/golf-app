@@ -180,7 +180,7 @@ export async function joinByCode(code: string, role: 'scorer' | 'viewer', name?:
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Account ids of the RallyCap players among these player ids (not me). */
+/** Account ids of the Clutch Up players among these player ids (not me). */
 function accountIds(playerIds: string[]): string[] {
   const st = useStore.getState();
   const out = new Set<string>();
@@ -198,7 +198,7 @@ const sharedWith = new Map<string, string>();
 let sharing = false;
 
 /**
- * Put my live rounds and events online for the RallyCap players in them, so the game
+ * Put my live rounds and events online for the Clutch Up players in them, so the game
  * shows up on their phones too. Only friends can be added (the server checks).
  */
 export async function shareWithPlayers() {

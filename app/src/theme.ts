@@ -10,9 +10,9 @@ const palette = {
   text: '#1B2A22',
   muted: '#6E746B',
   border: '#E3DDCF',
-  /** Deep green from the RallyCap logo (banners, welcome, splash). */
+  /** Deep green from the brand logo (banners, welcome, splash). */
   brand: '#14352A',
-  /** Gold from the RallyCap logo. */
+  /** Gold from the brand logo. */
   brandGold: '#B48954',
   primary: '#1F5A3D',
   onPrimary: '#FFFFFF',

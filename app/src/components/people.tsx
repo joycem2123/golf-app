@@ -64,7 +64,7 @@ export function MeCard() {
       <View style={{ gap: space.sm }}>
         <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
           <H2>Add your full name</H2>
-          <Body muted>RallyCap needs your first and last name so friends can find the right person.</Body>
+          <Body muted>Clutch Up needs your first and last name so friends can find the right person.</Body>
         </Card>
         <PlayerForm fullName initial={me} onSave={save} />
       </View>
@@ -77,7 +77,7 @@ export function MeCard() {
         {!me && (
           <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
             <H2>Add yourself</H2>
-            <Body muted>Tell RallyCap which player is you, so your rounds and records show up as yours.</Body>
+            <Body muted>Tell Clutch Up which player is you, so your rounds and records show up as yours.</Body>
             {players.length > 0 && (
               <>
                 <Label>Already in your list?</Label>
@@ -153,7 +153,7 @@ export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{p.name}</Text>
-                    <Text style={{ color: c.muted, fontSize: 12 }}>{p.username ? `@${p.username}` : 'Not on RallyCap'}</Text>
+                    <Text style={{ color: c.muted, fontSize: 12 }}>{p.username ? `@${p.username}` : 'Not on Clutch Up'}</Text>
                   </View>
                   <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>{formatIndex(p.handicapIndex)}</Text>
                   {!onPick &&
@@ -189,7 +189,7 @@ export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
         </Card>
       )}
       <Button title="+ Add a friend" kind="secondary" onPress={() => router.push('/add-friend')} />
-      <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Friends on RallyCap keep their own handicap index up to date. Tap anyone else to edit theirs.</Text>
+      <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Friends on Clutch Up keep their own handicap index up to date. Tap anyone else to edit theirs.</Text>
     </View>
   );
 }
