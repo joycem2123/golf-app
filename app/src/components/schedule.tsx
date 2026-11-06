@@ -1,4 +1,4 @@
-import { findCourse } from '@golf/engine';
+import { getCourse } from '@/lib/courses';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -16,7 +16,7 @@ function MatchItem({ e, m }: { e: EventRecord; m: ScheduledMatch }) {
   const players = useStore((s) => s.players);
   const round = useStore((s) => s.rounds.find((r) => r.id === m.roundId));
   const name = (pid: string) => players.find((p) => p.id === pid)?.name ?? '?';
-  const course = m.courseId ? findCourse(m.courseId) : undefined;
+  const course = m.courseId ? getCourse(m.courseId) : undefined;
   const canEdit = e.remote?.role !== 'viewer';
   const res = round ? evaluate(round)[0] : undefined;
   const status = round ? (round.status === 'complete' ? 'Final' : 'Live') : null;

@@ -1,4 +1,4 @@
-import { courseHandicap, findCourse, searchCourses, SEED_COURSES, type Course, type Player, type Tee } from '@golf/engine';
+import { courseHandicap, searchCourses, type Course, type Player, type Tee } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -15,6 +15,7 @@ import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@
 import { autoShare } from '@/sync/sync';
 import { space, teamColor, useColors } from '@/theme';
 import { today } from '@/lib/dates';
+import { getCourse, useCourses } from '@/lib/courses';
 
 type Step = 'course' | 'players' | 'teams' | 'game';
 
@@ -39,6 +40,7 @@ export default function NewRound() {
     event?.teams ? (event.teams.A.playerIds.includes(id) ? 'A' : event.teams.B.playerIds.includes(id) ? 'B' : undefined) : undefined;
   const upsertPlayer = useStore((s) => s.upsertPlayer);
   const addRound = useStore((s) => s.addRound);
+  const courses = useCourses();
 
   const [step, setStep] = useState<Step>('course');
   const [query, setQuery] = useState('');
@@ -95,7 +97,7 @@ export default function NewRound() {
   useEffect(() => {
     if (!scheduled || prefilled.current) return;
     prefilled.current = true;
-    const co = scheduled.courseId ? findCourse(scheduled.courseId) : undefined;
+    const co = scheduled.courseId ? getCourse(scheduled.courseId) : undefined;
     if (!co) return;
     setCourse(co);
     const ids = [...scheduled.sideA, ...scheduled.sideB].filter((id) => saved.some((p) => p.id === id));
@@ -160,6 +162,7 @@ export default function NewRound() {
       id,
       createdAt: Date.now(),
       courseId: course.id,
+      course,
       players,
       games: [...draftToConfigs(draft, players), ...sideMatches.map(([a, b]) => sideMatchConfig(a, b))],
       statsEnabled,
@@ -213,7 +216,7 @@ export default function NewRound() {
       {step === 'course' && (
         <>
           <Field label="Search courses" value={query} onChangeText={setQuery} placeholder="Course name or city" />
-          {searchCourses(query, SEED_COURSES).map((co) => (
+          {searchCourses(query, courses).map((co) => (
             <Pressable
               key={co.id}
               onPress={() => {

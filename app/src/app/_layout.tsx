@@ -40,6 +40,8 @@ export default function RootLayout() {
         <Stack.Screen name="round/[id]/index" options={{ title: 'Scorecard' }} />
         <Stack.Screen name="round/[id]/results" options={{ title: 'Results' }} />
         <Stack.Screen name="round/[id]/match/[gi]" options={{ title: "Match" }} />
+        <Stack.Screen name="courses" options={{ title: "Courses" }} />
+        <Stack.Screen name="course/[id]" options={{ title: "Course" }} />
       </Stack>
       <SyncProvider />
     </ThemeProvider>

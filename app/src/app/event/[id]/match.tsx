@@ -1,4 +1,4 @@
-import { SEED_COURSES } from '@golf/engine';
+import { useCourses } from '@/lib/courses';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
@@ -19,6 +19,7 @@ export default function ScheduleMatch() {
   const c = useColors();
   const { id, matchId } = useLocalSearchParams<{ id: string; matchId?: string }>();
   const e = useEvent(id);
+  const courses = useCourses();
   const players = useStore((s) => s.players);
   const save = useStore((s) => s.saveScheduled);
   const remove = useStore((s) => s.removeScheduled);
@@ -125,7 +126,7 @@ export default function ScheduleMatch() {
           <H2>Course</H2>
           <View style={styles.wrap}>
             <Chip label="Decide later" selected={!courseId} onPress={() => setCourseId(undefined)} />
-            {SEED_COURSES.map((co) => (
+            {courses.map((co) => (
               <Chip key={co.id} label={shortCourseName(co.name)} selected={courseId === co.id} onPress={() => setCourseId(co.id)} />
             ))}
           </View>

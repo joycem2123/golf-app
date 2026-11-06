@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   applyScoreEntry,
+  type Course,
   type GameConfig,
   type HoleStats,
   type Player,
@@ -37,6 +38,8 @@ export interface RoundRecord {
   id: string;
   createdAt: number;
   courseId: string;
+  /** The course as it was when the round was played (so later course edits don't change it). */
+  course?: Course;
   /** Handicap indexes are locked in when the round is created. */
   players: Player[];
   /** games[0] is the main game; the rest are side games / side matches. */
@@ -185,6 +188,11 @@ interface State {
   /** Rounds/events I deleted: the sync removes them online, and never downloads them again. */
   deleted: Record<string, Tombstone>;
   markDeletedDone: (ids: string[]) => void;
+  /** My corrections to courses (rating, slope, pars, hole handicaps), by course id. */
+  courseEdits: Record<string, Course>;
+  /** Save a corrected course. `before` is the version rounds already played were using. */
+  saveCourse: (course: Course, before: Course) => void;
+  resetCourse: (id: string, before: Course) => void;
   saveScheduled: (eventId: string, m: ScheduledMatch) => void;
   /** Link a started round to the event round it was planned as. */
   setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
@@ -272,6 +280,7 @@ export const EMPTY_DATA = {
   dirtyRounds: [] as string[],
   dirtyEvents: [] as string[],
   deleted: {} as Record<string, Tombstone>,
+  courseEdits: {} as Record<string, Course>,
 };
 
 const mapRound = (rounds: RoundRecord[], id: string, fn: (r: RoundRecord) => RoundRecord) =>
@@ -322,6 +331,18 @@ export const useStore = create<State>()(
       dirtyRounds: [],
       dirtyEvents: [],
       deleted: {},
+      courseEdits: {},
+      // Rounds already played keep the course they were played on.
+      saveCourse: (course, before) =>
+        set((s) => ({
+          courseEdits: { ...s.courseEdits, [course.id]: course },
+          rounds: s.rounds.map((r) => (r.courseId === course.id && !r.course ? { ...r, course: before } : r)),
+        })),
+      resetCourse: (id, before) =>
+        set((s) => ({
+          courseEdits: Object.fromEntries(Object.entries(s.courseEdits ?? {}).filter(([k]) => k !== id)),
+          rounds: s.rounds.map((r) => (r.courseId === id && !r.course ? { ...r, course: before } : r)),
+        })),
       markDeletedDone: (ids) =>
         set((s) => ({ deleted: Object.fromEntries(Object.entries(s.deleted ?? {}).map(([k, t]) => [k, ids.includes(k) ? { ...t, done: true } : t])) })),
 
@@ -391,6 +412,7 @@ export const useStore = create<State>()(
               status: s.dirtyRounds.includes(r.id) ? r.status : round.status,
               eventId: round.eventId ?? r.eventId,
               teamOf: round.teamOf ?? r.teamOf,
+              course: round.course ?? r.course,
               stories: { ...round.stories, ...r.stories },
               remote: r.remote?.role === 'owner' ? r.remote : round.remote ?? r.remote,
             })),

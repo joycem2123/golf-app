@@ -35,11 +35,8 @@ export default function More() {
           <Row title="Head to head" sub="Records between any two players" href="/head-to-head" />
         </Card>
         <Label>Courses</Label>
-        <Card>
-          {SEED_COURSES.map((c) => (
-            <Body key={c.id}>{c.name}</Body>
-          ))}
-          <Body muted>More Canadian and US courses are coming.</Body>
+        <Card style={{ paddingVertical: 0 }}>
+          <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
         </Card>
         <Body muted style={{ textAlign: 'center' }}>MatchDay · preview build</Body>
       </ScrollView>

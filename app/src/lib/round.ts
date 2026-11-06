@@ -1,6 +1,5 @@
 import {
   evaluateGame,
-  findCourse,
   ledgerToScorecard,
   postingReminders,
   type Course,
@@ -10,6 +9,7 @@ import {
 } from '@golf/engine';
 
 import type { RoundRecord } from '@/store/store';
+import { getCourse } from './courses';
 import { teamCardKeys } from './games';
 
 export interface ScoreKey {
@@ -28,7 +28,7 @@ export function shortCourseName(name: string): string {
 }
 
 export function courseFor(r: RoundRecord): Course {
-  const c = findCourse(r.courseId);
+  const c = r.course ?? getCourse(r.courseId);
   if (!c) throw new Error(`Course ${r.courseId} is missing`);
   return c;
 }
