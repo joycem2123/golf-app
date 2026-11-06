@@ -103,3 +103,10 @@ export function teamTotals(r: RoundRecord, matches: MatchOutcome[]): TeamTotal[]
   return [...byLetter.values()].sort((x, y) => y.points - x.points || x.letter.localeCompare(y.letter));
 }
 
+
+/** Team points in one round (null if the round has no team matches). */
+export function roundTeamScore(r: RoundRecord, results: (GameResult | { error: string })[]): TeamTotal[] | null {
+  const matches = matchOutcomes(r, results);
+  const totals = teamTotals(r, matches);
+  return totals.length >= 2 && matches.some((m) => m.a.letter !== m.b.letter) ? totals : null;
+}

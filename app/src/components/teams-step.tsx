@@ -23,6 +23,8 @@ export function TeamsStep({
   letters,
   onLetters,
   lockedReason,
+  maxTeams = TEAM_LETTERS.length,
+  note,
 }: {
   players: TeamPlayer[];
   teamOf: TeamOf;
@@ -31,6 +33,10 @@ export function TeamsStep({
   onLetters: (l: string[]) => void;
   /** Set when teams come from somewhere else (e.g. a Ryder Cup event) and can't be changed here. */
   lockedReason?: string;
+  /** e.g. 2 for a Ryder Cup. */
+  maxTeams?: number;
+  /** Extra line under the title. */
+  note?: string;
 }) {
   const c = useColors();
   const unassigned = players.filter((p) => !teamOf[p.id] || !letters.includes(teamOf[p.id]));
@@ -98,7 +104,7 @@ export function TeamsStep({
             {action('Clear', clear)}
           </View>
         </View>
-        <Text style={{ color: c.muted, fontSize: 13 }}>Put every player on a team. Balance makes fair teams by handicap.</Text>
+        <Text style={{ color: c.muted, fontSize: 13 }}>Put every player on a team. Balance makes fair teams by handicap.{note ? ` ${note}` : ''}</Text>
 
         {unassigned.length > 0 && (
           <View style={{ gap: 2, marginTop: space.xs }}>
@@ -169,7 +175,7 @@ export function TeamsStep({
         );
       })}
 
-      {letters.length < TEAM_LETTERS.length && (
+      {letters.length < Math.min(maxTeams, TEAM_LETTERS.length) && (
         <Pressable
           onPress={addTeam}
           accessibilityRole="button"

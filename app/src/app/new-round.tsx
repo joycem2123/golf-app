@@ -13,7 +13,7 @@ import { meFirst, useMe } from '@/lib/me';
 import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, sideMatchConfig, teamsSet, type GameDraft, type TeamOf } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { autoShare } from '@/sync/sync';
-import { space, useColors } from '@/theme';
+import { space, teamColor, useColors } from '@/theme';
 
 type Step = 'course' | 'players' | 'teams' | 'game';
 
@@ -26,8 +26,11 @@ function teesFor(course: Course, gender: 'M' | 'F') {
 
 export default function NewRound() {
   const c = useColors();
-  const { eventId, matchId } = useLocalSearchParams<{ eventId?: string; matchId?: string }>();
+  const { eventId, matchId, eventRound } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string }>();
   const event = useEvent(eventId);
+  // A round planned in the event (format and matchups already set).
+  const planned = event?.rounds?.find((x) => x.id === eventRound);
+  const eventTeams: TeamOf | undefined = event?.teamOf ?? (event?.teams ? Object.fromEntries([...event.teams.A.playerIds.map((id) => [id, 'A']), ...event.teams.B.playerIds.map((id) => [id, 'B'])]) : undefined);
   const allSaved = useStore((s) => s.players);
   const { me, isMe } = useMe();
   const saved = event ? allSaved.filter((p) => event.playerIds.includes(p.id)) : allSaved;
@@ -43,10 +46,8 @@ export default function NewRound() {
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [draft, setDraft] = useState<GameDraft | null>(null);
   // Teams step: start with an empty Team A and Team B (a Ryder Cup event fills them in).
-  const [teamOf, setTeamOfState] = useState<TeamOf>(() =>
-    event?.teams ? Object.fromEntries([...event.teams.A.playerIds.map((id) => [id, 'A']), ...event.teams.B.playerIds.map((id) => [id, 'B'])]) : {},
-  );
-  const [letters, setLetters] = useState<string[]>(['A', 'B']);
+  const [teamOf, setTeamOfState] = useState<TeamOf>(() => eventTeams ?? {});
+  const [letters, setLetters] = useState<string[]>(event?.teamLetters ?? ['A', 'B']);
   const [noTeams, setNoTeams] = useState(false);
   const setTeamOf = (t: TeamOf) => {
     setTeamOfState(t);
@@ -126,6 +127,18 @@ export default function NewRound() {
     setDraft(d);
   }, [players, scheduled]);
 
+  // Planned event round: once the course is picked, bring in its players and its game.
+  const plannedIds = planned?.draft ? Object.keys(planned.draft.teamOf).filter((id) => saved.some((p) => p.id === id)) : [];
+  const plannedDraftSet = useRef(false);
+  useEffect(() => {
+    if (!planned?.draft || plannedDraftSet.current || players.length === 0) return;
+    const same = players.length === plannedIds.length && players.every((p) => plannedIds.includes(p.id));
+    if (!same) return;
+    plannedDraftSet.current = true;
+    setDraft({ ...planned.draft, teamOf: { ...planned.draft.teamOf } });
+  }, [players]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setEventRoundId = useStore((s) => s.setEventRoundId);
   const start = () => {
     if (!course || !draft || problem) return;
     const id = newId();
@@ -142,11 +155,12 @@ export default function NewRound() {
       status: 'active',
       notices: [],
       eventId: event?.id,
-      label: scheduled?.label,
+      label: planned ? `Round ${planned.number}` : scheduled?.label,
       teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
     };
     addRound(round);
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
+    if (event && planned) setEventRoundId(event.id, planned.id, id);
     void autoShare(id);
     router.replace(`/round/${id}`);
   };
@@ -190,7 +204,10 @@ export default function NewRound() {
               onPress={() => {
                 setCourse(co);
                 // Start with me in the group (if I'm part of this event, or it's a regular round).
-                setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);
+                if (planned?.draft) {
+                  plannedDraftSet.current = false;
+                  setRoster(plannedIds.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
+                } else setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);
                 setDraft(null);
                 setStep('players');
               }}>
@@ -212,7 +229,7 @@ export default function NewRound() {
             onToggle={togglePlayer}
             isMe={isMe}
             indexFor={(p) => (event?.lockHandicaps ? (event.lockedIndexes[p.id] ?? p.handicapIndex) : p.handicapIndex)}
-            colorFor={(id) => (event?.teams ? (teamOfEvent(id) === 'B' ? c.teamB : c.teamA) : undefined)}
+            colorFor={(id) => (eventTeams?.[id] ? teamColor(eventTeams[id]).color : undefined)}
             allowNew={!event}
             onFindNew={(q) => router.push({ pathname: '/add-friend', params: { pick: 'new-round', q } })}
           />
@@ -280,14 +297,14 @@ export default function NewRound() {
             onTeamOf={(t) => { setTeamOf(t); setNoTeams(false); }}
             letters={letters}
             onLetters={(l) => { setLetters(l); setDraft(null); }}
-            lockedReason={event?.teams ? `Teams come from ${event.name}.` : undefined}
+            lockedReason={eventTeams ? `Teams come from ${event!.name}.` : undefined}
           />
           <Button
             title={teamsDone && !noTeams ? 'Next: choose game' : `Put every player on a team (${players.filter((p) => !letters.includes(teamOf[p.id])).length} left)`}
             disabled={!teamsSet(rosterIds, (id) => (letters.includes(teamOf[id]) ? teamOf[id] : undefined))}
             onPress={() => { setNoTeams(false); setStep('game'); }}
           />
-          {!event?.teams && (
+          {!eventTeams && (
             <Button
               title="No teams (individual games)"
               kind="ghost"

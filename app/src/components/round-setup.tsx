@@ -24,13 +24,16 @@ export function StepPills<T extends string>({
   onGo: (s: T) => void;
 }) {
   const c = useColors();
+  // Five steps (New Event) need smaller pills to fit a phone.
+  const compact = steps.length > 4;
+  const gap = compact ? 3 : 6;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap }}>
       {steps.map((s, i) => {
         const active = s.value === current;
         const done = !active && isDone(s.value);
         return (
-          <View key={s.value} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View key={s.value} style={{ flex: active && compact ? 1.35 : 1, flexDirection: 'row', alignItems: 'center', gap }}>
             <Pressable
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
@@ -41,8 +44,9 @@ export function StepPills<T extends string>({
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 11,
+                gap: compact ? 2 : 6,
+                paddingVertical: compact ? 9 : 11,
+                paddingHorizontal: compact ? 2 : 0,
                 borderRadius: radius.pill,
                 backgroundColor: active ? c.primary : done ? c.primarySoft : c.card,
                 borderWidth: 1.5,
@@ -53,10 +57,10 @@ export function StepPills<T extends string>({
                 shadowRadius: 6,
                 shadowOffset: { width: 0, height: 2 },
               })}>
-              {done && <Text style={{ color: c.primary, fontWeight: '900', fontSize: 13 }}>✓</Text>}
-              <Text style={{ color: active ? c.onPrimary : done ? c.primary : c.muted, fontWeight: '700', fontSize: 15, letterSpacing: 0.3 }}>{s.label}</Text>
+              {done && !compact && <Text style={{ color: c.primary, fontWeight: '900', fontSize: 13 }}>✓</Text>}
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: active ? c.onPrimary : done ? c.primary : c.muted, fontWeight: '700', fontSize: compact ? 12 : 15, letterSpacing: compact ? 0 : 0.3 }}>{s.label}</Text>
             </Pressable>
-            {i < steps.length - 1 && <View style={{ width: 8, height: 2, borderRadius: 1, backgroundColor: done ? c.primary : c.border }} />}
+            {i < steps.length - 1 && <View style={{ width: compact ? 3 : 8, height: 2, borderRadius: 1, backgroundColor: done ? c.primary : c.border }} />}
           </View>
         );
       })}

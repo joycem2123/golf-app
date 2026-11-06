@@ -2,6 +2,7 @@ import { cupStandings, seasonStandings, type CupMatch, type GameResult, type Rec
 
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { gameName } from './games';
+import { roundTeamScore, type TeamTotal } from './results';
 import { evaluate, isResult, holesComplete } from './round';
 
 export interface EventMatch {
@@ -120,11 +121,29 @@ export function eventPhase(e: EventRecord, rounds: RoundRecord[]): EventPhase {
   if (mine.some((r) => r.status === 'active')) return 'live';
   if (e.status === 'complete') return 'completed';
   const unplayed = (e.schedule ?? []).some((m) => !m.roundId || !mine.some((r) => r.id === m.roundId));
-  if (mine.length === 0 || unplayed) return 'upcoming';
+  const unplayedRounds = (e.rounds ?? []).some((x) => !x.roundId || !mine.some((r) => r.id === x.roundId && r.status === 'complete'));
+  if (mine.length === 0 || unplayed || unplayedRounds) return 'upcoming';
   return 'completed';
 }
 
 /** Events can only be deleted before any of their rounds are finished. */
 export function canDeleteEvent(e: EventRecord, rounds: RoundRecord[]): boolean {
   return !rounds.some((r) => r.eventId === e.id && (r.status === 'complete' || (r.completedAt && holesComplete(r) >= 18)));
+}
+
+/** Team points across every round of the event (for events with teams). */
+export function eventTeamTotals(e: EventRecord, rounds: RoundRecord[]): { totals: TeamTotal[]; roundsCounted: number } {
+  const by = new Map<string, TeamTotal>();
+  for (const L of e.teamLetters ?? []) by.set(L, { letter: L, members: Object.keys(e.teamOf ?? {}).filter((id) => e.teamOf![id] === L), points: 0, wins: 0, halves: 0, losses: 0 });
+  let roundsCounted = 0;
+  for (const r of rounds.filter((x) => x.eventId === e.id)) {
+    const score = roundTeamScore(r, evaluate(r));
+    if (!score) continue;
+    roundsCounted++;
+    for (const t of score) {
+      const cur = by.get(t.letter) ?? { letter: t.letter, members: t.members, points: 0, wins: 0, halves: 0, losses: 0 };
+      by.set(t.letter, { ...cur, points: cur.points + t.points, wins: cur.wins + t.wins, halves: cur.halves + t.halves, losses: cur.losses + t.losses });
+    }
+  }
+  return { totals: [...by.values()].sort((a, b) => b.points - a.points || a.letter.localeCompare(b.letter)), roundsCounted };
 }

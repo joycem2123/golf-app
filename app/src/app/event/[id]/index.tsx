@@ -1,16 +1,18 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { EventRounds } from '@/components/event-rounds';
 import { ScheduleSection } from '@/components/schedule';
 import { IdentityCard } from '@/components/people';
 import { ShareCard } from '@/components/share-card';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { shareEvent } from '@/sync/sync';
-import { canDeleteEvent, cupScore, eventMatches, eventStandings, formatPoints, type EventMatch } from '@/lib/events';
+import { describeRecurrence, formatDate } from '@/lib/dates';
+import { canDeleteEvent, cupScore, eventMatches, eventStandings, eventTeamTotals, formatPoints, type EventMatch } from '@/lib/events';
 import { formatIndex } from '@/lib/format';
 import { courseFor, shortCourseName } from '@/lib/round';
 import { useEvent, useStore, type EventRecord } from '@/store/store';
-import { fonts, radius, space, useColors } from '@/theme';
+import { fonts, radius, space, teamColor, useColors } from '@/theme';
 
 function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: string) => string }) {
   const c = useColors();
@@ -51,6 +53,18 @@ export default function EventScreen() {
     <>
       <Stack.Screen options={{ title: e.name }} />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
+        {(e.startDate || e.recurrence) && (
+          <View style={{ alignItems: 'center', gap: 2 }}>
+            <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{e.type === 'cup' ? 'RYDER CUP' : e.type === 'season' ? 'SEASON' : 'TRIP'}</Text>
+            {e.startDate && (
+              <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>
+                {formatDate(e.startDate, { month: 'short', day: 'numeric' })}
+                {e.endDate && e.endDate !== e.startDate ? ` – ${formatDate(e.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+              </Text>
+            )}
+            {e.recurrence && <Text style={{ color: c.muted, fontSize: 13 }}>{describeRecurrence(e.recurrence)}</Text>}
+          </View>
+        )}
         {e.remote && e.remote.role !== 'owner' && (
           <IdentityCard scopeKey={e.id} candidates={e.playerIds.map((pid) => ({ id: pid, name: name(pid) }))} />
         )}
@@ -99,7 +113,8 @@ export default function EventScreen() {
                   </View>
                 </Card>
 
-                <ScheduleSection e={e} />
+                {e.rounds?.length ? <EventRounds e={e} /> : null}
+                {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
 
                 {cupMatches.length > 0 && (
                   <Card>
@@ -112,6 +127,27 @@ export default function EventScreen() {
           })()
         ) : (
           <>
+            {e.teamOf && (e.teamLetters?.length ?? 0) >= 2 && (() => {
+              const { totals, roundsCounted } = eventTeamTotals(e, rounds);
+              const lead = totals[0] && totals[1] && totals[0].points > totals[1].points ? totals[0].letter : null;
+              return (
+                <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
+                  <View style={{ height: 3, backgroundColor: c.accent }} />
+                  <View style={{ flexDirection: 'row' }}>
+                    {[...totals].sort((x, y) => x.letter.localeCompare(y.letter)).map((t) => (
+                      <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.lg, backgroundColor: teamColor(t.letter).color }}>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 }}>TEAM {t.letter}{lead === t.letter ? ' 🏆' : ''}</Text>
+                        <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 44, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
+                        <Text numberOfLines={2} style={{ color: '#ffffffcc', fontSize: 11, textAlign: 'center', paddingHorizontal: 6 }}>{t.members.map((pid) => name(pid).split(' ')[0]).join(', ')}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={{ textAlign: 'center', padding: space.sm, color: c.text, fontWeight: '600' }}>
+                    {roundsCounted === 0 ? 'No rounds played yet' : `${lead ? `Team ${lead} leads` : 'All square'} after ${roundsCounted} round${roundsCounted === 1 ? '' : 's'}`}
+                  </Text>
+                </View>
+              );
+            })()}
             <Card>
               <H2>Standings</H2>
               <View style={[styles.row, { borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: 4 }]}>
@@ -128,7 +164,8 @@ export default function EventScreen() {
               ))}
               <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Win 1 · halve ½ · every match counts, including side matches.</Label>
             </Card>
-            <ScheduleSection e={e} />
+            {e.rounds?.length ? <EventRounds e={e} /> : null}
+                {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             <Card>
               <H2>Results</H2>
               {matches.length === 0 ? <Body muted>No matches yet.</Body> : matches.map((m) => <MatchRow key={m.id} e={e} m={m} name={name} />)}

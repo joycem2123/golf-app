@@ -11,6 +11,9 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import type { Recurrence } from '@/lib/dates';
+import type { GameDraft } from '@/lib/games';
+
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 /** This device's scorekeeper id. Replaced by the signed-in user once accounts exist. */
@@ -98,6 +101,19 @@ export interface EventTeam {
   playerIds: string[];
 }
 
+/** A round planned when the event is created: its date, format and matchups. */
+export interface EventRound {
+  id: string;
+  /** 1-based. */
+  number: number;
+  /** YYYY-MM-DD */
+  date?: string;
+  /** Format, handicap options and matchups (set up like a New Round's game step). */
+  draft?: GameDraft;
+  /** Set once the round has been started. */
+  roundId?: string;
+}
+
 export interface EventRecord {
   id: string;
   name: string;
@@ -118,6 +134,16 @@ export interface EventRecord {
   status: 'active' | 'complete';
   remote?: Remote;
   schedule?: ScheduledMatch[];
+  /** YYYY-MM-DD */
+  startDate?: string;
+  endDate?: string;
+  /** Seasons: when rounds are played. */
+  recurrence?: Recurrence;
+  /** Team letter for each player (from the Teams step). */
+  teamOf?: Record<string, string>;
+  teamLetters?: string[];
+  /** The rounds of the event, in order. */
+  rounds?: EventRound[];
 }
 
 interface State {
@@ -155,6 +181,8 @@ interface State {
   /** Events whose details or schedule need uploading. */
   dirtyEvents: string[];
   saveScheduled: (eventId: string, m: ScheduledMatch) => void;
+  /** Link a started round to the event round it was planned as. */
+  setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
   removeScheduled: (eventId: string, matchId: string) => void;
   clearDirtyEvents: (ids: string[]) => void;
   setMe: (id: string | null) => void;
@@ -271,6 +299,11 @@ export const useStore = create<State>()(
       dirtyRounds: [],
       dirtyEvents: [],
 
+      setEventRoundId: (eventId, eventRoundId, roundId) =>
+        set((s) => ({
+          events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: e.rounds?.map((x) => (x.id === eventRoundId ? { ...x, roundId } : x)) } : e)),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
       saveScheduled: (eventId, m) =>
         set((s) => ({
           events: s.events.map((e) => {
@@ -378,9 +411,12 @@ export const useStore = create<State>()(
         set((s) => ({
           rounds: s.rounds.filter((r) => r.id !== id),
           history: s.history.filter((m) => m.eventId !== id),
-          events: s.events.map((e) =>
-            e.schedule?.some((m) => m.roundId === id) ? { ...e, schedule: e.schedule.map((m) => (m.roundId === id ? { ...m, roundId: undefined } : m)) } : e,
-          ),
+          events: s.events.map((e) => {
+            let next = e;
+            if (e.schedule?.some((m) => m.roundId === id)) next = { ...next, schedule: e.schedule.map((m) => (m.roundId === id ? { ...m, roundId: undefined } : m)) };
+            if (e.rounds?.some((x) => x.roundId === id)) next = { ...next, rounds: e.rounds.map((x) => (x.roundId === id ? { ...x, roundId: undefined } : x)) };
+            return next;
+          }),
           dirtyEvents: s.events.some((e) => e.remote && e.remote.role !== 'viewer' && e.schedule?.some((m) => m.roundId === id) && !s.dirtyEvents.includes(e.id))
             ? [...s.dirtyEvents, ...s.events.filter((e) => e.schedule?.some((m) => m.roundId === id)).map((e) => e.id)]
             : s.dirtyEvents,

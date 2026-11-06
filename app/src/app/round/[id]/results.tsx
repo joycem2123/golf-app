@@ -12,6 +12,7 @@ import { MeBadge } from '@/components/people';
 import { Mark } from '@/components/scorecard-grid';
 import { Body, Button, Card, H2, Label, Segmented } from '@/components/ui';
 import { toPar } from '@/lib/format';
+import { eventTeamTotals } from '@/lib/events';
 import { gameName, matchLabel, teamIdName } from '@/lib/games';
 import { useMe } from '@/lib/me';
 import { matchOutcomes, teamTotals, type MatchOutcome } from '@/lib/results';
@@ -31,6 +32,8 @@ export default function Results() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const r = useRound(id);
   const reopen = useStore((s) => s.reopenRound);
+  const events = useStore((s) => s.events);
+  const allRounds = useStore((s) => s.rounds);
   const { isMe } = useMe();
   const c = useColors();
   const shot = useRef<ComponentRef<typeof View>>(null);
@@ -40,6 +43,8 @@ export default function Results() {
   if (!r) return <Body>Round not found.</Body>;
 
   const results = evaluate(r);
+  const event = events.find((e) => e.id === r.eventId);
+  const overall = event?.teamOf || event?.teams ? eventTeamTotals(event!.teamOf ? event! : { ...event!, teamLetters: ['A', 'B'] }, allRounds).totals : null;
   const posting = postingList(r);
   const name = (pid: string) => r.players.find((p) => p.id === pid)?.name ?? pid;
   let courseName = 'Golf';
@@ -280,6 +285,27 @@ export default function Results() {
         </View>
 
         <Button title={sharing ? 'Getting it ready…' : 'Share results'} onPress={share} disabled={sharing} />
+
+        {event && (
+          <Pressable onPress={() => router.push(`/event/${event.id}`)} accessibilityRole="button" accessibilityLabel={`${event.name} standings`}>
+            {({ pressed }) => (
+              <Card style={{ opacity: pressed ? 0.7 : 1, borderColor: c.accent }}>
+                <Label>{r.label ? `${r.label} of ` : 'Part of '}{event.name}</Label>
+                {overall && overall.length >= 2 ? (
+                  <View style={{ flexDirection: 'row', gap: space.sm }}>
+                    {[...overall].sort((x, y) => x.letter.localeCompare(y.letter)).map((t) => (
+                      <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: teamColor(t.letter).soft }}>
+                        <Text style={{ color: teamColor(t.letter).color, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{event.teams?.[t.letter as 'A' | 'B']?.name?.toUpperCase() ?? `TEAM ${t.letter}`}</Text>
+                        <Text style={{ color: teamColor(t.letter).color, fontFamily: fonts.serif, fontSize: 28, fontWeight: '700' }}>{pts(t.points)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                <Text style={{ color: c.primary, fontWeight: '700' }}>{overall && overall.length >= 2 ? 'Overall standings' : 'Event standings'} ›</Text>
+              </Card>
+            )}
+          </Pressable>
+        )}
 
         {others.map(({ g, i }) => (
           <GameSummaryCard key={i} name={gameName(g)} result={results[i] as GameResult | { error: string }} players={r.players} />
