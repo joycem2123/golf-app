@@ -22,6 +22,8 @@ export function ShareCourseSheet({ course, visible, onClose }: { course: Course;
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  // After saving: who it went to (shown as a success screen).
+  const [done, setDone] = useState<{ names: string[]; stopped: boolean } | null>(null);
   const chosen = picked ?? current;
   const all = online.length > 0 && online.every((f) => chosen.includes(f.userId!));
   const term = q.trim().toLowerCase();
@@ -34,7 +36,7 @@ export function ShareCourseSheet({ course, visible, onClose }: { course: Course;
     setMsg(null);
     try {
       await shareCourse(course, chosen);
-      setMsg({ text: chosen.length ? `Shared with ${chosen.length} friend${chosen.length === 1 ? '' : 's'}. They’ll see it in their Courses.` : 'No longer shared.' });
+      setDone({ names: online.filter((f) => chosen.includes(f.userId!)).map((f) => f.name), stopped: chosen.length === 0 });
       setPicked(null);
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : String(e), error: true });
@@ -57,8 +59,29 @@ export function ShareCourseSheet({ course, visible, onClose }: { course: Course;
   );
 
   return (
-    <Sheet visible={visible} onClose={() => { setPicked(null); setMsg(null); setQ(''); onClose(); }} title="Share with friends">
-      {online.length === 0 ? (
+    <Sheet visible={visible} onClose={() => { setPicked(null); setMsg(null); setDone(null); setQ(''); onClose(); }} title={done ? (done.stopped ? 'Sharing stopped' : 'Course shared') : 'Share with friends'}>
+      {done ? (
+        <View style={{ alignItems: 'center', gap: space.md, paddingVertical: space.lg }}>
+          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: done.stopped ? c.chip : c.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: done.stopped ? c.muted : '#fff', fontSize: 38, fontWeight: '900' }}>{done.stopped ? '–' : '✓'}</Text>
+          </View>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: c.text, textAlign: 'center' }}>
+            {done.stopped ? `${course.name} is no longer shared` : `${course.name} is shared!`}
+          </Text>
+          {!done.stopped && (
+            <>
+              <Text style={{ color: c.text, fontSize: 15, textAlign: 'center' }}>
+                Sent to {done.names.length <= 3 ? done.names.join(', ').replace(/, ([^,]*)$/, ' and $1') : `${done.names.slice(0, 2).join(', ')} and ${done.names.length - 2} others`}.
+              </Text>
+              <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>It’s in their Courses next time they open RIVL, and they’ll get any changes you make.</Text>
+            </>
+          )}
+          <View style={{ alignSelf: 'stretch', gap: space.sm, marginTop: space.sm }}>
+            <Button title="Done" onPress={() => { setDone(null); setQ(''); onClose(); }} />
+            <Button title="Change who it’s shared with" kind="ghost" onPress={() => setDone(null)} />
+          </View>
+        </View>
+      ) : online.length === 0 ? (
         <Body muted>Add friends on RIVL first (Friends tab), then you can share courses with them.</Body>
       ) : (
         <View style={{ gap: space.sm }}>
