@@ -3,11 +3,11 @@ import { Text, View } from 'react-native';
 
 import { fonts, useColors } from '@/theme';
 
-const MARK = require('../../assets/images/rivl-mark.png');
-const BADGE = require('../../assets/images/rivl-badge.png');
+const MARK = require('../../assets/images/clutchup-mark.png');
+const BADGE = require('../../assets/images/clutchup-badge.png');
 
 /**
- * Brand mark (placeholder until the Clutch Up logo is chosen): the gold R with a ball on a tee.
+ * Clutch Up mark, "The Drop": the U of Up is the cup, with the ball dropping in.
  * On the dark brand green it's drawn on its own; elsewhere it sits in its green badge.
  */
 export function LogoMark({ size = 56, badge }: { size?: number; badge?: boolean }) {
@@ -26,8 +26,8 @@ export function Wordmark({ size = 30, color, golf }: { size?: number; color?: st
   const c = useColors();
   return (
     <View style={{ alignItems: golf ? 'center' : 'flex-start' }} accessibilityLabel="Clutch Up Golf">
-      <Text style={{ fontFamily: fonts.serif, fontSize: size, fontWeight: '700', color: color ?? c.brand, letterSpacing: size * 0.04 }}>Clutch Up</Text>
-      {golf && <Text style={{ color: c.brandGold, fontSize: size * 0.3, fontWeight: '800', letterSpacing: size * 0.3, marginTop: -size * 0.05, marginRight: -size * 0.3 }}>GOLF</Text>}
+      <Text style={{ fontFamily: fonts.brand, fontSize: size, color: color ?? c.brand, letterSpacing: -size * 0.02 }}>Clutch Up</Text>
+      {golf && <Text style={{ fontFamily: fonts.brandMedium, color: c.brandGold, fontSize: size * 0.28, letterSpacing: size * 0.32, marginTop: -size * 0.02, marginRight: -size * 0.32 }}>GOLF</Text>}
     </View>
   );
 }

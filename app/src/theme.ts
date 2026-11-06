@@ -51,6 +51,9 @@ export function useColors(): Colors {
 }
 
 export const fonts = {
+  /** Clutch Up wordmark: Outfit, a clean geometric sans (loaded in the root layout). */
+  brand: 'Outfit_700Bold',
+  brandMedium: 'Outfit_600SemiBold',
   serif: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, "Times New Roman", serif' }),
 };
 

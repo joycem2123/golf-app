@@ -1,3 +1,4 @@
+import { Outfit_600SemiBold, Outfit_700Bold, useFonts } from '@expo-google-fonts/outfit';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -10,10 +11,14 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const c = useColors();
+  // The wordmark font; keep the splash screen up until it's ready (or failed, then fall back).
+  const [fontsLoaded, fontError] = useFonts({ Outfit_600SemiBold, Outfit_700Bold });
+  const ready = fontsLoaded || !!fontError;
 
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
+  if (!ready) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
