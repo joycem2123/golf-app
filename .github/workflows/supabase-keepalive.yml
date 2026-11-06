@@ -1,0 +1,22 @@
+# Keeps the Supabase project from pausing on the free plan (it pauses after 7 days with no activity).
+# Every 2 days this makes one tiny database request, using the same public key the app ships with.
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '17 9 */2 * *' # every 2 days at 09:17 UTC
+  workflow_dispatch: {} # "Run workflow" button for a manual check
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the database
+        run: |
+          status=$(curl -s -o /tmp/out.json -w '%{http_code}' -X POST \
+            'https://iuimtflswquajijwwpfp.supabase.co/rest/v1/rpc/username_available' \
+            -H 'apikey: sb_publishable_RRmHLcxdNcylmfpwLC9VwA_lYlAHF4T' \
+            -H 'Content-Type: application/json' \
+            -d '{"u":"keepalive_check"}')
+          echo "Supabase answered $status: $(cat /tmp/out.json)"
+          test "$status" = "200"
