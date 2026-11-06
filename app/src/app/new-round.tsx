@@ -1,5 +1,5 @@
 import { courseHandicap, searchCourses, validateCourse, type Course, type Player, type Tee } from '@golf/engine';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -19,6 +19,8 @@ import { radius, space, teamColor, useColors } from '@/theme';
 import { today } from '@/lib/dates';
 import { getCourse, useCourses } from '@/lib/courses';
 import { track } from '@/lib/usage';
+import { getPendingScan, guessRows, holesFromCard, ledgerFromCard, playedAt, setPendingScan } from '@/lib/round-scan';
+import { evaluate, gameHoles, isResult, recordedMatches, scoreKeys, shortCourseName } from '@/lib/round';
 
 type Step = 'course' | 'players' | 'teams' | 'game';
 
@@ -31,7 +33,9 @@ function teesFor(course: Course, gender: 'M' | 'F') {
 
 export default function NewRound() {
   const c = useColors();
-  const { eventId, matchId, eventRound, addRound: addingRound } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string; addRound?: string }>();
+  const { eventId, matchId, eventRound, addRound: addingRound, scan: scanParam } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string; addRound?: string; scan?: string }>();
+  // Uploading a scorecard photo: the scores are already known, so the round goes straight to results.
+  const scan = useMemo(() => (scanParam ? getPendingScan() : null), [scanParam]);
   const event = useEvent(eventId);
   // A round planned in the event (format and matchups already set).
   const planned = event?.rounds?.find((x) => x.id === eventRound);
@@ -46,7 +50,7 @@ export default function NewRound() {
   const courses = useCourses();
 
   const [step, setStep] = useState<Step>('course');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() => (scan?.courseName ? shortCourseName(scan.courseName) : ''));
   const [course, setCourse] = useState<Course | null>(null);
   const [roster, setRoster] = useState<{ id: string; teeId: string }[]>([]);
   const [addingPlayer, setAddingPlayer] = useState(false);
@@ -177,12 +181,33 @@ export default function NewRound() {
   const addEventRound = useStore((s) => s.addEventRound);
   const setEventRoundId = useStore((s) => s.setEventRoundId);
   const addEventPlayers = useStore((s) => s.addEventPlayers);
+  // Uploaded card: which card row is each player's (or team's). Best guess by name, then the user's picks.
+  const [rowPicks, setRowPicks] = useState<Record<string, number | null>>({});
+  const scanKeys = useMemo(
+    () => (scan && draft && !problem ? scoreKeys({ games: draftToConfigs(draft, players), players } as RoundRecord) : []),
+    [scan, draft, problem, players],
+  );
+  const rowFor = useMemo(() => {
+    if (!scan) return {};
+    const guess = guessRows(scanKeys, scan.rows);
+    return Object.fromEntries(scanKeys.map((k) => [k.key, k.key in rowPicks ? rowPicks[k.key] : guess[k.key]]));
+  }, [scan, scanKeys, rowPicks]);
+  const usedRows = Object.values(rowFor).filter((i): i is number => i !== null && i !== undefined);
+  const scanProblem = !scan || !draft || problem
+    ? null
+    : scanKeys.some((k) => rowFor[k.key] === null || rowFor[k.key] === undefined)
+      ? 'Pick the scorecard row for everyone'
+      : new Set(usedRows).size !== usedRows.length
+        ? 'Each scorecard row can only be used once'
+        : null;
+  const completeRound = useStore((s) => s.completeRound);
+
   const start = () => {
-    if (!course || !draft || problem || (!event && toSeason === 'yes' && !season)) return;
+    if (!course || !draft || problem || scanProblem || (!event && toSeason === 'yes' && !season)) return;
     const id = newId();
     const round: RoundRecord = {
       id,
-      createdAt: Date.now(),
+      createdAt: scan ? playedAt(scan.date) : Date.now(),
       courseId: course.id,
       course,
       players,
@@ -198,6 +223,11 @@ export default function NewRound() {
       label: planned ? `Round ${planned.number}` : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : season ? `Round ${(season.rounds?.length ?? 0) + 1}` : scheduled?.label,
       teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
     };
+    if (scan) {
+      const holes = [...new Set(round.games.flatMap(gameHoles))];
+      round.ledger = ledgerFromCard(rowFor, scan.rows, me?.id ?? 'device', holes);
+      round.fromPhoto = true;
+    }
     addRound(round);
     track('round_created', { games: round.games.map((g) => g.type).join(','), players: players.length, teams: !!round.teamOf, stats: !!statsEnabled, in_event: !!round.eventId, side_matches: sideMatches.length });
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
@@ -207,6 +237,16 @@ export default function NewRound() {
       // Joins the season: listed as its next round, and anyone new joins the season.
       addEventRound(season.id, { id: newId(), number: 0, date: today(), draft, roundId: id });
       addEventPlayers(season.id, players.map((p) => p.id));
+    }
+    if (scan) {
+      // Every score is in: work out the results and go straight to them.
+      completeRound(id, recordedMatches(round, evaluate(round).filter(isResult)));
+      track('scorecard_uploaded', { players: players.length, games: round.games.map((g) => g.type).join(',') });
+      setPendingScan(null);
+      void autoShare(id);
+      router.dismissAll();
+      router.push(`/round/${id}/results`);
+      return;
     }
     void autoShare(id);
     router.replace(`/round/${id}`);
@@ -234,13 +274,15 @@ export default function NewRound() {
 
   const pickGame = (kind: GameDraft['kind']) => {
     const d = newDraft(kind, players, noTeams ? undefined : teamOf);
-    // Keep the holes chosen so far when switching games.
-    setDraft(draft ? { ...d, holes: draft.holes, start: draft.start } : d);
+    // Keep the holes chosen so far when switching games (an uploaded card sets them from its scores).
+    const fromCard = scan ? holesFromCard(scan) : null;
+    setDraft(draft ? { ...d, holes: draft.holes, start: draft.start } : fromCard ? { ...d, holes: fromCard.holes, start: fromCard.start, matches: d.matches.map((m) => ({ ...m, start: fromCard.start })) } : d);
     setSideMatches([]);
   };
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
+      {scan && <Stack.Screen options={{ title: 'Set Up the Round' }} />}
       {stepBar}
 
       {step === 'course' && (
@@ -276,6 +318,13 @@ export default function NewRound() {
 
       {step === 'players' && course && (
         <>
+          {scan && (
+            <Card style={{ gap: 4 }}>
+              <Label>On the scorecard</Label>
+              <Body>{scan.rows.map((r) => r.name).join(', ')}</Body>
+              <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Add these players (or their teams) to the round. You’ll match them to the card’s rows on the last step.</Label>
+            </Card>
+          )}
           <PlayerPicker
             people={meFirst(saved, isMe)}
             selected={roster.map((r) => r.id)}
@@ -476,9 +525,33 @@ export default function NewRound() {
             </Card>
           )}
 
+          {scan && draft && !problem && (
+            <Card style={{ gap: space.md }}>
+              <H2>Scores from the photo</H2>
+              <Body muted>Check each player (or team) has the right row from the scorecard.</Body>
+              {scanKeys.map((k) => (
+                <View key={k.key} style={{ gap: space.xs }}>
+                  <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }}>{k.label}</Text>
+                  <View style={styles.wrap}>
+                    {scan.rows.map((row, i) => {
+                      const total = row.scores.reduce<number>((s, v) => s + (v ?? 0), 0);
+                      return <Chip key={i} label={`${row.name} · ${total}`} selected={rowFor[k.key] === i} onPress={() => setRowPicks((p) => ({ ...p, [k.key]: i }))} />;
+                    })}
+                  </View>
+                </View>
+              ))}
+              {scan.rows.length > scanKeys.length && <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Rows not picked for anyone are left out.</Label>}
+            </Card>
+          )}
+
           {problem && draft ? <Body style={{ color: c.danger }}>{problem}</Body> : null}
+          {!problem && scanProblem ? <Body style={{ color: c.danger }}>{scanProblem}</Body> : null}
           {!problem && !event && toSeason === 'yes' && !season ? <Body style={{ color: c.danger }}>Choose a season, or pick No.</Body> : null}
-          <Button title={season ? `Start round · ${season.name}` : 'Start round'} disabled={!!problem || (!event && toSeason === 'yes' && !season)} onPress={start} />
+          <Button
+            title={scan ? 'Calculate results' : season ? `Start round · ${season.name}` : 'Start round'}
+            disabled={!!problem || !!scanProblem || (!event && toSeason === 'yes' && !season)}
+            onPress={start}
+          />
 
           <Sheet visible={seasonSheet} onClose={() => setSeasonSheet(false)} title="Choose a season">
             <View style={{ gap: space.sm }}>

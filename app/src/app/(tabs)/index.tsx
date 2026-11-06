@@ -25,14 +25,14 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-function Tile({ title, sub, icon, onPress, primary }: { title: string; sub: string; icon: ReactNode; onPress: () => void; primary?: boolean }) {
+function Tile({ title, sub, icon, onPress, primary, wide }: { title: string; sub: string; icon: ReactNode; onPress: () => void; primary?: boolean; wide?: boolean }) {
   const c = useColors();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexBasis: '48%', flexGrow: 1, opacity: pressed ? 0.75 : 1 })}>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flexBasis: wide ? '100%' : '48%', flexGrow: 1, opacity: pressed ? 0.75 : 1 })}>
       <View
         style={{
           backgroundColor: primary ? c.primary : c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: primary ? c.primary : c.border,
-          flex: 1, padding: space.lg, gap: 6, minHeight: 112,
+          flex: 1, padding: space.lg, gap: 6, minHeight: wide ? 0 : 112,
           shadowColor: '#3B3423', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
         }}>
         <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: primary ? '#ffffff22' : c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
@@ -123,6 +123,7 @@ export default function Home() {
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
           <Tile title="Join with Code" sub="Follow live or keep score" icon={glyph('#', c.primary)} onPress={() => router.push('/join')} />
           <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
+          <Tile wide title="Upload Scorecard" sub="Played without the app? Turn a photo of the card into a finished round" icon={glyph('📷', c.primary)} onPress={() => router.push('/upload-scorecard')} />
         </View>
 
         <GameSections skipRoundId={live?.id} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} firstOpenRef={firstOpenRef} />

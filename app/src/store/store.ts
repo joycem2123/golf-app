@@ -65,6 +65,8 @@ export interface RoundRecord {
   teamOf?: Record<string, string>;
   /** Set once the round is shared online (live leaderboard / other scorekeepers). */
   remote?: Remote;
+  /** Entered from a photo of the scorecard (Upload Scorecard). */
+  fromPhoto?: boolean;
 }
 
 export interface Remote {

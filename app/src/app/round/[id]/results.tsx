@@ -52,7 +52,7 @@ export default function Results() {
   const name = (pid: string) => r.players.find((p) => p.id === pid)?.name ?? pid;
   let courseName = 'Golf';
   try { courseName = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
-  const date = new Date(r.completedAt ?? r.createdAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const date = new Date(r.fromPhoto ? r.createdAt : (r.completedAt ?? r.createdAt)).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
   const matches = matchOutcomes(r, results);
   const teams = teamTotals(r, matches);
@@ -346,11 +346,11 @@ export default function Results() {
 
         <Button title="Done" kind="secondary" onPress={() => router.dismissTo('/')} />
         <Button
-          title="Reopen scorecard"
+          title={r.fromPhoto ? 'Edit scores' : 'Reopen scorecard'}
           kind="secondary"
           onPress={() => {
             reopen(r.id);
-            router.replace(`/round/${r.id}`);
+            router.replace(r.fromPhoto ? `/round/${r.id}?view=card` : `/round/${r.id}`);
           }}
         />
       </ScrollView>

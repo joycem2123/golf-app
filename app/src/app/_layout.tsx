@@ -37,6 +37,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Home' }} />
         <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="new-round" options={{ title: 'New Round', presentation: 'modal' }} />
+        <Stack.Screen name="upload-scorecard" options={{ title: 'Upload Scorecard' }} />
         <Stack.Screen name="players" options={{ title: 'Me & Friends' }} />
         <Stack.Screen name="add-friend" options={{ title: 'Add a Friend', presentation: 'modal' }} />
         <Stack.Screen name="new-event" options={{ title: 'New Event', presentation: 'modal' }} />

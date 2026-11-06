@@ -285,7 +285,7 @@ function firstOpenHole(r: RoundRecord, keys: string[], order: number[]): number 
 }
 
 export default function Scorecard() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, view: startView } = useLocalSearchParams<{ id: string; view?: string }>();
   const r = useRound(id);
   const c = useColors();
   const setHole = useStore((s) => s.setHole);
@@ -293,7 +293,8 @@ export default function Scorecard() {
   const dismissNotices = useStore((s) => s.dismissNotices);
   const names = useStore((s) => s.names);
   const me = useStore((s) => s.me);
-  const [view, setView] = useState<'hole' | 'card'>('hole');
+  // "Edit scores" on an uploaded round opens the full scorecard, where any hole can be changed.
+  const [view, setView] = useState<'hole' | 'card'>(startView === 'card' ? 'card' : 'hole');
   const [focus, setFocus] = useState(0);
   // The hole each match opened on, until someone moves it (so entering the last score doesn't jump ahead).
   const [opened, setOpened] = useState<Record<string, number>>({});
