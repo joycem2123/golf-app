@@ -9,13 +9,13 @@ import { passwordOk } from '@/lib/password';
 import { Body, Button, Card, Field, Segmented } from '@/components/ui';
 import { parseIndex } from '@/lib/format';
 import { UsernameField, type UsernameStatus } from '@/components/username-field';
-import { emailHint, ensureSession, releaseUsername, restoreMe, saveMyProfile, sendPasswordReset, signIn, signUp } from '@/sync/auth';
+import { ensureSession, releaseUsername, restoreMe, saveMyProfile, sendPasswordReset, signIn, signUp } from '@/sync/auth';
 import { accountKey, GUEST_KEY, switchAccount } from '@/store/accounts';
 import { newId, useStore } from '@/store/store';
 import { supabase } from '@/sync/supabase';
 import { radius, space, useColors } from '@/theme';
 
-type Mode = 'choose' | 'signIn' | 'signUp' | 'guest' | 'forgotPw' | 'forgotEmail';
+type Mode = 'choose' | 'signIn' | 'signUp' | 'guest' | 'forgotPw';
 
 export default function Welcome() {
   const c = useColors();
@@ -58,7 +58,6 @@ export default function Welcome() {
   };
   const detailsOk = !!firstName.trim() && !!lastName.trim() && uStatus === 'available' && (index.trim() === '' || parsedIndex !== null);
   const [busy, setBusy] = useState(false);
-  const [lookup, setLookup] = useState('');
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   const done = () => {
@@ -203,12 +202,9 @@ export default function Welcome() {
               }
             />
             {mode === 'signIn' && (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={{ alignItems: 'flex-end' }}>
                 <Pressable hitSlop={8} onPress={() => { setMode('forgotPw'); setMessage(null); if (!email.includes('@')) setEmail(''); }}>
                   <Text style={{ color: c.primary, fontWeight: '600' }}>Forgot password?</Text>
-                </Pressable>
-                <Pressable hitSlop={8} onPress={() => { setMode('forgotEmail'); setMessage(null); setLookup(''); }}>
-                  <Text style={{ color: c.primary, fontWeight: '600' }}>Forgot email?</Text>
                 </Pressable>
               </View>
             )}
@@ -229,30 +225,6 @@ export default function Welcome() {
                 run(async () => {
                   await sendPasswordReset(email);
                   setMessage({ text: `If ${email.trim()} has a Clutch Up account, a reset link is on its way. Open it, choose a new password, then come back and sign in. Check your junk folder if you don’t see it.` });
-                })
-              }
-            />
-            <Button title="Back to sign in" kind="ghost" onPress={() => { setMode('signIn'); setMessage(null); }} />
-          </Card>
-        )}
-
-        {mode === 'forgotEmail' && (
-          <Card style={{ gap: space.md }}>
-            <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>Find your email</Text>
-            <Body>Enter your Clutch Up username and we’ll show you a hint of the email on your account. You can also sign in with your username instead.</Body>
-            <Field label="Username" value={lookup} onChangeText={setLookup} placeholder="e.g. matt_joyce" autoCapitalize="none" autoCorrect={false} />
-            {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
-            <Button
-              title={busy ? 'Please wait…' : 'Show my email hint'}
-              disabled={busy || lookup.trim().replace(/^@/, '').length < 3}
-              onPress={() =>
-                run(async () => {
-                  const hint = await emailHint(lookup);
-                  setMessage(
-                    hint
-                      ? { text: `Your account uses ${hint}. Sign in with that email. If you’ve forgotten the password too, tap “Forgot password?”.` }
-                      : { text: 'We couldn’t find an email for that username. Check the spelling, or contact support@clutchupgolf.com.', error: true },
-                  );
                 })
               }
             />

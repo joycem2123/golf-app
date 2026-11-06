@@ -146,13 +146,6 @@ export async function sendPasswordReset(email: string) {
   // Any other error is ignored on purpose: we never reveal whether an email has an account.
 }
 
-/** "Forgot your email?": a masked hint (like jo•••@gm•••.com) for a username, or null. */
-export async function emailHint(username: string): Promise<string | null> {
-  const { data, error } = await supabase.rpc('email_hint', { u: username.trim().replace(/^@/, '').toLowerCase() });
-  if (error) throw new Error('Could not look that up. Check your connection.');
-  return (data as string | null) ?? null;
-}
-
 export async function signOut() {
   await supabase.auth.signOut();
 }
