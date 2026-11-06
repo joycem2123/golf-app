@@ -19,7 +19,7 @@ import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, sho
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import { useRound, useStore, type RoundRecord } from '@/store/store';
 import { shareRound } from '@/sync/sync';
-import { fonts, radius, space, useColors } from '@/theme';
+import { fonts, radius, space, teamColor, useColors } from '@/theme';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -238,6 +238,39 @@ function TeamBox({ r, results, team, index, hole, keys, gi }: {
   );
 }
 
+/** For a singles match (or singles Nassau): which side this player is on. */
+function singlesSide(r: RoundRecord, gi: number, key: string): 'A' | 'B' | null {
+  const g = r.games[gi];
+  if (!g || (g.type !== 'matchPlay' && g.type !== 'nassau') || g.format !== 'singles') return null;
+  return g.sideA.members.includes(key) ? 'A' : g.sideB.members.includes(key) ? 'B' : null;
+}
+
+/** One player in a singles match: their team colour, and who won the hole. */
+function SinglesBox({ r, k, hole, gi, side, result, strokes }: { r: RoundRecord; k: ScoreKey; hole: number; gi: number; side: 'A' | 'B'; result: ReturnType<typeof evaluate>[number] | undefined; strokes: number }) {
+  const c = useColors();
+  const g = r.games[gi] as NassauConfig | Extract<RoundRecord['games'][number], { type: 'matchPlay' }>;
+  const letter = r.teamOf?.[k.key] ?? (/-([A-Z])$/.exec(side === 'A' ? g.sideA.id : g.sideB.id)?.[1]) ?? side;
+  const color = teamColor(letter).color;
+  const soft = teamColor(letter).soft;
+  const outcomes = result && isResult(result) ? (result.type === 'matchPlay' ? result.status.outcomes : result.type === 'nassau' ? result.segments[2].status.outcomes : []) : [];
+  const o = outcomes[hole - 1] ?? null;
+  const won = o !== null && o === (side === 'A' ? 1 : -1);
+  return (
+    <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: won ? 2 : 1, borderColor: won ? color : c.border, borderLeftWidth: 5, borderLeftColor: color, overflow: 'hidden' }}>
+      <View style={{ paddingHorizontal: space.lg, backgroundColor: won ? soft : c.card }}>
+        <ScoreRow r={r} k={k} hole={hole} strokes={strokes} teamColor={color} />
+      </View>
+      {o !== null && (
+        <View style={{ paddingVertical: 6, alignItems: 'center', backgroundColor: won ? color : c.chip }}>
+          <Text style={{ color: won ? '#fff' : c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>
+            {o === 0 ? 'HOLE HALVED' : won ? 'WINS THE HOLE' : 'LOSES THE HOLE'}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 /** First hole where someone in this match has no score yet (where a new match should open). */
 function firstOpenHole(r: RoundRecord, keys: string[]): number {
   for (let h = 1; h <= 18; h++) if (keys.some((k) => grossAt(r, k, h) === null)) return h;
@@ -255,6 +288,8 @@ export default function Scorecard() {
   const me = useStore((s) => s.me);
   const [view, setView] = useState<'hole' | 'card'>('hole');
   const [focus, setFocus] = useState(0);
+  // The hole each match opened on, until someone moves it (so entering the last score doesn't jump ahead).
+  const [opened, setOpened] = useState<Record<string, number>>({});
   const [quitting, setQuitting] = useState(false);
   const deleteRound = useStore((s) => s.deleteRound);
 
@@ -269,7 +304,8 @@ export default function Scorecard() {
   const focusKeys = new Set(gameKeys(r.games[gi]));
   // Each match keeps its own hole, so groups can score at the same time.
   const holeKey = multi ? (r.games[gi].id ?? String(gi)) : undefined;
-  const hole = (holeKey && r.matchHoles?.[holeKey]) || (holeKey ? firstOpenHole(r, gameKeys(r.games[gi])) : r.currentHole);
+  if (holeKey && !r.matchHoles?.[holeKey] && opened[holeKey] === undefined) setOpened({ ...opened, [holeKey]: firstOpenHole(r, gameKeys(r.games[gi])) });
+  const hole = (holeKey && (r.matchHoles?.[holeKey] || opened[holeKey] || firstOpenHole(r, gameKeys(r.games[gi])))) || r.currentHole;
   const goHole = (n: number) => setHole(r.id, n, holeKey);
   const allKeys = scoreKeys(r);
   const keys = multi ? allKeys.filter((k) => focusKeys.has(k.key)) : allKeys;
@@ -394,9 +430,11 @@ export default function Scorecard() {
 
             {teams?.map((t, i) => <TeamBox key={t.id} r={r} results={results} team={t} index={i} hole={hole} keys={keys} gi={gi} />)}
 
-            {solo.map((k) => (
-              <ScoreRow key={k.key} r={r} k={k} hole={hole} strokes={mainStrokes[k.key]?.[hole - 1] ?? 0} />
-            ))}
+            {solo.map((k) => {
+              const side = singlesSide(r, gi, k.key);
+              if (!side) return <ScoreRow key={k.key} r={r} k={k} hole={hole} strokes={mainStrokes[k.key]?.[hole - 1] ?? 0} />;
+              return <SinglesBox key={k.key} r={r} k={k} hole={hole} gi={gi} side={side} result={results[gi]} strokes={mainStrokes[k.key]?.[hole - 1] ?? 0} />;
+            })}
 
             {hole < 18 && done(hole) && <Button title={`Next hole: ${hole + 1} ›`} onPress={() => goHole(hole + 1)} />}
 
