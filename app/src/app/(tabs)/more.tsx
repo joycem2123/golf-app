@@ -6,6 +6,7 @@ import { TabHeader } from '@/components/tab-header';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Body, Button, Card, Toggle } from '@/components/ui';
 import { useUsageSharing } from '@/lib/usage';
+import { resetTips } from '@/components/tip';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
 import { signOut, useSession } from '@/sync/auth';
@@ -33,6 +34,8 @@ export default function More() {
   const session = useSession();
   const [asking, setAsking] = useState(false);
   const [sharingUsage, setSharingUsage] = useUsageSharing();
+  const [tipsReset, setTipsReset] = useState(false);
+  const c = useColors();
   const signedIn = !!session?.user && !session.user.is_anonymous;
   const email = session?.user?.email;
   return (
@@ -48,8 +51,10 @@ export default function More() {
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
           <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
+          <Row title="Show tips again" sub="Bring back the one-time tips on scoring, results and events" onPress={() => void resetTips().then(() => setTipsReset(true))} />
           <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
         </Card>
+        {tipsReset && <Body style={{ color: c.primary, textAlign: 'center' }}>Tips are back. You’ll see each one again the next time you open that screen.</Body>}
         <Card>
           <Toggle label="Share anonymous usage data" hint="Which features get used, never your name, email or scores. Helps us decide what to improve." value={sharingUsage} onChange={setSharingUsage} />
         </Card>

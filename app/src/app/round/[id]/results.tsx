@@ -23,6 +23,7 @@ import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCo
 import { useRound, useStore } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { track } from '@/lib/usage';
+import { Tip } from '@/components/tip';
 
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BACK = [10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -354,6 +355,11 @@ export default function Results() {
         />
       </ScrollView>
       {celebrate && <Confetti />}
+      <Tip
+        id="results"
+        title="Your results"
+        lines={['Tap any match to see it hole by hole, with an AI-written recap.', 'Tap “Share results” to send a picture of the scorecard to your group.']}
+      />
     </View>
   );
 }

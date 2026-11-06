@@ -13,6 +13,7 @@ import { formatIndex } from '@/lib/format';
 import { courseFor, shortCourseName } from '@/lib/round';
 import { useEvent, useStore, type EventRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { Tip } from '@/components/tip';
 
 function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: string) => string }) {
   const c = useColors();
@@ -204,6 +205,11 @@ export default function EventScreen() {
           }
         />}
       </ScrollView>
+      <Tip
+        id="event"
+        title="Your event"
+        lines={['Tap any match or round to follow it live or see the result. Standings update automatically.', 'Share the join code so the rest of your group can follow along or keep score.']}
+      />
     </>
   );
 }

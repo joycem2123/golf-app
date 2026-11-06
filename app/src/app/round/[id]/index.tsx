@@ -21,6 +21,7 @@ import { useRound, useStore, type RoundRecord } from '@/store/store';
 import { flush, shareRound } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { track } from '@/lib/usage';
+import { Tip } from '@/components/tip';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -471,6 +472,17 @@ export default function Scorecard() {
           }}
         />
       </ScrollView>
+      <Tip
+        id="scoring"
+        when={r.remote?.role !== 'viewer'}
+        title="Entering scores"
+        lines={[
+          'Tap a player’s box to enter par, then use − and + to adjust.',
+          'Press and hold a box to clear it.',
+          'Tap the dots under the hole number to jump to any hole.',
+          ...(multi ? ['Tap the matches along the top to switch between them. Every match updates as you score.'] : []),
+        ]}
+      />
     </>
   );
 }

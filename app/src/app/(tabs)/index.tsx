@@ -17,6 +17,7 @@ import { useMe } from '@/lib/me';
 import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
+import { Tip } from '@/components/tip';
 
 function greeting() {
   const h = new Date().getHours();
@@ -131,6 +132,13 @@ export default function Home() {
         )}
       </View>
     </ScrollView>
+    <Tip
+      id="home-swipe"
+      tabScreen
+      when={rounds.length + events.length > 0}
+      title="Managing your rounds"
+      lines={['Swipe left on a round or event to delete it. You’ll have a few seconds to undo.', 'Tap a round to jump back into scoring or see its results.']}
+    />
     {bar}
     </View>
   );
