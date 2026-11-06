@@ -1,32 +1,43 @@
+import type { Session } from '@supabase/supabase-js';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
+import { accountKey, checkLegacy, getAccountKey, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
-import { supabase } from './supabase';
 import { restoreMe } from './auth';
+import { supabase } from './supabase';
 import { flush, resetSubscriptions, syncSubscriptions } from './sync';
 
-/** Runs in the background: keeps live subscriptions open and sends queued scores. */
+/** Load the signed-in account's own data (or the phone's guest data), then start syncing it. */
+async function loadAccountFor(session: Session | null) {
+  const user = session?.user;
+  const key = accountKey(user?.id, user?.is_anonymous ?? false);
+  if (key !== getAccountKey() || !useStore.persist.hasHydrated()) {
+    resetSubscriptions();
+    await switchAccount(key);
+  }
+  const st = useStore.getState();
+  st.setMe(user?.id ?? null);
+  // Signed in with a real account: go straight to the app.
+  if (user && !user.is_anonymous && !st.onboarded) st.setOnboarded(true);
+  if (user) await restoreMe().catch(() => undefined);
+  syncSubscriptions();
+  void flush();
+}
+
+/** Runs in the background: keeps the right account loaded, live subscriptions open, and queued scores sent. */
 export function SyncProvider() {
   useEffect(() => {
-    const st = useStore.getState();
-    supabase.auth.getSession().then(({ data }) => {
-      st.setMe(data.session?.user.id ?? null);
-      void restoreMe().catch(() => undefined);
-      syncSubscriptions();
-      void flush();
-    });
+    let lastOutbox = 0;
+    void checkLegacy();
+    supabase.auth.getSession().then(({ data }) => loadAccountFor(data.session));
     const { data: auth } = supabase.auth.onAuthStateChange((event, session) => {
-      useStore.getState().setMe(session?.user.id ?? null);
-      if (event === 'SIGNED_OUT') resetSubscriptions();
-      else {
-        if (event === 'SIGNED_IN') void restoreMe().catch(() => undefined);
-        syncSubscriptions();
-      }
+      if (event === 'INITIAL_SESSION') return; // handled by getSession above
+      if (event === 'TOKEN_REFRESHED') return;
+      void loadAccountFor(session);
     });
 
     // Re-check subscriptions whenever rounds/events change; send new scores right away.
-    let lastOutbox = st.outbox.length;
     const unsub = useStore.subscribe((s, prev) => {
       if (s.rounds !== prev.rounds || s.events !== prev.events) syncSubscriptions();
       if (s.outbox.length > lastOutbox || s.dirtyRounds.length > prev.dirtyRounds.length || s.dirtyEvents.length > prev.dirtyEvents.length) void flush();

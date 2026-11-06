@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EventCard, RoundCard } from '@/components/cards';
+import { LegacyClaimCard } from '@/components/legacy-claim';
 import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { gameName } from '@/lib/games';
@@ -89,6 +90,7 @@ export default function Home() {
       )}
 
       <View style={{ padding: space.lg, gap: space.lg }}>
+        <LegacyClaimCard />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
           <Tile primary title="New Round" sub="Pick a course, players and games" icon={glyph('+', '#fff')} onPress={() => router.push('/new-round')} />
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />

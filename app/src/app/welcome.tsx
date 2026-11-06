@@ -8,7 +8,9 @@ import { Body, Button, Card, Field, Segmented } from '@/components/ui';
 import { parseIndex } from '@/lib/format';
 import { UsernameField, type UsernameStatus } from '@/components/username-field';
 import { ensureSession, releaseUsername, restoreMe, saveMyProfile, signIn, signUp } from '@/sync/auth';
+import { accountKey, GUEST_KEY, switchAccount } from '@/store/accounts';
 import { newId, useStore } from '@/store/store';
+import { supabase } from '@/sync/supabase';
 import { radius, space, useColors } from '@/theme';
 
 type Mode = 'choose' | 'signIn' | 'signUp' | 'guest';
@@ -36,6 +38,9 @@ export default function Welcome() {
 
   /** Create or update "Me" with the given account id. */
   const makeMe = (uid: string | null) => {
+    // Read fresh: the account's data may have just been loaded.
+    const st = useStore.getState();
+    const existingMe = st.players.find((p) => p.id === st.myPlayerId);
     const details = { name, firstName: firstName.trim(), lastName: lastName.trim(), handicapIndex: parsedIndex ?? existingMe?.handicapIndex ?? 0, gender, username };
     if (existingMe) {
       upsertPlayer({ ...existingMe, ...details });
@@ -160,12 +165,17 @@ export default function Welcome() {
                 run(async () => {
                   if (mode === 'signIn') {
                     await signIn(email.trim(), password);
+                    const { data } = await supabase.auth.getSession();
+                    // Load only this account's data (never the previous account's).
+                    await switchAccount(accountKey(data.session?.user.id));
                     await restoreMe();
                     return done();
                   }
                   // A guest moving to a full account hands their username over to it.
                   await releaseUsername().catch(() => undefined);
                   const { needsConfirmation, userId } = await signUp(email.trim(), password, name);
+                  // A new account gets its own empty data. Only a guest upgrading brings their guest history along.
+                  if (userId) await switchAccount(accountKey(userId), { carryFrom: GUEST_KEY });
                   // Create "Me" right away (using my account id so it matches on every phone).
                   const me = makeMe(userId);
                   if (!needsConfirmation) {

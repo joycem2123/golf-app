@@ -7,6 +7,7 @@ import { Body, Button, Card, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
 import { playerStats } from '@/lib/player-stats';
 import { signOut, useSession } from '@/sync/auth';
+import { GUEST_KEY, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
 import { space } from '@/theme';
 
@@ -54,7 +55,8 @@ export default function Profile() {
             kind="ghost"
             onPress={async () => {
               await signOut();
-              setOnboarded(false);
+              await switchAccount(GUEST_KEY);
+              useStore.getState().setOnboarded(false);
               router.replace('/welcome');
             }}
           />

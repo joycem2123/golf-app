@@ -127,6 +127,9 @@ interface State {
   meAliases: string[];
   /** Rounds/events where the user said they aren't one of the players. */
   identityDismissed: string[];
+  /** This account said the pre-separation data on this phone isn't theirs. */
+  legacyDismissed: boolean;
+  setLegacyDismissed: (v: boolean) => void;
   setMyPlayer: (id: string | null) => void;
   /** My unique @username (null until chosen). */
   myUsername: string | null;
@@ -184,6 +187,27 @@ const dirtyEvent = (s: { events: EventRecord[]; dirtyEvents: string[] }, eventId
   return e?.remote && e.remote.role !== 'viewer' && !s.dirtyEvents.includes(eventId) ? [...s.dirtyEvents, eventId] : s.dirtyEvents;
 };
 
+export const STORE_VERSION = 7;
+
+/** Everything an account saves, empty. */
+export const EMPTY_DATA = {
+  players: [] as SavedPlayer[],
+  rounds: [] as RoundRecord[],
+  history: [] as RecordedMatch[],
+  events: [] as EventRecord[],
+  me: null as string | null,
+  onboarded: false,
+  myPlayerId: null as string | null,
+  meAliases: [] as string[],
+  identityDismissed: [] as string[],
+  legacyDismissed: false,
+  myUsername: null as string | null,
+  names: {} as Record<string, string>,
+  outbox: [] as OutboxItem[],
+  dirtyRounds: [] as string[],
+  dirtyEvents: [] as string[],
+};
+
 const mapRound = (rounds: RoundRecord[], id: string, fn: (r: RoundRecord) => RoundRecord) =>
   rounds.map((r) => (r.id === id ? fn(r) : r));
 
@@ -200,6 +224,8 @@ export const useStore = create<State>()(
       myPlayerId: null,
       meAliases: [],
       identityDismissed: [],
+      legacyDismissed: false,
+      setLegacyDismissed: (v) => set({ legacyDismissed: v }),
       setMyPlayer: (id) => set({ myPlayerId: id }),
       myUsername: null,
       setMyUsername: (u) => set({ myUsername: u }),
@@ -372,11 +398,13 @@ export const useStore = create<State>()(
       dismissNotices: (roundId) => set((s) => ({ rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, notices: [] })) })),
     }),
     {
-      name: 'golf-app-v1',
+      // Each account has its own saved data; see store/accounts.ts, which picks the name and loads it.
+      name: 'golf-app:guest',
+      skipHydration: true,
       storage: createJSONStorage(() => AsyncStorage),
-      version: 6,
+      version: STORE_VERSION,
       migrate: (state) =>
-        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], myUsername: null, ...(state as object) }) as unknown as State,
+        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], myUsername: null, legacyDismissed: false, ...(state as object) }) as unknown as State,
     },
   ),
 );
