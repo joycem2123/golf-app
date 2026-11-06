@@ -92,10 +92,13 @@ export function recordedMatches(r: RoundRecord, results: GameResult[]): Recorded
   r.games.forEach((g, i) => {
     const res = results[i];
     if (!res || !res.finished) return;
-    if (g.type !== 'matchPlay' && g.type !== 'nassau' && g.type !== 'vegas') return;
-    const sideA = g.type === 'vegas' ? g.teamA.members : g.sideA.members;
-    const sideB = g.type === 'vegas' ? g.teamB.members : g.sideB.members;
-    const aId = g.type === 'vegas' ? g.teamA.id : g.sideA.id;
+    // Two-team scramble / shamble count as matches too.
+    const teamMatch = (g.type === 'scramble' || g.type === 'shamble') && g.teams.length === 2;
+    if (g.type !== 'matchPlay' && g.type !== 'nassau' && g.type !== 'vegas' && !teamMatch) return;
+    const [sa, sb] = g.type === 'vegas' ? [g.teamA, g.teamB] : g.type === 'scramble' || g.type === 'shamble' ? g.teams : [g.sideA, g.sideB];
+    const sideA = sa.members;
+    const sideB = sb.members;
+    const aId = sa.id;
     const result = res.winnerIds.length === 0 ? 'halved' : res.winnerIds[0] === aId ? 'A' : 'B';
     out.push({
       id: `${r.id}-${i}`,

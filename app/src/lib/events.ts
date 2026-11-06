@@ -28,10 +28,17 @@ function sidesOf(r: RoundRecord, i: number): [string[], string[]] | null {
   const g = r.games[i];
   if (g.type === 'matchPlay' || g.type === 'nassau') return [g.sideA.members, g.sideB.members];
   if (g.type === 'vegas') return [g.teamA.members, g.teamB.members];
+  if ((g.type === 'scramble' || g.type === 'shamble') && g.teams.length === 2) return [g.teams[0].members, g.teams[1].members];
   return null;
 }
 
 function outcome(res: GameResult, aId: string): { result: EventMatch['result']; leader: EventMatch['leader'] } {
+  // Two-team scramble / shamble: the hole-by-hole match decides it.
+  if ((res.type === 'scramble' || res.type === 'shamble') && res.match) {
+    const m = res.match;
+    const leader = m.thru === 0 ? null : m.lead > 0 ? 'A' : m.lead < 0 ? 'B' : 'halved';
+    return { result: m.finished ? (m.winner === 'A' ? 'A' : m.winner === 'B' ? 'B' : 'halved') : null, leader };
+  }
   const a = res.standings.find((s) => s.id === aId)?.value ?? 0;
   const b = res.standings.find((s) => s.id !== aId)?.value ?? 0;
   const leader = res.thru === 0 ? null : a > b ? 'A' : b > a ? 'B' : 'halved';
@@ -48,7 +55,7 @@ export function eventMatches(e: EventRecord, rounds: RoundRecord[]): EventMatch[
       const sides = sidesOf(r, i);
       const res = results[i];
       if (!sides || !res || !isResult(res)) return;
-      const aId = g.type === 'vegas' ? g.teamA.id : (g as { sideA: { id: string } }).sideA.id;
+      const aId = g.type === 'vegas' ? g.teamA.id : g.type === 'scramble' || g.type === 'shamble' ? g.teams[0].id : (g as { sideA: { id: string } }).sideA.id;
       let [sideA, sideB] = sides;
       let { result, leader } = outcome(res, aId);
       let points = res.type === 'nassau' ? { ...res.points } : undefined;

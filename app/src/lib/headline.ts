@@ -82,6 +82,16 @@ export function headline(result: GameResult, players: Player[]): Headline {
     }
     case 'scramble':
     case 'shamble':
+      // Two teams: a match, hole by hole (with each team's score to par underneath).
+      if (result.match && result.matchSides) {
+        const [a, b] = result.matchSides;
+        const toParOf = (id: string) => toPar(result.totals[id]?.toPar ?? 0);
+        return {
+          ...matchLine(result.match, playerName(a.id, players), playerName(b.id, players)),
+          extra: result.match.thru ? [`${playerName(a.id, players)} ${toParOf(a.id)}  ·  ${playerName(b.id, players)} ${toParOf(b.id)}`] : [],
+        };
+      }
+    // falls through
     case 'strokePlay': {
       const lead = result.standings.filter((s) => s.position === 1);
       return {

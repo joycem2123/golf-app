@@ -44,6 +44,8 @@ function letterOf(r: RoundRecord, id: string, members: string[], fallback: strin
 function sidesOf(g: GameConfig): [{ id: string; members: string[] }, { id: string; members: string[] }] | null {
   if (g.type === 'matchPlay' || g.type === 'nassau') return [g.sideA, g.sideB];
   if (g.type === 'vegas') return [g.teamA, g.teamB];
+  // A two-team scramble or shamble is played as a match.
+  if ((g.type === 'scramble' || g.type === 'shamble') && g.teams.length === 2) return [g.teams[0], g.teams[1]];
   return null;
 }
 
@@ -69,9 +71,10 @@ export function matchOutcomes(r: RoundRecord, results: (GameResult | { error: st
     else if (res.winnerIds.includes(sides[1].id)) winner = 'b';
     else if (res.finished) winner = 'halved';
     let detail = res.summary;
-    if (res.type === 'matchPlay') {
-      const st = res.status;
-      detail = winner === 'halved' ? 'Halved' : winner ? st.display : st.lead === 0 ? `All square thru ${st.thru}` : `${st.display} thru ${st.thru}`;
+    const st0 = res.type === 'matchPlay' ? res.status : (res.type === 'scramble' || res.type === 'shamble') && res.match ? res.match : null;
+    if (st0) {
+      const st = st0;
+      detail = winner === 'halved' ? 'Halved' : winner ? st.display : st.lead === 0 ? `All square thru ${st.thru}` : `${Math.abs(st.lead)} UP thru ${st.thru}`;
     } else if (res.type === 'nassau') detail = `${res.points.A % 1 ? res.points.A.toFixed(1) : res.points.A} – ${res.points.B % 1 ? res.points.B.toFixed(1) : res.points.B} pts`;
     else if (res.type === 'vegas') detail = `${Math.abs(res.totalA)} pts`;
     // Nassau pays its own points (front, back, overall and presses); other matches are 1 for a win, ½ each for a halve.

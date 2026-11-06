@@ -75,6 +75,7 @@ export function ScorecardGrid({
   let outcomes: HoleOutcome[] | null = null;
   if (main?.type === 'matchPlay') outcomes = main.status.outcomes;
   if (main?.type === 'nassau') outcomes = main.segments[2].status.outcomes;
+  if ((main?.type === 'scramble' || main?.type === 'shamble') && main.match) outcomes = main.match.outcomes;
   const names = main?.type === 'matchPlay' ? [main.sideA.name, main.sideB.name] : null;
   const letterA = teams ? teams[0].label.slice(-1) : !names ? 'A' : names[0].slice(0, 1).toUpperCase();
   const letterB = teams ? (teams[1]?.label.slice(-1) ?? 'B') : !names ? 'B' : names[1].slice(0, 1).toUpperCase() === letterA ? names[1].slice(0, 2) : names[1].slice(0, 1).toUpperCase();

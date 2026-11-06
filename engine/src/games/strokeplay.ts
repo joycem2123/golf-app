@@ -1,4 +1,5 @@
 import { adjustForMode, courseHandicap, DEFAULT_ALLOWANCES, scrambleTeamHandicap } from '../handicap';
+import { compareScores, scoreMatch, type MatchStatus } from '../matchplay';
 import {
   bestNSum,
   consecutiveThru,
@@ -25,6 +26,13 @@ export interface StrokeTotals {
 export interface StrokeResult extends BaseResult {
   type: 'scramble' | 'shamble' | 'strokePlay';
   totals: Record<string, StrokeTotals>;
+  /**
+   * Two-team scramble or shamble: also played as a match, hole by hole (lower team score wins the hole).
+   * The match decides the winner; totals to par are still kept.
+   */
+  match?: MatchStatus;
+  /** The two teams in the match, side A first. */
+  matchSides?: [{ id: string; name: string }, { id: string; name: string }];
 }
 
 function formatToPar(n: number) {
@@ -40,6 +48,8 @@ function finish(
   holeCount: number,
   postingEligible: boolean,
   book: ScoreBook,
+  /** The team's counting score on a hole (net or gross, per the game), for the two-team match. */
+  holeValue?: (id: string, i: number) => number | null,
 ): StrokeResult {
   const standings: Standing[] = rankStandings(
     entries.map((e) => ({ id: e.id, name: sideName(round, e), value: totals[e.id].toPar, thru: totals[e.id].thru })),
@@ -56,6 +66,37 @@ function finish(
       : leaders.length > 1
         ? `${finished ? 'Tie' : 'Tied'} at ${at}: ${leaders.map((l) => l.name).join(' / ')}`
         : `${names} ${finished ? wins(names) : names.includes(' & ') ? 'lead' : 'leads'} at ${at}`;
+  if (holeValue && entries.length === 2) {
+    const [a, b] = entries;
+    const match = scoreMatch(Array.from({ length: holeCount }, (_, i) => compareScores(holeValue(a.id, i), holeValue(b.id, i))));
+    const nameA = sideName(round, a);
+    const nameB = sideName(round, b);
+    const leader = match.lead > 0 ? nameA : nameB;
+    const matchSummary =
+      match.thru === 0
+        ? 'Not started'
+        : match.finished
+          ? match.winner === 'halved'
+            ? 'Match halved'
+            : `${leader} ${wins(leader)} ${match.display}`
+          : match.lead === 0
+            ? match.display
+            : `${leader} ${match.display}`;
+    return {
+      type,
+      title,
+      finished: match.finished,
+      thru: match.thru,
+      winnerIds: match.winner === 'A' ? [a.id] : match.winner === 'B' ? [b.id] : [],
+      summary: matchSummary,
+      postingEligible,
+      standings,
+      strokes: book.strokeMap(),
+      totals,
+      match,
+      matchSides: [{ id: a.id, name: nameA }, { id: b.id, name: nameB }],
+    };
+  }
   return {
     type,
     title,
@@ -128,7 +169,7 @@ export function playScramble(round: Round, cfg: ScrambleConfig): StrokeResult {
       adj[t.id],
     );
   }
-  return finish(round, 'scramble', cfg.title ?? 'Scramble', cfg.teams, totals, book.holeCount, false, book);
+  return finish(round, 'scramble', cfg.title ?? 'Scramble', cfg.teams, totals, book.holeCount, false, book, (id, i) => book.score(id, i, settings.net));
 }
 
 // ---------------------------------------------------------------- shamble
@@ -158,7 +199,11 @@ export function playShamble(round: Round, cfg: ShambleConfig): StrokeResult {
       t.members.reduce((s, m) => s + handicaps[m].matchHandicap, 0),
     );
   }
-  return finish(round, 'shamble', cfg.title ?? 'Shamble', cfg.teams, totals, book.holeCount, false, book);
+  const best = (id: string, i: number) => {
+    const t = cfg.teams.find((x) => x.id === id)!;
+    return bestNSum(t.members.map((m) => book.score(m, i, settings.net)), Math.min(cfg.countBest ?? 1, t.members.length));
+  };
+  return finish(round, 'shamble', cfg.title ?? 'Shamble', cfg.teams, totals, book.holeCount, false, book, best);
 }
 
 // ---------------------------------------------------------------- individual stroke play

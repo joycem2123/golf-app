@@ -23,7 +23,7 @@ export interface StoryHole {
 /** Hole-by-hole facts for one match: what each side scored, who won it, and the running status. */
 export function storyHoles(r: RoundRecord, res: GameResult | undefined, m: MatchOutcome, c: Colors): StoryHole[] {
   if (!res) return [];
-  const status = res.type === 'matchPlay' ? res.status : res.type === 'nassau' ? res.segments[2].status : null;
+  const status = res.type === 'matchPlay' ? res.status : res.type === 'nassau' ? res.segments[2].status : (res.type === 'scramble' || res.type === 'shamble') && res.match ? res.match : null;
   // Holes after the match was closed out don't count.
   const outcomes: HoleOutcome[] = (status?.outcomes ?? []).map((o, i) => (status?.closedOutOnHole && i + 1 > status.closedOutOnHole ? null : o));
   const g = r.games[m.gi];

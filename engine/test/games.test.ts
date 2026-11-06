@@ -176,7 +176,8 @@ describe('team stroke formats', () => {
     });
     expect(res.totals.A).toMatchObject({ handicap: 8, toPar: -8, gross: 72 });
     expect(res.totals.B.toPar).toBe(-1);
-    expect(res.summary).toBe('Team A wins at -8');
+    expect(res.summary).toBe('Team A wins 5&4'); // two teams: played as a match
+    expect(res.match?.winner).toBe('A');
     expect(res.postingEligible).toBe(false);
   });
 
@@ -218,8 +219,21 @@ describe('summary wording', () => {
       type: 'scramble',
       teams: [{ id: 'A', members: ['a1', 'a2'] }, { id: 'B', members: ['b1', 'b2'] }],
     });
-    expect(res.summary).toBe('Tied at E: A1 & A2 / B1 & B2');
+    expect(res.summary).toBe('All square thru 1');
     const r2 = round({ a1: 0, a2: 0, b1: 0, b2: 0 }, { A: parCard({ 1: 3 }), B: parCard() });
-    expect(playScramble(r2, { type: 'scramble', teams: [{ id: 'A', members: ['a1', 'a2'] }, { id: 'B', members: ['b1', 'b2'] }] }).summary).toBe('A1 & A2 win at -1');
+    expect(playScramble(r2, { type: 'scramble', teams: [{ id: 'A', members: ['a1', 'a2'] }, { id: 'B', members: ['b1', 'b2'] }] }).summary).toBe('A1 & A2 win 1 UP');
+  });
+});
+
+describe('two-team scramble as a match', () => {
+  it('a team that wins a hole goes 1 UP; three teams stay stroke play', () => {
+    const r = round({ a1: 0, a2: 0, b1: 0, b2: 0 }, { A: card([3, 4]), B: card([4, 4]) });
+    const res = playScramble(r, { type: 'scramble', teams: [{ id: 'A', members: ['a1', 'a2'] }, { id: 'B', members: ['b1', 'b2'] }] });
+    expect(res.match?.lead).toBe(1);
+    expect(res.match?.thru).toBe(2);
+    expect(res.summary).toBe('A1 & A2 1 UP thru 2');
+    const r3 = round({ a1: 0, a2: 0, b1: 0, b2: 0, c1: 0, c2: 0 }, { A: card([3]), B: card([4]), C: card([5]) });
+    const three = playScramble(r3, { type: 'scramble', teams: [{ id: 'A', members: ['a1', 'a2'] }, { id: 'B', members: ['b1', 'b2'] }, { id: 'C', members: ['c1', 'c2'] }] });
+    expect(three.match).toBeUndefined();
   });
 });
