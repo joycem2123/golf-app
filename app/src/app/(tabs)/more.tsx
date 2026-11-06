@@ -50,10 +50,10 @@ export default function More() {
         {signedIn ? (
           <>
             <Label>Account</Label>
-            <Card>
-              {email ? <Body muted>Signed in as {email}</Body> : null}
-              <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />
+            <Card style={{ paddingVertical: 0 }}>
+              <Row title="Account information" sub={email ? `Signed in as ${email} · change email or password` : 'Change email or password'} href="/account" />
             </Card>
+            <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />
           </>
         ) : (
           <>

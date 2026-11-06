@@ -121,3 +121,38 @@ export function useSession(): Session | null | undefined {
   }, []);
   return session;
 }
+
+const friendlyAuthError = (m: string) =>
+  /invalid login|invalid credentials/i.test(m)
+    ? 'Your current password isn’t right.'
+    : /same.*password|different from the old/i.test(m)
+      ? 'Choose a password different from your current one.'
+      : /already (been )?registered|already in use|email.*exists/i.test(m)
+        ? 'That email is already used by another account.'
+        : /weak|at least|short/i.test(m)
+          ? 'That password is too weak. Use at least 8 characters.'
+          : /fetch|network/i.test(m)
+            ? 'No connection. Try again when you have signal.'
+            : m;
+
+/** Check the current password before a sensitive change. */
+async function confirmPassword(current: string) {
+  const { data } = await supabase.auth.getSession();
+  const email = data.session?.user.email;
+  if (!email) throw new Error('Sign in first.');
+  const { error } = await supabase.auth.signInWithPassword({ email, password: current });
+  if (error) throw new Error(friendlyAuthError(error.message));
+}
+
+/** Change my email. Supabase emails a confirmation link; the change applies once it's clicked. */
+export async function changeEmail(newEmail: string, currentPassword: string) {
+  await confirmPassword(currentPassword);
+  const { error } = await supabase.auth.updateUser({ email: newEmail.trim().toLowerCase() });
+  if (error) throw new Error(friendlyAuthError(error.message));
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  await confirmPassword(currentPassword);
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error(friendlyAuthError(error.message));
+}
