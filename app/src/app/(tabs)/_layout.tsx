@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Text, type ColorValue } from 'react-native';
 
 import { useStore } from '@/store/store';
+import { useFriendRequests } from '@/sync/friends';
 import { useColors } from '@/theme';
 
 function TabIcon({ ios, glyph, color }: { ios: SymbolViewProps['name']; glyph: string; color: ColorValue }) {
@@ -15,6 +16,7 @@ function TabIcon({ ios, glyph, color }: { ios: SymbolViewProps['name']; glyph: s
 export default function TabsLayout() {
   const c = useColors();
   const onboarded = useStore((s) => s.onboarded);
+  const requests = useFriendRequests((s) => s.incoming.length);
   // Wait until saved data has loaded before deciding whether to show the welcome screen.
   const [hydrated, setHydrated] = useState(useStore.persist.hasHydrated());
   useEffect(() => useStore.persist.onFinishHydration(() => setHydrated(true)), []);
@@ -32,7 +34,7 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <TabIcon ios="house.fill" glyph="⌂" color={color} /> }} />
       <Tabs.Screen name="scores" options={{ title: 'Scores', tabBarIcon: ({ color }) => <TabIcon ios="list.number" glyph="≡" color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <TabIcon ios="person.crop.circle" glyph="◉" color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarBadge: requests || undefined, tabBarBadgeStyle: { backgroundColor: c.under }, tabBarIcon: ({ color }) => <TabIcon ios="person.crop.circle" glyph="◉" color={color} /> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <TabIcon ios="ellipsis.circle" glyph="⋯" color={color} /> }} />
     </Tabs>
   );

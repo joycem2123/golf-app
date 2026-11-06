@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-import { FriendsList, MeCard, StatTiles } from '@/components/people';
+import { FriendRequestsCard, FriendsList, MeCard, StatTiles } from '@/components/people';
 import { TabHeader } from '@/components/tab-header';
 import { Body, Button, Card, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
@@ -26,6 +26,7 @@ export default function Profile() {
     <View style={{ flex: 1 }}>
       <TabHeader title={me?.name ?? 'Profile'} sub={guest ? 'Playing as a guest' : user?.email} />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
+        <FriendRequestsCard />
         <Label>Me</Label>
         <MeCard />
         {stats && (

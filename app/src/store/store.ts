@@ -26,6 +26,8 @@ export interface SavedPlayer {
   /** Set for people on MatchDay (their account id is also their player id). */
   userId?: string;
   username?: string;
+  /** I sent them a friend request that they haven't accepted yet. */
+  pending?: boolean;
 }
 
 export interface RoundRecord {

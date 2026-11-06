@@ -1,4 +1,10 @@
-/** Friends on MatchDay: search by username or name, linked to their accounts. */
+/**
+ * Friends on MatchDay. Adding someone sends a friend request; the friendship
+ * exists (for both people) once they accept.
+ */
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { create } from 'zustand';
+
 import { useStore, type SavedPlayer } from '@/store/store';
 import { ensureSession } from './auth';
 import { supabase } from './supabase';
@@ -11,13 +17,28 @@ export interface ProfileHit {
   gender: 'M' | 'F' | null;
 }
 
-const toPlayer = (p: ProfileHit): SavedPlayer => ({
+export interface FriendRequest {
+  id: string;
+  direction: 'incoming' | 'outgoing';
+  other_id: string;
+  username: string | null;
+  display_name: string | null;
+  handicap_index: number | null;
+  gender: 'M' | 'F' | null;
+  created_at: string;
+}
+
+/** Pending requests to and from me (not saved on the phone; always fresh from the server). */
+export const useFriendRequests = create<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>(() => ({ incoming: [], outgoing: [] }));
+
+const toPlayer = (p: { id: string; username: string | null; display_name: string | null; handicap_index: number | null; gender: 'M' | 'F' | null }, pending = false): SavedPlayer => ({
   id: p.id,
   userId: p.id,
-  username: p.username,
-  name: p.display_name || p.username,
+  username: p.username ?? undefined,
+  name: p.display_name || p.username || 'Player',
   handicapIndex: Number(p.handicap_index ?? 0),
   gender: p.gender ?? 'M',
+  pending,
 });
 
 export async function searchProfiles(q: string): Promise<ProfileHit[]> {
@@ -29,33 +50,85 @@ export async function searchProfiles(q: string): Promise<ProfileHit[]> {
   return (data ?? []) as ProfileHit[];
 }
 
-export async function addFriend(hit: ProfileHit) {
-  const st = useStore.getState();
-  st.upsertPlayer(toPlayer(hit));
-  await supabase.from('friends').upsert({ friend_id: hit.id }, { onConflict: 'owner,friend_id' });
+export async function refreshRequests() {
+  const { data, error } = await supabase.rpc('list_friend_requests');
+  if (error) return;
+  const all = (data ?? []) as FriendRequest[];
+  useFriendRequests.setState({ incoming: all.filter((r) => r.direction === 'incoming'), outgoing: all.filter((r) => r.direction === 'outgoing') });
 }
 
+/** Send a friend request (or accept theirs if they already asked). Returns what happened. */
+export async function sendFriendRequest(hit: ProfileHit): Promise<'sent' | 'accepted' | 'friends'> {
+  await ensureSession();
+  const { data, error } = await supabase.rpc('send_friend_request', { target: hit.id });
+  if (error) throw new Error(error.message);
+  const result = data as 'sent' | 'accepted' | 'friends';
+  useStore.getState().upsertPlayer(toPlayer(hit, result === 'sent'));
+  await refreshRequests();
+  return result;
+}
+
+export async function respondToRequest(r: FriendRequest, accept: boolean) {
+  const { error } = await supabase.rpc('respond_friend_request', { req: r.id, accept });
+  if (error) throw new Error(error.message);
+  if (accept) useStore.getState().upsertPlayer(toPlayer({ id: r.other_id, username: r.username, display_name: r.display_name, handicap_index: r.handicap_index, gender: r.gender }));
+  await refreshRequests();
+}
+
+export async function cancelRequest(p: SavedPlayer) {
+  if (p.userId) await supabase.rpc('cancel_friend_request', { target: p.userId });
+  useStore.getState().removePlayer(p.id);
+  await refreshRequests();
+}
+
+/** Unfriend (removes the friendship for both people). */
 export async function removeFriend(p: SavedPlayer) {
   useStore.getState().removePlayer(p.id);
-  if (p.userId) await supabase.from('friends').delete().eq('friend_id', p.userId);
+  if (p.userId) await supabase.rpc('remove_friend', { target: p.userId });
+  await refreshRequests();
 }
 
-/** Send this phone's linked friends to my account. */
-export async function pushFriends() {
-  const linked = useStore.getState().players.filter((p) => p.userId && p.id !== useStore.getState().myPlayerId);
-  if (linked.length) await supabase.from('friends').upsert(linked.map((p) => ({ friend_id: p.userId })), { onConflict: 'owner,friend_id' });
-}
-
-/** Bring down my friends list and refresh everyone's name and handicap index. */
+/** Bring my friends list in line with my account: accepted friends, waiting requests, and anyone who's gone. */
 export async function pullFriends() {
-  const { data: rows } = await supabase.from('friends').select('friend_id');
-  const ids = [...new Set([...(rows ?? []).map((r) => r.friend_id as string), ...useStore.getState().players.filter((p) => p.userId).map((p) => p.userId!)])];
-  const mine = useStore.getState().myPlayerId;
-  const want = ids.filter((id) => id !== mine);
+  const { data: session } = await supabase.auth.getSession();
+  if (!session.session) return;
+  const [{ data: rows, error: e1 }] = await Promise.all([supabase.from('friends').select('friend_id'), refreshRequests()]);
+  if (e1) return;
+  const accepted = new Set((rows ?? []).map((r) => r.friend_id as string));
+  const outgoing = new Set(useFriendRequests.getState().outgoing.map((r) => r.other_id));
+  const st = useStore.getState();
+
+  // Linked players who are neither friends nor waiting on a request (they declined, or unfriended me).
+  for (const p of st.players) {
+    if (!p.userId || p.id === st.myPlayerId || st.meAliases.includes(p.id)) continue;
+    if (accepted.has(p.userId)) continue;
+    if (outgoing.has(p.userId)) {
+      if (!p.pending) useStore.getState().upsertPlayer({ ...p, pending: true });
+      continue;
+    }
+    useStore.getState().removePlayer(p.id);
+  }
+
+  const want = [...accepted, ...outgoing];
   if (!want.length) return;
   const { data: profiles } = await supabase.from('profiles').select('id, username, display_name, handicap_index, gender').in('id', want);
-  for (const p of (profiles ?? []) as ProfileHit[]) {
-    if (!p.username) continue;
-    useStore.getState().upsertPlayer(toPlayer(p));
+  for (const p of (profiles ?? []) as ProfileHit[]) useStore.getState().upsertPlayer(toPlayer(p, !accepted.has(p.id)));
+}
+
+let channel: RealtimeChannel | null = null;
+
+/** Live updates when someone sends, accepts or removes a friend request. */
+export function watchFriends(uid: string | null) {
+  if (channel) {
+    void supabase.removeChannel(channel);
+    channel = null;
   }
+  if (!uid) return;
+  const refresh = () => void pullFriends();
+  channel = supabase
+    .channel(`friends:${uid}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `to_user=eq.${uid}` }, refresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `from_user=eq.${uid}` }, refresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friends', filter: `owner=eq.${uid}` }, refresh)
+    .subscribe();
 }

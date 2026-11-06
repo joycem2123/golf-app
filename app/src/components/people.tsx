@@ -6,7 +6,7 @@ import { formatIndex } from '@/lib/format';
 import { useMe } from '@/lib/me';
 import { useStore, type SavedPlayer } from '@/store/store';
 import { ensureSession, saveMyProfile } from '@/sync/auth';
-import { removeFriend } from '@/sync/friends';
+import { cancelRequest, removeFriend, respondToRequest, useFriendRequests } from '@/sync/friends';
 import { UsernameField, type UsernameStatus } from './username-field';
 import { fonts, radius, space, useColors } from '@/theme';
 import { PlayerForm, splitName } from './player-form';
@@ -129,11 +129,11 @@ export function MeCard() {
 /** My friends: everyone else in my saved players. */
 export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
   const c = useColors();
-  const { friends } = useMe();
+  const { friends, requested } = useMe();
   const upsert = useStore((s) => s.upsertPlayer);
   const remove = useStore((s) => s.removePlayer);
   const [editing, setEditing] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   return (
     <View style={{ gap: space.sm }}>
@@ -154,20 +154,38 @@ export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
                     <Text style={{ color: c.muted, fontSize: 12 }}>{p.username ? `@${p.username}` : 'Not on MatchDay'}</Text>
                   </View>
                   <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>{formatIndex(p.handicapIndex)}</Text>
-                  {!onPick && (
-                    <Pressable
-                      hitSlop={8}
-                      accessibilityLabel={`Remove ${p.name}`}
-                      onPress={() => Alert.alert(`Remove ${p.name}?`, 'Past rounds are kept.', [{ text: 'Cancel' }, { text: 'Remove', style: 'destructive', onPress: () => void removeFriend(p) }])}>
-                      <Text style={{ color: c.muted, fontSize: 18, paddingHorizontal: 4 }}>×</Text>
-                    </Pressable>
-                  )}
+                  {!onPick &&
+                    (confirming === p.id ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={{ color: c.danger, fontWeight: '700', fontSize: 13 }}>Remove?</Text>
+                        <Button small kind="danger" title="Yes" onPress={() => { setConfirming(null); void removeFriend(p); }} />
+                        <Button small kind="ghost" title="No" onPress={() => setConfirming(null)} />
+                      </View>
+                    ) : (
+                      <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`} onPress={() => setConfirming(p.id)}>
+                        <Text style={{ color: c.muted, fontSize: 18, paddingHorizontal: 4 }}>×</Text>
+                      </Pressable>
+                    ))}
                 </View>
               )}
             </Pressable>
           ),
         )}
       </Card>
+      {requested.length > 0 && (
+        <Card style={{ paddingVertical: space.sm }}>
+          <Label>Waiting for approval</Label>
+          {requested.map((p) => (
+            <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, borderTopWidth: 1, borderTopColor: c.border }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{p.name}</Text>
+                <Text style={{ color: c.muted, fontSize: 12 }}>{p.username ? `@${p.username} · ` : ''}request sent</Text>
+              </View>
+              <Button small kind="ghost" title="Cancel" onPress={() => void cancelRequest(p)} />
+            </View>
+          ))}
+        </Card>
+      )}
       <Button title="+ Add a friend" kind="secondary" onPress={() => router.push('/add-friend')} />
       <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Friends on MatchDay keep their own handicap index up to date. Tap anyone else to edit theirs.</Text>
     </View>
@@ -206,6 +224,45 @@ export function IdentityCard({ scopeKey, candidates }: { scopeKey: string; candi
         ))}
         <Button small kind="ghost" title="I'm not playing" onPress={() => dismiss(scopeKey)} />
       </View>
+    </Card>
+  );
+}
+
+/** Requests other people sent me: Accept makes us friends on both sides. */
+export function FriendRequestsCard() {
+  const c = useColors();
+  const { incoming } = useFriendRequests();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  if (incoming.length === 0) return null;
+  const respond = async (r: (typeof incoming)[number], accept: boolean) => {
+    setBusy(r.id);
+    setError(null);
+    try {
+      await respondToRequest(r, accept);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
+      <H2>Friend requests</H2>
+      {incoming.map((r, i) => (
+        <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm, borderTopWidth: i ? 1 : 0, borderTopColor: c.border }}>
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: c.primary, fontWeight: '700' }}>{(r.display_name || r.username || '?').slice(0, 1).toUpperCase()}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{r.display_name || r.username}</Text>
+            <Text style={{ color: c.muted, fontSize: 12 }}>{r.username ? `@${r.username} · ` : ''}wants to be friends</Text>
+          </View>
+          <Button small title={busy === r.id ? '…' : 'Accept'} disabled={!!busy} onPress={() => respond(r, true)} />
+          <Button small kind="ghost" title="Decline" disabled={!!busy} onPress={() => respond(r, false)} />
+        </View>
+      ))}
+      {error ? <Body style={{ color: c.danger }}>{error}</Body> : null}
     </Card>
   );
 }

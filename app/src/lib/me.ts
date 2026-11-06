@@ -13,8 +13,11 @@ export function useMe() {
   const meAliases = useStore((s) => s.meAliases);
   const me: SavedPlayer | undefined = players.find((p) => p.id === myPlayerId);
   const isMe = (id: string) => id === myPlayerId || meAliases.includes(id);
-  const friends = players.filter((p) => !isMe(p.id)).sort((a, b) => a.name.localeCompare(b.name));
-  return { me, isMe, friends, myPlayerId };
+  const others = players.filter((p) => !isMe(p.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const friends = others.filter((p) => !p.pending);
+  /** People I've sent a friend request to who haven't accepted yet. */
+  const requested = others.filter((p) => p.pending);
+  return { me, isMe, friends, requested, myPlayerId };
 }
 
 /** Players with me first, then friends A–Z. */

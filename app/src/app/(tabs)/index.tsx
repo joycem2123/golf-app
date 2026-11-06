@@ -11,6 +11,7 @@ import { gameName } from '@/lib/games';
 import { headline } from '@/lib/headline';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useMe } from '@/lib/me';
+import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -52,6 +53,9 @@ export default function Home() {
   const liveResult = live ? evaluate(live)[0] : undefined;
   const liveHead = live && liveResult && isResult(liveResult) ? headline(liveResult, live.players) : null;
   const { me: myPlayer } = useMe();
+  const incoming = useFriendRequests((s) => s.incoming);
+  const requestCount = incoming.length;
+  const requestName = incoming[0]?.display_name || incoming[0]?.username || 'Someone';
   const firstName = myPlayer ? myPlayer.name.split(' ')[0] : me && names[me] ? names[me].split(' ')[0] : null;
 
   return (
@@ -91,6 +95,16 @@ export default function Home() {
 
       <View style={{ padding: space.lg, gap: space.lg }}>
         <LegacyClaimCard />
+        {requestCount > 0 && (
+          <Pressable onPress={() => router.push('/profile')}>
+            <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent, flexDirection: 'row', alignItems: 'center' }}>
+              <Body bold style={{ flex: 1 }}>
+                {requestCount === 1 ? `${requestName} wants to be friends` : `${requestCount} friend requests`}
+              </Body>
+              <Text style={{ color: c.primary, fontWeight: '700' }}>View ›</Text>
+            </Card>
+          </Pressable>
+        )}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
           <Tile primary title="New Round" sub="Pick a course, players and games" icon={glyph('+', '#fff')} onPress={() => router.push('/new-round')} />
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />

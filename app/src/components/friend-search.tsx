@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-nativ
 import { formatIndex } from '@/lib/format';
 import { useMe } from '@/lib/me';
 import { useStore, type SavedPlayer } from '@/store/store';
-import { addFriend, searchProfiles, type ProfileHit } from '@/sync/friends';
+import { respondToRequest, searchProfiles, sendFriendRequest, useFriendRequests, type ProfileHit } from '@/sync/friends';
 import { radius, space, useColors } from '@/theme';
 import { PlayerForm } from './player-form';
 import { Body, Button, Card } from './ui';
@@ -20,6 +20,8 @@ export function FriendSearch({ onAdded, onClose }: { onAdded?: (p: SavedPlayer) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineForm, setOfflineForm] = useState(false);
+  const [acting, setActing] = useState<string | null>(null);
+  const { incoming, outgoing } = useFriendRequests();
 
   useEffect(() => {
     const term = q.trim();
@@ -84,7 +86,41 @@ export function FriendSearch({ onAdded, onClose }: { onAdded?: (p: SavedPlayer) 
 
       {hits.map((h) => {
         const existing = players.find((p) => p.id === h.id);
-        const added = !!existing && !isMe(h.id);
+        const friend = !!existing && !existing.pending && !isMe(h.id);
+        const requested = !!existing?.pending || outgoing.some((r) => r.other_id === h.id);
+        const theyAsked = incoming.find((r) => r.other_id === h.id);
+        const act = async (fn: () => Promise<unknown>) => {
+          setActing(h.id);
+          try {
+            await fn();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+          } finally {
+            setActing(null);
+          }
+        };
+        let action: React.ReactNode;
+        if (onAdded) {
+          // Picking players for a round/event: add them now; ask to be friends if we aren't yet.
+          action = (
+            <Button
+              small
+              title={acting === h.id ? '…' : 'Add'}
+              onPress={() =>
+                act(async () => {
+                  if (!friend && !requested) await sendFriendRequest(h);
+                  else if (theyAsked) await respondToRequest(theyAsked, true);
+                  const p = useStore.getState().players.find((x) => x.id === h.id);
+                  if (p) onAdded(p);
+                })
+              }
+            />
+          );
+        } else if (friend) action = <Text style={{ color: c.primary, fontWeight: '700' }}>Friend ✓</Text>;
+        else if (theyAsked) action = <Button small title={acting === h.id ? '…' : 'Accept'} onPress={() => act(() => respondToRequest(theyAsked, true))} />;
+        else if (requested) action = <Text style={{ color: c.muted, fontWeight: '700' }}>Requested</Text>;
+        else action = <Button small title={acting === h.id ? '…' : 'Add friend'} onPress={() => act(() => sendFriendRequest(h))} />;
+
         return (
           <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, borderTopWidth: 1, borderTopColor: c.border }}>
             <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
@@ -92,28 +128,21 @@ export function FriendSearch({ onAdded, onClose }: { onAdded?: (p: SavedPlayer) 
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{h.display_name || h.username}</Text>
-              <Text style={{ color: c.muted, fontSize: 13 }}>@{h.username}{h.handicap_index != null ? ` · ${formatIndex(Number(h.handicap_index))}` : ''}</Text>
+              <Text style={{ color: c.muted, fontSize: 13 }}>
+                @{h.username}
+                {h.handicap_index != null ? ` · ${formatIndex(Number(h.handicap_index))}` : ''}
+                {onAdded && requested ? ' · requested' : ''}
+                {theyAsked && !onAdded ? ' · wants to be friends' : ''}
+              </Text>
             </View>
-            {added ? (
-              onAdded ? (
-                <Button small kind="secondary" title="Add" onPress={() => onAdded(existing!)} />
-              ) : (
-                <Text style={{ color: c.primary, fontWeight: '700' }}>Friend ✓</Text>
-              )
-            ) : (
-              <Button
-                small
-                title="Add"
-                onPress={async () => {
-                  await addFriend(h).catch(() => undefined);
-                  const p = useStore.getState().players.find((x) => x.id === h.id);
-                  if (p) onAdded?.(p);
-                }}
-              />
-            )}
+            {action}
           </View>
         );
       })}
+
+      {hits.some((h) => !players.some((p) => p.id === h.id && !p.pending)) && !onAdded ? (
+        <Text style={{ color: c.muted, fontSize: 12 }}>They’ll get a friend request and appear in your friends once they accept.</Text>
+      ) : null}
 
       <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.xs }}>
         <View style={{ flex: 1 }}>

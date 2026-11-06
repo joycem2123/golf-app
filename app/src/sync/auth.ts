@@ -91,8 +91,7 @@ export async function restoreMe() {
       st.setMyPlayer(user.id);
     }
   }
-  const { pushFriends, pullFriends } = await import('./friends');
-  await pushFriends();
+  const { pullFriends } = await import('./friends');
   await pullFriends();
 }
 

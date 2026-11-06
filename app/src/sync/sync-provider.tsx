@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 import { accountKey, checkLegacy, getAccountKey, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
 import { restoreMe } from './auth';
+import { pullFriends, watchFriends } from './friends';
 import { supabase } from './supabase';
 import { flush, resetSubscriptions, syncSubscriptions } from './sync';
 
@@ -21,6 +22,7 @@ async function loadAccountFor(session: Session | null) {
   // Signed in with a real account: go straight to the app.
   if (user && !user.is_anonymous && !st.onboarded) st.setOnboarded(true);
   if (user) await restoreMe().catch(() => undefined);
+  watchFriends(user?.id ?? null);
   syncSubscriptions();
   void flush();
 }
@@ -47,6 +49,7 @@ export function SyncProvider() {
     const timer = setInterval(() => void flush(), 10000);
     const app = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        void pullFriends().catch(() => undefined);
         resetSubscriptions();
         syncSubscriptions();
         void flush();
