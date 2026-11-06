@@ -6,6 +6,8 @@ import { Body, Button, Card, Field, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
 import { useStore } from '@/store/store';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { PasswordChecklist } from '@/components/password-checklist';
+import { passwordOk } from '@/lib/password';
 import { changeEmail, changePassword, useSession } from '@/sync/auth';
 import { deleteMyAccount } from '@/sync/safety';
 import { supabase } from '@/sync/supabase';
@@ -84,7 +86,7 @@ export default function Account() {
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim());
   const sameEmail = newEmail.trim().toLowerCase() === (user.email ?? '').toLowerCase();
-  const pwProblem = !current ? null : next.length > 0 && next.length < 8 ? 'Use at least 8 characters.' : again && next !== again ? 'The new passwords don’t match.' : null;
+  const pwProblem = again && next !== again ? 'The new passwords don’t match.' : null;
   const pending = user.new_email;
 
   const saveEmail = async () => {
@@ -148,11 +150,12 @@ export default function Account() {
       <Card>
         <H2>Change password</H2>
         <Field label="Current password" value={current} onChangeText={setCurrent} secureTextEntry autoComplete="current-password" textContentType="password" />
-        <Field label="New password" value={next} onChangeText={setNext} secureTextEntry autoComplete="new-password" textContentType="newPassword" placeholder="At least 8 characters" />
+        <Field label="New password" value={next} onChangeText={setNext} secureTextEntry autoComplete="new-password" textContentType="newPassword" placeholder="Create a strong password" />
+        {next.length > 0 && <PasswordChecklist password={next} />}
         <Field label="New password again" value={again} onChangeText={setAgain} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
         {pwProblem ? <Text style={{ color: c.danger, fontSize: 13 }}>{pwProblem}</Text> : null}
         {pwMsg && <Message {...pwMsg} />}
-        <Button title={busy === 'password' ? 'Saving…' : 'Change password'} disabled={!current || next.length < 8 || next !== again || busy !== null} onPress={savePassword} />
+        <Button title={busy === 'password' ? 'Saving…' : 'Change password'} disabled={!current || !passwordOk(next) || next !== again || busy !== null} onPress={savePassword} />
       </Card>
 
       {blocked.length > 0 && (

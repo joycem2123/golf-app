@@ -141,8 +141,8 @@ const friendlyAuthError = (m: string) =>
       ? 'Choose a password different from your current one.'
       : /already (been )?registered|already in use|email.*exists/i.test(m)
         ? 'That email is already used by another account.'
-        : /weak|at least|short/i.test(m)
-          ? 'That password is too weak. Use at least 8 characters.'
+        : /weak|at least|short|should contain|characters/i.test(m)
+          ? 'That password is too weak. Use at least 8 characters with an uppercase letter, a lowercase letter, a number and a special character.'
           : /fetch|network/i.test(m)
             ? 'No connection. Try again when you have signal.'
             : m;

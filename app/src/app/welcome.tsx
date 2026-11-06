@@ -4,6 +4,8 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogoMark, Wordmark } from '@/components/logo';
+import { PasswordChecklist } from '@/components/password-checklist';
+import { passwordOk } from '@/lib/password';
 import { Body, Button, Card, Field, Segmented } from '@/components/ui';
 import { parseIndex } from '@/lib/format';
 import { UsernameField, type UsernameStatus } from '@/components/username-field';
@@ -156,11 +158,12 @@ export default function Welcome() {
               </>
             )}
             <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-            <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'At least 8 characters' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
+            <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'Create a strong password' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
+            {mode === 'signUp' && password.length > 0 && <PasswordChecklist password={password} />}
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
               title={busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-              disabled={busy || !email.includes('@') || (mode === 'signUp' ? password.length < 8 : password.length === 0) || (mode === 'signUp' && !detailsOk)}
+              disabled={busy || !email.includes('@') || (mode === 'signUp' ? !passwordOk(password) : password.length === 0) || (mode === 'signUp' && !detailsOk)}
               onPress={() =>
                 run(async () => {
                   if (mode === 'signIn') {
