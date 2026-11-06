@@ -10,7 +10,7 @@ import { space } from '@/theme';
  * With ?pick=<target>, tapping Add hands the person back to the screen that opened this one.
  */
 export default function AddFriend() {
-  const { pick } = useLocalSearchParams<{ pick?: string }>();
+  const { pick, q } = useLocalSearchParams<{ pick?: string; q?: string }>();
   const push = usePickBus((s) => s.push);
 
   return (
@@ -22,6 +22,7 @@ export default function AddFriend() {
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
         <FriendSearch
+          initialQuery={q}
           onClose={() => router.back()}
           onAdded={
             pick

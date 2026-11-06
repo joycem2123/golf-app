@@ -10,12 +10,12 @@ import { PlayerForm } from './player-form';
 import { Body, Button, Card } from './ui';
 
 /** Find people on MatchDay as you type, or add someone who isn't on the app. */
-export function FriendSearch({ onAdded, onClose }: { onAdded?: (p: SavedPlayer) => void; onClose?: () => void }) {
+export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p: SavedPlayer) => void; onClose?: () => void; initialQuery?: string }) {
   const c = useColors();
   const players = useStore((s) => s.players);
   const upsert = useStore((s) => s.upsertPlayer);
   const { isMe } = useMe();
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(initialQuery ?? '');
   const [hits, setHits] = useState<ProfileHit[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

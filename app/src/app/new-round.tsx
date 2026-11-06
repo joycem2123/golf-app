@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
+import { GamePicker, GameRulesButton, PlayerPicker, StepPills } from '@/components/round-setup';
 import { usePickBus } from '@/store/pick';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
@@ -134,19 +135,27 @@ export default function NewRound() {
   };
 
   // ------------------------------------------------------------------ steps
+  const canGo = (st: Step) => st === 'course' || (st === 'players' && !!course) || (st === 'game' && !!course && players.length > 0);
   const stepBar = (
-    <Segmented
-      options={[
-        { value: 'course', label: '1 Course' },
-        { value: 'players', label: '2 Players' },
-        { value: 'game', label: '3 Game' },
+    <StepPills
+      steps={[
+        { value: 'course', label: 'Course' },
+        { value: 'players', label: 'Players' },
+        { value: 'game', label: 'Game' },
       ]}
-      value={step}
-      onChange={(s) => {
-        if (s === 'course' || (s === 'players' && course) || (s === 'game' && course && players.length > 0)) setStep(s);
-      }}
+      current={step}
+      isDone={(st) => (st === 'course' ? !!course : st === 'players' ? roster.length > 0 : !!draft)}
+      canGo={canGo}
+      onGo={(st) => canGo(st) && setStep(st)}
     />
   );
+
+  const pickGame = (kind: GameDraft['kind']) => {
+    const d = newDraft(kind, players);
+    if (event?.teams) for (const p of players) d.teamOf[p.id] = teamOfEvent(p.id) ?? d.teamOf[p.id];
+    setDraft(d);
+    setSideMatches([]);
+  };
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
@@ -177,21 +186,16 @@ export default function NewRound() {
 
       {step === 'players' && course && (
         <>
-          <Card>
-            <Label>Who’s playing?</Label>
-            {saved.length === 0 ? <Body muted>Add your group below. They’ll be saved for next time.</Body> : null}
-            <View style={styles.wrap}>
-              {meFirst(saved, isMe).map((p) => (
-                <Chip
-                  key={p.id}
-                  label={`${p.name}${isMe(p.id) ? ' (Me)' : ''} ${formatIndex(event?.lockHandicaps ? (event.lockedIndexes[p.id] ?? p.handicapIndex) : p.handicapIndex)}`}
-                  selected={roster.some((r) => r.id === p.id)}
-                  color={teamOfEvent(p.id) === 'B' ? c.teamB : undefined}
-                  onPress={() => togglePlayer(p)}
-                />
-              ))}
-            </View>
-          </Card>
+          <PlayerPicker
+            people={meFirst(saved, isMe)}
+            selected={roster.map((r) => r.id)}
+            onToggle={togglePlayer}
+            isMe={isMe}
+            indexFor={(p) => (event?.lockHandicaps ? (event.lockedIndexes[p.id] ?? p.handicapIndex) : p.handicapIndex)}
+            colorFor={(id) => (event?.teams ? (teamOfEvent(id) === 'B' ? c.teamB : c.teamA) : undefined)}
+            allowNew={!event}
+            onFindNew={(q) => router.push({ pathname: '/add-friend', params: { pick: 'new-round', q } })}
+          />
 
           {event?.teams && (
             <View style={styles.row}>
@@ -215,11 +219,6 @@ export default function NewRound() {
           )}
           {event?.lockHandicaps ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Handicaps are locked for {event.name}.</Label> : null}
 
-          {event ? null : addingPlayer ? (
-            null
-          ) : (
-            <Button title="+ Add a friend" kind="secondary" onPress={() => router.push({ pathname: '/add-friend', params: { pick: 'new-round' } })} />
-          )}
 
           {roster.map((r) => {
             const p = saved.find((s) => s.id === r.id)!;
@@ -255,34 +254,11 @@ export default function NewRound() {
 
       {step === 'game' && course && (
         <>
-          <Label>Main game · {players.length} player{players.length === 1 ? '' : 's'}</Label>
-          <View style={styles.wrap}>
-            {GAMES.map((g) => {
-              const fits = players.length >= g.minPlayers && players.length <= g.maxPlayers;
-              return (
-                <Chip
-                  key={g.kind}
-                  label={g.name}
-                  selected={draft?.kind === g.kind}
-                  onPress={
-                    fits
-                      ? () => {
-                          const d = newDraft(g.kind, players);
-                          if (event?.teams) for (const p of players) d.teamOf[p.id] = teamOfEvent(p.id) ?? d.teamOf[p.id];
-                          setDraft(d);
-                          setSideMatches([]);
-                        }
-                      : undefined
-                  }
-                  color={fits ? undefined : c.border}
-                />
-              );
-            })}
-          </View>
+          <GamePicker value={draft?.kind ?? null} playerCount={players.length} onPick={pickGame} />
 
           {draft && (
             <>
-              <Body muted>{gameInfo(draft.kind).blurb}</Body>
+              <GameRulesButton kind={draft.kind} />
               <GameOptions draft={draft} players={players} onChange={setDraft} />
 
               <Card>
