@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
-import { PlayerForm } from '@/components/player-form';
+import { FriendSearch } from '@/components/friend-search';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
@@ -206,17 +206,15 @@ export default function NewRound() {
           {event?.lockHandicaps ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Handicaps are locked for {event.name}.</Label> : null}
 
           {event ? null : addingPlayer ? (
-            <PlayerForm
-              onCancel={() => setAddingPlayer(false)}
-              onSave={(p) => {
-                upsertPlayer(p);
-                setRoster((r) => [...r, { id: p.id, teeId: defaultTee(course, p) }]);
+            <FriendSearch
+              onClose={() => setAddingPlayer(false)}
+              onAdded={(p) => {
+                setRoster((r) => (r.some((x) => x.id === p.id) ? r : [...r, { id: p.id, teeId: defaultTee(course, p) }]));
                 setDraft(null);
-                setAddingPlayer(false);
               }}
             />
           ) : (
-            <Button title="+ New player" kind="secondary" onPress={() => setAddingPlayer(true)} />
+            <Button title="+ Add a friend" kind="secondary" onPress={() => setAddingPlayer(true)} />
           )}
 
           {roster.map((r) => {

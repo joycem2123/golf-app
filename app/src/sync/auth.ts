@@ -20,32 +20,71 @@ export async function signUp(email: string, password: string, name: string) {
   return { needsConfirmation: !data.session, userId: data.user?.id ?? null };
 }
 
-/** Save my player (name, index, tees) to my account so it follows me to other phones. */
-export async function saveMyProfile(p: SavedPlayer) {
-  const { data } = await supabase.auth.getSession();
-  const user = data.session?.user;
-  if (!user || user.is_anonymous) return;
-  await supabase.from('profiles').upsert({ id: user.id, display_name: p.name, handicap_index: p.handicapIndex, gender: p.gender });
-  useStore.getState().setName(user.id, p.name);
+export const USERNAME_RULE = /^[a-z0-9_.]{3,20}$/;
+
+/** Lowercase, keep only allowed characters. */
+export const cleanUsername = (u: string) => u.toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 20);
+
+export async function usernameAvailable(u: string): Promise<boolean> {
+  if (!USERNAME_RULE.test(u)) return false;
+  const { data, error } = await supabase.rpc('username_available', { u });
+  if (error) throw new Error('Could not check the username. Check your connection.');
+  return !!data;
 }
 
-/** After signing in on a phone that doesn't know me yet, rebuild my player from my account. */
+/** Make my player's id match my account id (old id is kept as an alias so past rounds still count). */
+export async function claimIdentity() {
+  const { data } = await supabase.auth.getSession();
+  const uid = data.session?.user.id;
+  const st = useStore.getState();
+  if (uid && st.myPlayerId && st.myPlayerId !== uid) st.replaceMyPlayerId(uid);
+}
+
+/** Save my player and username to my account (works for guests too). */
+export async function saveMyProfile(p: SavedPlayer, username = useStore.getState().myUsername) {
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
+  if (!user) return;
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: user.id, display_name: p.name, handicap_index: p.handicapIndex, gender: p.gender, ...(username ? { username } : {}) });
+  if (error) {
+    if (error.code === '23505') throw new Error(`@${username} is already taken. Try another.`);
+    throw new Error(error.message);
+  }
+  useStore.getState().setName(user.id, p.name);
+  if (username) useStore.getState().setMyUsername(username);
+}
+
+/** Free my username (used when a guest moves to a full account). */
+export async function releaseUsername() {
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
+  if (user?.is_anonymous) await supabase.from('profiles').update({ username: null }).eq('id', user.id);
+}
+
+/** After signing in, rebuild my player and friends from my account, or push what this phone knows. */
 export async function restoreMe() {
   const st = useStore.getState();
   const { data } = await supabase.auth.getSession();
   const user = data.session?.user;
-  if (!user || user.is_anonymous) return;
-  const local = st.players.find((p) => p.id === st.myPlayerId);
+  if (!user) return;
+  await claimIdentity();
+  const local = useStore.getState().players.find((p) => p.id === useStore.getState().myPlayerId);
+  const { data: profile } = await supabase.from('profiles').select('display_name, handicap_index, gender, username').eq('id', user.id).maybeSingle();
+  if (profile?.username) st.setMyUsername(profile.username);
   if (local) {
-    // Already know who I am on this phone: make sure my account has the latest.
-    await saveMyProfile(local);
-    return;
+    await saveMyProfile(local).catch(() => undefined);
+  } else {
+    const name = profile?.display_name ?? (user.user_metadata?.name as string | undefined);
+    if (name) {
+      st.upsertPlayer({ id: user.id, userId: user.id, username: profile?.username ?? undefined, name, handicapIndex: Number(profile?.handicap_index ?? 0), gender: (profile?.gender as 'M' | 'F') ?? 'M' });
+      st.setMyPlayer(user.id);
+    }
   }
-  const { data: profile } = await supabase.from('profiles').select('display_name, handicap_index, gender').eq('id', user.id).maybeSingle();
-  const name = profile?.display_name ?? (user.user_metadata?.name as string | undefined);
-  if (!name) return;
-  st.upsertPlayer({ id: user.id, name, handicapIndex: Number(profile?.handicap_index ?? 0), gender: (profile?.gender as 'M' | 'F') ?? 'M' });
-  st.setMyPlayer(user.id);
+  const { pushFriends, pullFriends } = await import('./friends');
+  await pushFriends();
+  await pullFriends();
 }
 
 export async function signIn(email: string, password: string) {

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { PlayerForm } from '@/components/player-form';
+import { FriendSearch } from '@/components/friend-search';
 import { Body, Button, Card, Chip, Field, H2, Label, OptionRow, Segmented, Stepper, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
@@ -84,9 +84,9 @@ export default function NewEvent() {
           ))}
         </View>
         {adding ? (
-          <PlayerForm onCancel={() => setAdding(false)} onSave={(p) => { upsertPlayer(p); toggle(p.id); setAdding(false); }} />
+          <FriendSearch onClose={() => setAdding(false)} onAdded={(p) => { if (!ids.includes(p.id)) toggle(p.id); }} />
         ) : (
-          <Button small kind="secondary" title="+ New player" onPress={() => setAdding(true)} />
+          <Button small kind="secondary" title="+ Add a friend" onPress={() => setAdding(true)} />
         )}
       </Card>
 

@@ -21,6 +21,9 @@ export interface SavedPlayer {
   name: string;
   handicapIndex: number;
   gender: 'M' | 'F';
+  /** Set for people on MatchDay (their account id is also their player id). */
+  userId?: string;
+  username?: string;
 }
 
 export interface RoundRecord {
@@ -123,6 +126,11 @@ interface State {
   /** Rounds/events where the user said they aren't one of the players. */
   identityDismissed: string[];
   setMyPlayer: (id: string | null) => void;
+  /** My unique @username (null until chosen). */
+  myUsername: string | null;
+  setMyUsername: (u: string | null) => void;
+  /** Switch my player to a new id (my account id), keeping the old one as an alias. */
+  replaceMyPlayerId: (newId: string) => void;
   addMeAlias: (id: string) => void;
   dismissIdentity: (key: string) => void;
   setOnboarded: (v: boolean) => void;
@@ -191,6 +199,28 @@ export const useStore = create<State>()(
       meAliases: [],
       identityDismissed: [],
       setMyPlayer: (id) => set({ myPlayerId: id }),
+      myUsername: null,
+      setMyUsername: (u) => set({ myUsername: u }),
+      replaceMyPlayerId: (newId) =>
+        set((s) => {
+          const old = s.myPlayerId;
+          const me = s.players.find((p) => p.id === old);
+          if (!old || !me || old === newId) return {};
+          const swap = (ids: string[]) => ids.map((id) => (id === old ? newId : id));
+          const events = s.events.map((e) => ({
+            ...e,
+            playerIds: swap(e.playerIds),
+            lockedIndexes: Object.fromEntries(Object.entries(e.lockedIndexes).map(([k, v]) => [k === old ? newId : k, v])),
+            teams: e.teams ? { A: { ...e.teams.A, playerIds: swap(e.teams.A.playerIds) }, B: { ...e.teams.B, playerIds: swap(e.teams.B.playerIds) } } : undefined,
+            schedule: e.schedule?.map((m) => ({ ...m, sideA: swap(m.sideA), sideB: swap(m.sideB) })),
+          }));
+          return {
+            players: [...s.players.filter((p) => p.id !== old && p.id !== newId), { ...me, id: newId, userId: newId }],
+            myPlayerId: newId,
+            meAliases: s.meAliases.includes(old) ? s.meAliases : [...s.meAliases, old],
+            events,
+          };
+        }),
       addMeAlias: (id) => set((s) => ({ meAliases: s.meAliases.includes(id) ? s.meAliases : [...s.meAliases, id] })),
       dismissIdentity: (key) => set((s) => ({ identityDismissed: [...s.identityDismissed, key] })),
       names: {},
@@ -342,9 +372,9 @@ export const useStore = create<State>()(
     {
       name: 'golf-app-v1',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 5,
+      version: 6,
       migrate: (state) =>
-        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], ...(state as object) }) as unknown as State,
+        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], myUsername: null, ...(state as object) }) as unknown as State,
     },
   ),
 );

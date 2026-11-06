@@ -6,11 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Button, Card, Field, Segmented } from '@/components/ui';
 import { parseIndex } from '@/lib/format';
-import { ensureSession, restoreMe, saveMyProfile, signIn, signUp } from '@/sync/auth';
+import { UsernameField, type UsernameStatus } from '@/components/username-field';
+import { ensureSession, releaseUsername, restoreMe, saveMyProfile, signIn, signUp } from '@/sync/auth';
 import { newId, useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 
-type Mode = 'choose' | 'signIn' | 'signUp';
+type Mode = 'choose' | 'signIn' | 'signUp' | 'guest';
 
 export default function Welcome() {
   const c = useColors();
@@ -25,6 +26,27 @@ export default function Welcome() {
   const upsertPlayer = useStore((s) => s.upsertPlayer);
   const setMyPlayer = useStore((s) => s.setMyPlayer);
   const parsedIndex = index.trim() ? parseIndex(index) : null;
+  const [username, setUsername] = useState('');
+  const [uStatus, setUStatus] = useState<UsernameStatus>('empty');
+  const setMyUsername = useStore((s) => s.setMyUsername);
+  const replaceMyPlayerId = useStore((s) => s.replaceMyPlayerId);
+  const existingMe = useStore((s) => s.players.find((p) => p.id === s.myPlayerId));
+
+  /** Create or update "Me" with the given account id. */
+  const makeMe = (uid: string | null) => {
+    const details = { name: name.trim(), handicapIndex: parsedIndex ?? existingMe?.handicapIndex ?? 0, gender, username };
+    if (existingMe) {
+      upsertPlayer({ ...existingMe, ...details });
+      if (uid && uid !== existingMe.id) replaceMyPlayerId(uid);
+    } else {
+      const id = uid ?? newId();
+      upsertPlayer({ id, userId: uid ?? undefined, ...details });
+      setMyPlayer(id);
+    }
+    setMyUsername(username);
+    return useStore.getState().players.find((p) => p.id === useStore.getState().myPlayerId)!;
+  };
+  const detailsOk = !!name.trim() && uStatus === 'available' && (index.trim() === '' || parsedIndex !== null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -67,8 +89,10 @@ export default function Welcome() {
                 run(async () => {
                   // Guests get a temporary online session so they can still join and share.
                   // If there's no signal, carry on offline.
-                  await ensureSession().catch(() => undefined);
-                  done();
+                  const session = await ensureSession().catch(() => null);
+                  if (!session) return done(); // offline: set up a username later from Profile
+                  if (existingMe) setName(existingMe.name);
+                  setMode('guest');
                 })
               }>
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', letterSpacing: 0.5 }}>{busy ? 'Starting…' : 'Continue as guest'}</Text>
@@ -79,12 +103,37 @@ export default function Welcome() {
           </View>
         )}
 
-        {mode !== 'choose' && (
+        {mode === 'guest' && (
+          <Card style={{ marginTop: 'auto', borderRadius: radius.lg }}>
+            <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>Set up your player</Text>
+            <Body muted>Your username lets friends find you and add you to their rounds.</Body>
+            <Field label="Your name" value={name} onChangeText={setName} placeholder="Mike" autoCapitalize="words" />
+            <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} />
+            <Field label="Handicap index (optional)" value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
+            <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
+            {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
+            <Button
+              title={busy ? 'Saving…' : 'Start playing'}
+              disabled={busy || !detailsOk}
+              onPress={() =>
+                run(async () => {
+                  const session = await ensureSession();
+                  await saveMyProfile(makeMe(session.user.id), username);
+                  done();
+                })
+              }
+            />
+            <Button title="Skip for now" kind="ghost" onPress={done} />
+          </Card>
+        )}
+
+        {(mode === 'signIn' || mode === 'signUp') && (
           <Card style={{ marginTop: 'auto', borderRadius: radius.lg }}>
             <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>{mode === 'signIn' ? 'Welcome back' : 'Create your account'}</Text>
             {mode === 'signUp' && (
               <>
                 <Field label="Your name" value={name} onChangeText={setName} placeholder="Mike" autoCapitalize="words" />
+                <UsernameField value={username} onChange={setUsername} onStatus={setUStatus} />
                 <Field label="Handicap index (optional)" value={index} onChangeText={setIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
                 <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
               </>
@@ -94,7 +143,7 @@ export default function Welcome() {
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
             <Button
               title={busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-              disabled={busy || !email.includes('@') || password.length < 6 || (mode === 'signUp' && (!name.trim() || (index.trim() !== '' && parsedIndex === null)))}
+              disabled={busy || !email.includes('@') || password.length < 6 || (mode === 'signUp' && !detailsOk)}
               onPress={() =>
                 run(async () => {
                   if (mode === 'signIn') {
@@ -102,13 +151,13 @@ export default function Welcome() {
                     await restoreMe();
                     return done();
                   }
+                  // A guest moving to a full account hands their username over to it.
+                  await releaseUsername().catch(() => undefined);
                   const { needsConfirmation, userId } = await signUp(email.trim(), password, name);
                   // Create "Me" right away (using my account id so it matches on every phone).
-                  const me = { id: userId ?? newId(), name: name.trim(), handicapIndex: parsedIndex ?? 0, gender };
-                  upsertPlayer(me);
-                  setMyPlayer(me.id);
+                  const me = makeMe(userId);
                   if (!needsConfirmation) {
-                    await saveMyProfile(me);
+                    await saveMyProfile(me, username);
                     return done();
                   }
                   setMessage({ text: 'Check your email and tap the confirmation link, then come back and sign in.' });

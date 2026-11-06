@@ -12,7 +12,7 @@ export function SyncProvider() {
     const st = useStore.getState();
     supabase.auth.getSession().then(({ data }) => {
       st.setMe(data.session?.user.id ?? null);
-      void restoreMe();
+      void restoreMe().catch(() => undefined);
       syncSubscriptions();
       void flush();
     });
@@ -20,7 +20,7 @@ export function SyncProvider() {
       useStore.getState().setMe(session?.user.id ?? null);
       if (event === 'SIGNED_OUT') resetSubscriptions();
       else {
-        if (event === 'SIGNED_IN') void restoreMe();
+        if (event === 'SIGNED_IN') void restoreMe().catch(() => undefined);
         syncSubscriptions();
       }
     });
