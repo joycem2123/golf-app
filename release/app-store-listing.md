@@ -50,8 +50,8 @@ golf,scorecard,match play,nassau,skins,scramble,ryder cup,handicap,golf games,le
 
 ## URLs
 - Support email: support@clutchupgolf.com
-- Support URL: https://clutchupgolf.com/support.html  (until the domain is connected: https://joycem2123.github.io/golf-app/support.html)
-- Privacy Policy URL: https://clutchupgolf.com/privacy.html  (until the domain is connected: https://joycem2123.github.io/golf-app/privacy.html)
+- Support URL: https://clutchupgolf.com/support.html
+- Privacy Policy URL: https://clutchupgolf.com/privacy.html
 - Marketing URL: https://clutchupgolf.com
 
 ## Category

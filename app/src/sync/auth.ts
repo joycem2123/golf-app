@@ -15,7 +15,7 @@ export async function ensureSession(): Promise<Session> {
 }
 
 /** Where confirmation links land: a page that says it worked and opens the app. */
-export const AUTH_LANDING = 'https://joycem2123.github.io/golf-app/confirmed.html';
+export const AUTH_LANDING = 'https://clutchupgolf.com/confirmed.html';
 
 export async function signUp(email: string, password: string, name: string) {
   const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: AUTH_LANDING } });

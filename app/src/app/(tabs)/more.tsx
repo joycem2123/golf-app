@@ -46,7 +46,7 @@ export default function More() {
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
           <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
-          <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://joycem2123.github.io/golf-app/privacy.html')} />
+          <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
         </Card>
         {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
         <Body muted style={{ textAlign: 'center' }}>Clutch Up · preview build</Body>
