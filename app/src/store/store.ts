@@ -193,6 +193,8 @@ interface State {
   /** Save a corrected course. `before` is the version rounds already played were using. */
   saveCourse: (course: Course, before: Course) => void;
   resetCourse: (id: string, before: Course) => void;
+  /** Remove a course I added (rounds already played keep their copy). */
+  deleteCourse: (id: string) => void;
   saveScheduled: (eventId: string, m: ScheduledMatch) => void;
   /** Link a started round to the event round it was planned as. */
   setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
@@ -337,6 +339,11 @@ export const useStore = create<State>()(
         set((s) => ({
           courseEdits: { ...s.courseEdits, [course.id]: course },
           rounds: s.rounds.map((r) => (r.courseId === course.id && !r.course ? { ...r, course: before } : r)),
+        })),
+      deleteCourse: (id) =>
+        set((s) => ({
+          rounds: s.rounds.map((r) => (r.courseId === id && !r.course && s.courseEdits?.[id] ? { ...r, course: s.courseEdits[id] } : r)),
+          courseEdits: Object.fromEntries(Object.entries(s.courseEdits ?? {}).filter(([k]) => k !== id)),
         })),
       resetCourse: (id, before) =>
         set((s) => ({

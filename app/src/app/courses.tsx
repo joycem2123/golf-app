@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Body, Card } from '@/components/ui';
+import { Body, Button, Card } from '@/components/ui';
 import { useCourses } from '@/lib/courses';
 import { useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
@@ -13,6 +13,7 @@ export default function Courses() {
   const edits = useStore((s) => s.courseEdits);
   return (
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
+      <Button title="+ Add a course" onPress={() => router.push('/course/new')} />
       <Body muted>Check each course against its scorecard. Changes apply to new rounds; rounds already played keep the numbers they were played with.</Body>
       <Card style={{ paddingVertical: 0 }}>
         {courses.map((co, i) => {
@@ -40,7 +41,6 @@ export default function Courses() {
           );
         })}
       </Card>
-      <Body muted style={{ textAlign: 'center' }}>More courses are coming once a course database is connected.</Body>
     </ScrollView>
   );
 }

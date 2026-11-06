@@ -43,6 +43,7 @@ export default function RootLayout() {
         <Stack.Screen name="courses" options={{ title: "Courses" }} />
         <Stack.Screen name="account" options={{ title: "Account information" }} />
         <Stack.Screen name="course/[id]" options={{ title: "Course" }} />
+        <Stack.Screen name="course/new" options={{ title: "Add a course", presentation: "modal" }} />
       </Stack>
       <SyncProvider />
     </ThemeProvider>

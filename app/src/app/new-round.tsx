@@ -1,4 +1,4 @@
-import { courseHandicap, searchCourses, type Course, type Player, type Tee } from '@golf/engine';
+import { courseHandicap, searchCourses, validateCourse, type Course, type Player, type Tee } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -216,9 +216,12 @@ export default function NewRound() {
       {step === 'course' && (
         <>
           <Field label="Search courses" value={query} onChangeText={setQuery} placeholder="Course name or city" />
-          {searchCourses(query, courses).map((co) => (
+          {searchCourses(query, courses).map((co) => {
+            const unfinished = validateCourse(co).length > 0;
+            return (
             <Pressable
               key={co.id}
+              disabled={unfinished}
               onPress={() => {
                 setCourse(co);
                 // Start with me in the group (if I'm part of this event, or it's a regular round).
@@ -229,13 +232,15 @@ export default function NewRound() {
                 setDraft(null);
                 setStep('players');
               }}>
-              <Card style={course?.id === co.id ? { borderColor: c.primary, borderWidth: 2 } : undefined}>
+              <Card style={{ ...(course?.id === co.id ? { borderColor: c.primary, borderWidth: 2 } : {}), opacity: unfinished ? 0.55 : 1 }}>
                 <H2>{co.name}</H2>
-                <Body muted>{[co.city, co.region].filter(Boolean).join(', ')} · Par {co.tees[0].par} · {co.tees.length} tees</Body>
+                <Body muted>{[co.city, co.region].filter(Boolean).join(', ')} · Par {co.tees[0]?.par ?? '–'} · {co.tees.length} tees</Body>
+                {unfinished && <Body style={{ color: c.danger, fontSize: 13 }}>Finish setting this course up in More → Courses.</Body>}
               </Card>
             </Pressable>
-          ))}
-          <Body muted>More courses are coming. Only these three are loaded for now.</Body>
+            );
+          })}
+          <Button small kind="ghost" title="Course not listed? Add it in More → Courses" onPress={() => router.push('/course/new')} />
         </>
       )}
 

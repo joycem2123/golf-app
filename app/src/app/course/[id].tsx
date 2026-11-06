@@ -5,7 +5,7 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 
 import { Sheet } from '@/components/round-setup';
 import { Body, Button, Card, Field, H2, Label, Segmented } from '@/components/ui';
-import { getCourse, originalCourse } from '@/lib/courses';
+import { getCourse, isAddedCourse, originalCourse } from '@/lib/courses';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -37,10 +37,12 @@ function NumField({ value, onChange, decimal, width, label, bad }: { value: numb
 const clone = (co: Course): Course => JSON.parse(JSON.stringify(co));
 
 export default function CourseEditor() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, scanned, notes } = useLocalSearchParams<{ id: string; scanned?: string; notes?: string }>();
   const c = useColors();
   const saveCourse = useStore((s) => s.saveCourse);
   const resetCourse = useStore((s) => s.resetCourse);
+  const deleteCourse = useStore((s) => s.deleteCourse);
+  const added = isAddedCourse(id);
   const edited = useStore((s) => !!s.courseEdits?.[id]);
   const current = getCourse(id);
   const [draft, setDraft] = useState<Course | null>(() => (current ? clone(current) : null));
@@ -79,7 +81,9 @@ export default function CourseEditor() {
     );
 
   const original = originalCourse(id);
-  const isCustom = (t: Tee) => !original?.tees.some((o) => o.id === t.id);
+  // Tees added to a built-in course (shown as new); on a course I added, any tee but the last can go.
+  const isCustom = (t: Tee) => !isAddedCourse(id) && !original?.tees.some((o) => o.id === t.id);
+  const canRemove = (t: Tee) => isCustom(t) || (isAddedCourse(id) && draft.tees.length > 1);
   const nameTaken = tees.some((t) => t.name.trim().toLowerCase() === newName.trim().toLowerCase());
   const addProblem = !newName.trim()
     ? 'Give the tee a name'
@@ -187,8 +191,15 @@ export default function CourseEditor() {
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 80 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
         <View>
           <Text style={{ fontFamily: fonts.serif, fontSize: 22, fontWeight: '700', color: c.text }}>{draft.name}</Text>
-          <Text style={{ color: c.muted }}>{[draft.city, draft.region].filter(Boolean).join(', ')}{edited ? ' · edited' : ''}</Text>
+          <Text style={{ color: c.muted }}>{[draft.city, draft.region].filter(Boolean).join(', ')}{added ? ' · added by you' : edited ? ' · edited' : ''}</Text>
         </View>
+        {scanned && (
+          <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, gap: 4, borderLeftWidth: 3, borderLeftColor: c.accent }}>
+            <Text style={{ color: c.text, fontWeight: '700' }}>Read from your photo: {draft.tees.length} tee{draft.tees.length === 1 ? '' : 's'}</Text>
+            <Text style={{ color: c.text, fontSize: 14 }}>Check each tee against the card. Anything that couldn’t be read is outlined in red.</Text>
+            {notes ? <Text style={{ color: c.muted, fontSize: 13, fontStyle: 'italic' }}>{notes}</Text> : null}
+          </View>
+        )}
 
         {(
           <Segmented options={genders.map((g) => ({ value: g, label: g === 'M' ? 'Men’s tees' : 'Ladies’ tees' }))} value={gender} onChange={(g) => { setGender(g); setTeeId(null); }} />
@@ -222,7 +233,7 @@ export default function CourseEditor() {
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <H2>{tee.name} tees · {gender === 'M' ? 'Men' : 'Ladies'}</H2>
-            {isCustom(tee) && (
+            {canRemove(tee) && (
               <Pressable onPress={removeTee} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove the ${tee.name} tee`}>
                 <Text style={{ color: c.danger, fontWeight: '700' }}>Remove</Text>
               </Pressable>
@@ -268,7 +279,19 @@ export default function CourseEditor() {
         </>}
 
         <Button title={changed ? 'Save changes' : 'No changes yet'} disabled={!changed} onPress={save} />
-        {edited && <Button title="Reset to the original scorecard" kind="ghost" onPress={reset} />}
+        {edited && !added && <Button title="Reset to the original scorecard" kind="ghost" onPress={reset} />}
+        {added && (
+          <Button
+            title="Delete this course"
+            kind="ghost"
+            onPress={() =>
+              Alert.alert(`Delete ${draft.name}?`, 'Rounds already played there are kept.', [
+                { text: 'Cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => { deleteCourse(id); router.back(); } },
+              ])
+            }
+          />
+        )}
         <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>New rounds use your changes. Rounds already played keep the numbers they were played with.</Text>
       </ScrollView>
 

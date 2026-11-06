@@ -34,7 +34,14 @@
           "imageWidth": 170
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "RIVL uses the camera to scan golf scorecards.",
+          "photosPermission": "RIVL reads a scorecard photo you choose to fill in the course."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
