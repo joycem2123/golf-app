@@ -1,11 +1,14 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { Body, Button, Card, Field, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
 import { useStore } from '@/store/store';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { changeEmail, changePassword, useSession } from '@/sync/auth';
+import { deleteMyAccount } from '@/sync/safety';
+import { supabase } from '@/sync/supabase';
 import { radius, space, useColors } from '@/theme';
 
 function Message({ text, error }: { text: string; error?: boolean }) {
@@ -32,7 +35,39 @@ export default function Account() {
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
   const [pwMsg, setPwMsg] = useState<{ text: string; error?: boolean } | null>(null);
-  const [busy, setBusy] = useState<'email' | 'password' | null>(null);
+  const [busy, setBusy] = useState<'email' | 'password' | 'delete' | null>(null);
+  const [askDelete, setAskDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<{ id: string; name: string }[]>([]);
+  // People I've blocked, with their names.
+  useEffect(() => {
+    void (async () => {
+      const { data: rows } = await supabase.from('blocks').select('blocked');
+      const ids = (rows ?? []).map((r) => r.blocked as string);
+      if (!ids.length) return setBlocked([]);
+      const { data: ps } = await supabase.from('profiles').select('id, display_name, username').in('id', ids);
+      setBlocked(ids.map((id) => {
+        const pr = ps?.find((x) => x.id === id);
+        return { id, name: pr?.display_name ?? (pr?.username ? `@${pr.username}` : 'Someone') };
+      }));
+    })();
+  }, [session?.user?.id]);
+  const unblock = async (id: string) => {
+    await supabase.rpc('unblock_user', { target: id });
+    setBlocked((b) => b.filter((x) => x.id !== id));
+  };
+  const reallyDelete = async () => {
+    setAskDelete(false);
+    setBusy('delete');
+    setDeleteError(null);
+    try {
+      await deleteMyAccount();
+      router.replace('/welcome');
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+      setBusy(null);
+    }
+  };
 
   if (session === undefined) return null;
   if (!user || user.is_anonymous) {
@@ -119,6 +154,36 @@ export default function Account() {
         {pwMsg && <Message {...pwMsg} />}
         <Button title={busy === 'password' ? 'Saving…' : 'Change password'} disabled={!current || next.length < 8 || next !== again || busy !== null} onPress={savePassword} />
       </Card>
+
+      {blocked.length > 0 && (
+        <Card>
+          <H2>Blocked people</H2>
+          {blocked.map((b) => (
+            <View key={b.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: c.border }}>
+              <Text style={{ flex: 1, color: c.text, fontSize: 15 }}>{b.name}</Text>
+              <Button small kind="secondary" title="Unblock" onPress={() => unblock(b.id)} />
+            </View>
+          ))}
+        </Card>
+      )}
+
+      <Card>
+        <H2>Delete account</H2>
+        <Text style={{ color: c.muted, fontSize: 14 }}>
+          Permanently deletes your Clutch Up account: your profile, friends list, rounds and events you started, shared courses and requests. This can’t be undone.
+        </Text>
+        {deleteError ? <Message text={deleteError} error /> : null}
+        <Button title={busy === 'delete' ? 'Deleting…' : 'Delete my account'} kind="danger" disabled={busy !== null} onPress={() => setAskDelete(true)} />
+      </Card>
+      <ConfirmDialog
+        visible={askDelete}
+        title="Delete your account?"
+        message={`Everything tied to ${user.email ?? 'your account'} will be deleted for good. Friends keep their copies of rounds you played together.`}
+        cancelLabel="Keep my account"
+        confirmLabel="Delete forever"
+        onCancel={() => setAskDelete(false)}
+        onConfirm={reallyDelete}
+      />
     </ScrollView>
   );
 }

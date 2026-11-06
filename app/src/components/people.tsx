@@ -6,7 +6,8 @@ import { formatIndex } from '@/lib/format';
 import { useMe } from '@/lib/me';
 import { useStore, type SavedPlayer } from '@/store/store';
 import { ensureSession, saveMyProfile } from '@/sync/auth';
-import { cancelRequest, removeFriend, respondToRequest, useFriendRequests } from '@/sync/friends';
+import { cancelRequest, respondToRequest, useFriendRequests } from '@/sync/friends';
+import { FriendActions } from './friend-actions';
 import { UsernameField, type UsernameStatus } from './username-field';
 import { fonts, radius, space, useColors } from '@/theme';
 import { PlayerForm, splitName } from './player-form';
@@ -135,10 +136,12 @@ export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
   const upsert = useStore((s) => s.upsertPlayer);
   const remove = useStore((s) => s.removePlayer);
   const [editing, setEditing] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<string | null>(null);
+  // Remove / report / block menu for a friend.
+  const [actions, setActions] = useState<SavedPlayer | null>(null);
 
   return (
     <View style={{ gap: space.sm }}>
+      <FriendActions p={actions} onClose={() => setActions(null)} />
       <Card style={{ paddingVertical: friends.length ? space.sm : space.lg }}>
         {friends.length === 0 && <Body muted>No friends yet. Add the people you play with.</Body>}
         {friends.map((p, i) =>
@@ -156,18 +159,11 @@ export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
                     <Text style={{ color: c.muted, fontSize: 12 }}>{p.username ? `@${p.username}` : 'Not on Clutch Up'}</Text>
                   </View>
                   <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>{formatIndex(p.handicapIndex)}</Text>
-                  {!onPick &&
-                    (confirming === p.id ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ color: c.danger, fontWeight: '700', fontSize: 13 }}>Remove?</Text>
-                        <Button small kind="danger" title="Yes" onPress={() => { setConfirming(null); void removeFriend(p); }} />
-                        <Button small kind="ghost" title="No" onPress={() => setConfirming(null)} />
-                      </View>
-                    ) : (
-                      <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`} onPress={() => setConfirming(p.id)}>
-                        <Text style={{ color: c.muted, fontSize: 18, paddingHorizontal: 4 }}>×</Text>
-                      </Pressable>
-                    ))}
+                  {!onPick && (
+                    <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel={`Options for ${p.name}`} onPress={() => setActions(p)}>
+                      <Text style={{ color: c.muted, fontSize: 20, fontWeight: '700', paddingHorizontal: 4 }}>⋯</Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
             </Pressable>

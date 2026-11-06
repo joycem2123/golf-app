@@ -103,3 +103,12 @@ export async function claimLegacy() {
 export async function dismissLegacy() {
   useStore.getState().setLegacyDismissed(true);
 }
+
+/** Remove everything this phone saved for an account (after the account is deleted). */
+export async function forgetAccount(key: string) {
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch {
+    /* nothing saved */
+  }
+}
