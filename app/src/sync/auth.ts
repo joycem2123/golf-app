@@ -46,7 +46,7 @@ export async function saveMyProfile(p: SavedPlayer, username = useStore.getState
   const { data } = await supabase.auth.getSession();
   const user = data.session?.user;
   if (!user) return;
-  const { error } = await supabase
+  const { data: saved, error } = await supabase
     .from('profiles')
     .upsert({
       id: user.id,
@@ -56,13 +56,21 @@ export async function saveMyProfile(p: SavedPlayer, username = useStore.getState
       handicap_index: p.handicapIndex,
       gender: p.gender,
       ...(username ? { username } : {}),
-    });
+    })
+    .select('handicap_updated_at')
+    .maybeSingle();
   if (error) {
     if (error.code === '23505') throw new Error(`@${username} is already taken. Try another.`);
     throw new Error(error.message);
   }
   useStore.getState().setName(user.id, p.name);
   if (username) useStore.getState().setMyUsername(username);
+  // A changed index answers any friend who asked me to update it.
+  if (saved?.handicap_updated_at) {
+    const before = useStore.getState().myHandicapUpdatedAt;
+    useStore.getState().setMyHandicapUpdatedAt(saved.handicap_updated_at);
+    if (before && before !== saved.handicap_updated_at) void import('./nudges').then((m) => m.answerNudges());
+  }
 }
 
 /** Free my username (used when a guest moves to a full account). */
@@ -80,7 +88,8 @@ export async function restoreMe() {
   if (!user) return;
   await claimIdentity();
   const local = useStore.getState().players.find((p) => p.id === useStore.getState().myPlayerId);
-  const { data: profile } = await supabase.from('profiles').select('display_name, first_name, last_name, handicap_index, gender, username').eq('id', user.id).maybeSingle();
+  const { data: profile } = await supabase.from('profiles').select('display_name, first_name, last_name, handicap_index, gender, username, handicap_updated_at').eq('id', user.id).maybeSingle();
+  if (profile?.handicap_updated_at) st.setMyHandicapUpdatedAt(profile.handicap_updated_at);
   if (profile?.username) st.setMyUsername(profile.username);
   if (local) {
     await saveMyProfile(local).catch(() => undefined);

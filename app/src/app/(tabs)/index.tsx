@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameSections } from '@/components/game-sections';
 import { LegacyClaimCard } from '@/components/legacy-claim';
 import { canDeleteRound, SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
+import { HandicapReminder } from '@/components/handicap-reminder';
 import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { gameName } from '@/lib/games';
@@ -102,6 +103,7 @@ export default function Home() {
 
       <View style={{ padding: space.lg, gap: space.lg }}>
         <LegacyClaimCard />
+        <HandicapReminder />
         {requestCount > 0 && (
           <Pressable onPress={() => router.push('/friends')}>
             <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent, flexDirection: 'row', alignItems: 'center' }}>

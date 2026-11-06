@@ -31,7 +31,8 @@ export interface FriendRequest {
 /** Pending requests to and from me (not saved on the phone; always fresh from the server). */
 export const useFriendRequests = create<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>(() => ({ incoming: [], outgoing: [] }));
 
-const toPlayer = (p: { id: string; username: string | null; display_name: string | null; handicap_index: number | null; gender: 'M' | 'F' | null }, pending = false): SavedPlayer => ({
+const toPlayer = (p: { id: string; username: string | null; display_name: string | null; handicap_index: number | null; gender: 'M' | 'F' | null; handicap_updated_at?: string | null }, pending = false): SavedPlayer => ({
+  handicapUpdatedAt: p.handicap_updated_at ?? undefined,
   id: p.id,
   userId: p.id,
   username: p.username ?? undefined,
@@ -111,7 +112,7 @@ export async function pullFriends() {
 
   const want = [...accepted, ...outgoing];
   if (!want.length) return;
-  const { data: profiles } = await supabase.from('profiles').select('id, username, display_name, handicap_index, gender').in('id', want);
+  const { data: profiles } = await supabase.from('profiles').select('id, username, display_name, handicap_index, gender, handicap_updated_at').in('id', want);
   for (const p of (profiles ?? []) as ProfileHit[]) useStore.getState().upsertPlayer(toPlayer(p, !accepted.has(p.id)));
 }
 

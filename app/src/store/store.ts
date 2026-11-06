@@ -32,6 +32,8 @@ export interface SavedPlayer {
   username?: string;
   /** I sent them a friend request that they haven't accepted yet. */
   pending?: boolean;
+  /** When they last updated (or confirmed) their handicap index on RIVL (ISO time). */
+  handicapUpdatedAt?: string;
 }
 
 export interface RoundRecord {
@@ -201,6 +203,12 @@ interface State {
   /** Who I've shared each of my courses with (account ids). */
   courseShares: Record<string, string[]>;
   setCourseShares: (id: string, userIds: string[]) => void;
+  /** When I last updated or confirmed my own handicap index (ISO time). */
+  myHandicapUpdatedAt: string | null;
+  setMyHandicapUpdatedAt: (at: string | null) => void;
+  /** Friends asking me to update my handicap (not answered yet). */
+  nudges: { id: string; from: string; fromName?: string; at: string }[];
+  setNudges: (n: { id: string; from: string; fromName?: string; at: string }[]) => void;
   saveScheduled: (eventId: string, m: ScheduledMatch) => void;
   /** Link a started round to the event round it was planned as. */
   setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
@@ -291,6 +299,8 @@ export const EMPTY_DATA = {
   courseEdits: {} as Record<string, Course>,
   sharedCourses: {} as Record<string, { course: Course; from: string; fromName?: string }>,
   courseShares: {} as Record<string, string[]>,
+  myHandicapUpdatedAt: null as string | null,
+  nudges: [] as { id: string; from: string; fromName?: string; at: string }[],
 };
 
 const mapRound = (rounds: RoundRecord[], id: string, fn: (r: RoundRecord) => RoundRecord) =>
@@ -345,6 +355,10 @@ export const useStore = create<State>()(
       sharedCourses: {},
       setSharedCourses: (sharedCourses) => set({ sharedCourses }),
       courseShares: {},
+      myHandicapUpdatedAt: null,
+      setMyHandicapUpdatedAt: (myHandicapUpdatedAt) => set({ myHandicapUpdatedAt }),
+      nudges: [],
+      setNudges: (nudges) => set({ nudges }),
       setCourseShares: (id, userIds) => set((s) => ({ courseShares: { ...s.courseShares, [id]: userIds } })),
       // Rounds already played keep the course they were played on.
       saveCourse: (course, before) =>

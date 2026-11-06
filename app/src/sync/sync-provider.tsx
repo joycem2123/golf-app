@@ -8,6 +8,7 @@ import { useStore } from '@/store/store';
 import { restoreMe } from './auth';
 import { pullFriends, watchFriends } from './friends';
 import { supabase } from './supabase';
+import { pullNudges, registerPush, watchNudges } from './nudges';
 import { flush, pullMine, resetSubscriptions, shareWithPlayers, syncSubscriptions, watchMine } from './sync';
 
 /** Load the signed-in account's own data (or the phone's guest data), then start syncing it. */
@@ -26,6 +27,8 @@ async function loadAccountFor(session: Session | null) {
   autoLinkMyRounds();
   watchFriends(user?.id ?? null);
   watchMine(user?.id ?? null);
+  watchNudges(user && !user.is_anonymous ? user.id : null);
+  if (user && !user.is_anonymous) void registerPush();
   syncSubscriptions();
   void flush();
   void shareWithPlayers();
@@ -59,6 +62,7 @@ export function SyncProvider() {
       if (state === 'active') {
         void pullFriends().catch(() => undefined);
         void pullMine();
+        void pullNudges();
         resetSubscriptions();
         syncSubscriptions();
         void flush();

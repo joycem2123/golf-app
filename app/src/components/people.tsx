@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 
@@ -28,7 +28,9 @@ export function MeCard() {
   const players = useStore((s) => s.players);
   const upsert = useStore((s) => s.upsertPlayer);
   const setMyPlayer = useStore((s) => s.setMyPlayer);
-  const [editing, setEditing] = useState(false);
+  // Opened from a handicap reminder: go straight to editing.
+  const { edit: editParam } = useLocalSearchParams<{ edit?: string }>();
+  const [editing, setEditing] = useState(editParam === '1');
   const myUsername = useStore((s) => s.myUsername);
   const [username, setUsername] = useState('');
   const [uStatus, setUStatus] = useState<UsernameStatus>('empty');

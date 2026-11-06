@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
 import { GamePicker, GameRulesButton, PlayerPicker, StepPills } from '@/components/round-setup';
+import { HandicapCheck } from '@/components/handicap-check';
 import { TeamsStep } from '@/components/teams-step';
 import { usePickBus } from '@/store/pick';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
@@ -278,6 +279,7 @@ export default function NewRound() {
             </View>
           )}
           {event?.lockHandicaps ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Handicaps are locked for {event.name}.</Label> : null}
+          {!event?.lockHandicaps && <HandicapCheck players={roster.map((r) => saved.find((p) => p.id === r.id)).filter((p): p is SavedPlayer => !!p)} />}
 
 
           {roster.map((r) => {

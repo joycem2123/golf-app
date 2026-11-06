@@ -41,6 +41,12 @@
           "cameraPermission": "RIVL uses the camera to scan golf scorecards.",
           "photosPermission": "RIVL reads a scorecard photo you choose to fill in the course."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#14352A"
+        }
       ]
     ],
     "experiments": {
