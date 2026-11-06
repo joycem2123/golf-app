@@ -82,16 +82,6 @@ export default function Results() {
           router.replace(`/round/${r.id}`);
         }}
       />
-      <Button
-        title="Delete round"
-        kind="ghost"
-        onPress={() =>
-          Alert.alert('Delete this round?', 'This cannot be undone.', [
-            { text: 'Cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => { router.dismissTo('/'); del(r.id); } },
-          ])
-        }
-      />
     </ScrollView>
   );
 }

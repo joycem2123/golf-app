@@ -4,9 +4,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Pressable as GHPressable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EventCard, RoundCard } from '@/components/cards';
+import { GameSections } from '@/components/game-sections';
 import { LegacyClaimCard } from '@/components/legacy-claim';
-import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
+import { canDeleteRound, SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
 import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { gameName } from '@/lib/games';
@@ -50,7 +50,6 @@ export default function Home() {
   const me = useStore((s) => s.me);
   const names = useStore((s) => s.names);
   const active = rounds.filter((r) => r.status === 'active');
-  const recent = rounds.filter((r) => r.status === 'complete').slice(0, 3);
   const live = active[0];
   const liveResult = live ? evaluate(live)[0] : undefined;
   const liveHead = live && liveResult && isResult(liveResult) ? headline(liveResult, live.players) : null;
@@ -80,7 +79,7 @@ export default function Home() {
       {/* Live round, overlapping the banner */}
       {live && (
         <View style={{ marginHorizontal: space.lg, marginTop: -56 }}>
-        <SwipeToDelete label="round" onDelete={() => deleteRound(live.id)}>
+        <SwipeToDelete label="round" onDelete={() => deleteRound(live.id)} disabled={!canDeleteRound(live)}>
         <GHPressable onPress={() => router.push(`/round/${live.id}`)}>
           <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
             <View style={{ height: 3, backgroundColor: c.accent }} />
@@ -120,41 +119,7 @@ export default function Home() {
           <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
         </View>
 
-        {events.length > 0 && (
-          <View style={{ gap: space.sm }}>
-            <Label>Events</Label>
-            {events.map((e) => (
-              <SwipeToDelete key={e.id} label={`event ${e.name}`} onDelete={() => deleteEvent(e.id)}>
-                <EventCard e={e} rounds={rounds} />
-              </SwipeToDelete>
-            ))}
-          </View>
-        )}
-
-        {active.length > 1 && (
-          <View style={{ gap: space.sm }}>
-            <Label>Also in progress</Label>
-            {active.slice(1).map((r) => (
-              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
-                <RoundCard r={r} />
-              </SwipeToDelete>
-            ))}
-          </View>
-        )}
-
-        {recent.length > 0 && (
-          <View style={{ gap: space.sm }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Label>Recent results</Label>
-              <Pressable onPress={() => router.push('/scores')}><Label style={{ color: c.primary }}>See all ›</Label></Pressable>
-            </View>
-            {recent.map((r) => (
-              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
-                <RoundCard r={r} />
-              </SwipeToDelete>
-            ))}
-          </View>
-        )}
+        <GameSections skipRoundId={live?.id} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} />
 
         {rounds.length === 0 && events.length === 0 && (
           <Card>

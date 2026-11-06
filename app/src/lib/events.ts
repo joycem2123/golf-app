@@ -107,3 +107,24 @@ export function formatPoints(n: number): string {
   const whole = Math.floor(n);
   return n - whole === 0.5 ? (whole === 0 ? '½' : `${whole}½`) : String(n);
 }
+
+export type EventPhase = 'live' | 'upcoming' | 'completed';
+
+/**
+ * live: a round in the event is being played.
+ * upcoming: nothing started yet, or scheduled matches still to play.
+ * completed: it has finished rounds and nothing left to play.
+ */
+export function eventPhase(e: EventRecord, rounds: RoundRecord[]): EventPhase {
+  const mine = rounds.filter((r) => r.eventId === e.id);
+  if (mine.some((r) => r.status === 'active')) return 'live';
+  if (e.status === 'complete') return 'completed';
+  const unplayed = (e.schedule ?? []).some((m) => !m.roundId || !mine.some((r) => r.id === m.roundId));
+  if (mine.length === 0 || unplayed) return 'upcoming';
+  return 'completed';
+}
+
+/** Events can only be deleted before any of their rounds are finished. */
+export function canDeleteEvent(e: EventRecord, rounds: RoundRecord[]): boolean {
+  return !rounds.some((r) => r.eventId === e.id && (r.status === 'complete' || r.completedAt));
+}

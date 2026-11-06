@@ -10,10 +10,15 @@ import { supabase } from '@/sync/supabase';
 import { fonts, radius, space, useColors } from '@/theme';
 import { courseFor, shortCourseName } from '@/lib/round';
 import { gameName } from '@/lib/games';
+import { canDeleteEvent } from '@/lib/events';
+
+/** Only rounds that have never been finished can be deleted. */
+export const canDeleteRound = (r: RoundRecord) => r.status !== 'complete' && !r.completedAt;
 
 /** Swipe a card left to reveal a trash can. */
-export function SwipeToDelete({ children, onDelete, label }: { children: ReactNode; onDelete: () => void; label: string }) {
+export function SwipeToDelete({ children, onDelete, label, disabled }: { children: ReactNode; onDelete: () => void; label: string; disabled?: boolean }) {
   const c = useColors();
+  if (disabled) return <>{children}</>;
   return (
     <Swipeable
       friction={2}
@@ -96,7 +101,8 @@ export function useDeleteWithUndo() {
   /** Ask "Are you sure?" first. */
   const deleteRound = (id: string) => {
     const r = useStore.getState().rounds.find((x) => x.id === id);
-    if (!r) return;
+    // Finished rounds are part of everyone's history and can't be deleted.
+    if (!r || !canDeleteRound(r)) return;
     let where = '';
     try { where = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
     const date = new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -104,7 +110,7 @@ export function useDeleteWithUndo() {
   };
   const deleteEvent = (id: string) => {
     const e = useStore.getState().events.find((x) => x.id === id);
-    if (!e) return;
+    if (!e || !canDeleteEvent(e, useStore.getState().rounds)) return;
     setAsk({ kind: 'event', id, title: e.name, detail: 'Its rounds are kept.' });
   };
 

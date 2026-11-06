@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
 import { Body, Card, H2, Label, styles } from '@/components/ui';
-import { cupScore, eventStandings, formatPoints } from '@/lib/events';
+import { cupScore, eventPhase, eventStandings, formatPoints } from '@/lib/events';
 import { gameName } from '@/lib/games';
 import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
@@ -25,7 +25,9 @@ export function EventCard({ e, rounds }: { e: EventRecord; rounds: RoundRecord[]
     );
   } else {
     const top = eventStandings(e, rounds)[0];
-    line = <Body bold>{top && top.played ? `${name(top.playerId)} leads with ${formatPoints(top.points)} pts` : `${e.playerIds.length} players`}</Body>;
+    const done = eventPhase(e, rounds) === 'completed';
+    const pts = top ? `${formatPoints(top.points)} pt${top.points === 1 ? '' : 's'}` : '';
+    line = <Body bold>{top && top.played ? `${name(top.playerId)} ${done ? 'won' : 'leads'} with ${pts}` : `${e.playerIds.length} players`}</Body>;
   }
   return (
     <Pressable onPress={() => router.push(`/event/${e.id}`)}>

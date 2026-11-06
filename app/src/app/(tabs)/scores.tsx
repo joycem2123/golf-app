@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { RoundCard } from '@/components/cards';
-import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
+import { GameSections } from '@/components/game-sections';
+import { useDeleteWithUndo } from '@/components/swipe-to-delete';
 import { HeadToHeadView } from '@/components/head-to-head-view';
 import { TabHeader } from '@/components/tab-header';
 import { MeBadge, StatTiles } from '@/components/people';
@@ -104,7 +105,8 @@ export default function Scores() {
   const c = useColors();
   const rounds = useStore((s) => s.rounds);
   const [section, setSection] = useState<Section>('rounds');
-  const { deleteRound, bar } = useDeleteWithUndo();
+  const { deleteRound, deleteEvent, bar } = useDeleteWithUndo();
+  const events = useStore((s) => s.events);
   const active = rounds.filter((r) => r.status === 'active');
   const done = rounds.filter((r) => r.status === 'complete');
 
@@ -113,26 +115,14 @@ export default function Scores() {
       <TabHeader title="Scores" sub="Live rounds, results and records" />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Segmented
-          options={[{ value: 'rounds', label: 'Rounds' }, { value: 'history', label: 'Stats' }, { value: 'h2h', label: 'Head to Head' }]}
+          options={[{ value: 'rounds', label: 'Games' }, { value: 'history', label: 'Stats' }, { value: 'h2h', label: 'Head to Head' }]}
           value={section}
           onChange={setSection}
         />
         {section === 'rounds' && (
           <>
-            {active.length > 0 && <Label>In progress</Label>}
-            {active.map((r) => (
-              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
-                <RoundCard r={r} />
-              </SwipeToDelete>
-            ))}
-            {done.length > 0 && <Label>Completed</Label>}
-            {done.map((r) => (
-              <SwipeToDelete key={r.id} label="round" onDelete={() => deleteRound(r.id)}>
-                <RoundCard r={r} />
-              </SwipeToDelete>
-            ))}
-            {rounds.length > 0 && <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Swipe a round left to delete it.</Text>}
-            {rounds.length === 0 && <Body muted>No rounds yet. Start one from Home.</Body>}
+            <GameSections onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} />
+            {rounds.length === 0 && events.length === 0 && <Body muted>No rounds or events yet. Start one from Home.</Body>}
           </>
         )}
         {section === 'history' && <History />}

@@ -6,7 +6,7 @@ import { IdentityCard } from '@/components/people';
 import { ShareCard } from '@/components/share-card';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { shareEvent } from '@/sync/sync';
-import { cupScore, eventMatches, eventStandings, formatPoints, type EventMatch } from '@/lib/events';
+import { canDeleteEvent, cupScore, eventMatches, eventStandings, formatPoints, type EventMatch } from '@/lib/events';
 import { formatIndex } from '@/lib/format';
 import { courseFor, shortCourseName } from '@/lib/round';
 import { useEvent, useStore, type EventRecord } from '@/store/store';
@@ -156,7 +156,7 @@ export default function EventScreen() {
         )}
 
         <Button title="Head-to-head records" kind="secondary" onPress={() => router.push('/head-to-head')} />
-        <Button
+        {canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' && <Button
           title="Delete event"
           kind="ghost"
           onPress={() =>
@@ -165,7 +165,7 @@ export default function EventScreen() {
               { text: 'Delete', style: 'destructive', onPress: () => { router.dismissTo('/'); deleteEvent(e.id); } },
             ])
           }
-        />
+        />}
       </ScrollView>
     </>
   );
