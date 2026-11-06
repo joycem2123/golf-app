@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Sheet } from '@/components/round-setup';
+import { ShareCourseSheet } from '@/components/share-course';
+import { resendSharedCourse } from '@/sync/courses';
+import { useSession } from '@/sync/auth';
 import { Body, Button, Card, Field, H2, Label, Segmented } from '@/components/ui';
 import { getCourse, isAddedCourse, originalCourse } from '@/lib/courses';
 import { useStore } from '@/store/store';
@@ -36,6 +39,9 @@ function NumField({ value, onChange, decimal, width, label, bad }: { value: numb
 
 const clone = (co: Course): Course => JSON.parse(JSON.stringify(co));
 
+/** Shared empty list (a new [] in a store selector would redraw forever). */
+const NONE: string[] = [];
+
 export default function CourseEditor() {
   const { id, scanned, notes } = useLocalSearchParams<{ id: string; scanned?: string; notes?: string }>();
   const c = useColors();
@@ -43,6 +49,12 @@ export default function CourseEditor() {
   const resetCourse = useStore((s) => s.resetCourse);
   const deleteCourse = useStore((s) => s.deleteCourse);
   const added = isAddedCourse(id);
+  const sharedWithMe = useStore((s) => s.sharedCourses?.[id]);
+  const sharedTo = useStore((s) => s.courseShares?.[id] ?? NONE);
+  const myCopy = useStore((s) => !!s.courseEdits?.[id]);
+  const session = useSession();
+  const canShare = !!session?.user && !session.user.is_anonymous;
+  const [sharing, setSharing] = useState(false);
   const edited = useStore((s) => !!s.courseEdits?.[id]);
   const current = getCourse(id);
   const [draft, setDraft] = useState<Course | null>(() => (current ? clone(current) : null));
@@ -120,6 +132,7 @@ export default function CourseEditor() {
   const save = () => {
     if (problems.length) return Alert.alert('Check the scorecard', problems.slice(0, 4).map((p) => p.replace(/stroke indexes must be [^(]*\(got[^)]*\)/, 'hole handicaps must use each number once')).join('\n'));
     saveCourse(draft, current);
+    void resendSharedCourse(draft); // friends I've shared it with get the new version
     router.back();
   };
   const reset = () =>
@@ -191,8 +204,14 @@ export default function CourseEditor() {
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 80 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
         <View>
           <Text style={{ fontFamily: fonts.serif, fontSize: 22, fontWeight: '700', color: c.text }}>{draft.name}</Text>
-          <Text style={{ color: c.muted }}>{[draft.city, draft.region].filter(Boolean).join(', ')}{added ? ' · added by you' : edited ? ' · edited' : ''}</Text>
+          <Text style={{ color: c.muted }}>
+            {[draft.city, draft.region].filter(Boolean).join(', ')}
+            {sharedWithMe && !myCopy ? ` · shared by ${sharedWithMe.fromName ?? 'a friend'}` : added ? ' · added by you' : edited ? ' · edited' : ''}
+          </Text>
         </View>
+        {sharedWithMe && !myCopy && (
+          <Text style={{ color: c.muted, fontSize: 13 }}>Changes you save here are just for you.</Text>
+        )}
         {scanned && (
           <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, gap: 4, borderLeftWidth: 3, borderLeftColor: c.accent }}>
             <Text style={{ color: c.text, fontWeight: '700' }}>Read from your photo: {draft.tees.length} tee{draft.tees.length === 1 ? '' : 's'}</Text>
@@ -279,6 +298,13 @@ export default function CourseEditor() {
         </>}
 
         <Button title={changed ? 'Save changes' : 'No changes yet'} disabled={!changed} onPress={save} />
+        {canShare && (added || edited) && !(sharedWithMe && !myCopy) && (
+          <Button
+            title={sharedTo.length ? `Shared with ${sharedTo.length} friend${sharedTo.length === 1 ? '' : 's'} · change` : 'Share course with friends'}
+            kind="secondary"
+            onPress={() => setSharing(true)}
+          />
+        )}
         {edited && !added && <Button title="Reset to the original scorecard" kind="ghost" onPress={reset} />}
         {added && (
           <Button
@@ -294,6 +320,8 @@ export default function CourseEditor() {
         )}
         <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>New rounds use your changes. Rounds already played keep the numbers they were played with.</Text>
       </ScrollView>
+
+      <ShareCourseSheet course={current} visible={sharing} onClose={() => setSharing(false)} />
 
       <Sheet visible={adding} onClose={() => setAdding(false)} title={`New ${gender === 'M' ? 'men’s' : 'ladies’'} tee`}>
         <View style={{ gap: space.md }}>

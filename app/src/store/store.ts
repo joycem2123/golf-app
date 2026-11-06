@@ -195,6 +195,12 @@ interface State {
   resetCourse: (id: string, before: Course) => void;
   /** Remove a course I added (rounds already played keep their copy). */
   deleteCourse: (id: string) => void;
+  /** Courses friends shared with me, by course id. */
+  sharedCourses: Record<string, { course: Course; from: string; fromName?: string }>;
+  setSharedCourses: (c: Record<string, { course: Course; from: string; fromName?: string }>) => void;
+  /** Who I've shared each of my courses with (account ids). */
+  courseShares: Record<string, string[]>;
+  setCourseShares: (id: string, userIds: string[]) => void;
   saveScheduled: (eventId: string, m: ScheduledMatch) => void;
   /** Link a started round to the event round it was planned as. */
   setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
@@ -283,6 +289,8 @@ export const EMPTY_DATA = {
   dirtyEvents: [] as string[],
   deleted: {} as Record<string, Tombstone>,
   courseEdits: {} as Record<string, Course>,
+  sharedCourses: {} as Record<string, { course: Course; from: string; fromName?: string }>,
+  courseShares: {} as Record<string, string[]>,
 };
 
 const mapRound = (rounds: RoundRecord[], id: string, fn: (r: RoundRecord) => RoundRecord) =>
@@ -334,6 +342,10 @@ export const useStore = create<State>()(
       dirtyEvents: [],
       deleted: {},
       courseEdits: {},
+      sharedCourses: {},
+      setSharedCourses: (sharedCourses) => set({ sharedCourses }),
+      courseShares: {},
+      setCourseShares: (id, userIds) => set((s) => ({ courseShares: { ...s.courseShares, [id]: userIds } })),
       // Rounds already played keep the course they were played on.
       saveCourse: (course, before) =>
         set((s) => ({

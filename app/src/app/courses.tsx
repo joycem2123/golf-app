@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Body, Button, Card } from '@/components/ui';
-import { useCourses } from '@/lib/courses';
+import { isAddedCourse, useCourses } from '@/lib/courses';
 import { useStore } from '@/store/store';
+import { pullSharedCourses } from '@/sync/courses';
 import { radius, space, useColors } from '@/theme';
 
 /** Every course in the app; tap one to correct its ratings, slopes, pars and hole handicaps. */
@@ -11,6 +13,8 @@ export default function Courses() {
   const c = useColors();
   const courses = useCourses();
   const edits = useStore((s) => s.courseEdits);
+  const shared = useStore((s) => s.sharedCourses);
+  useEffect(() => { void pullSharedCourses(); }, []);
   return (
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
       <Button title="+ Add a course" onPress={() => router.push('/course/new')} />
@@ -29,7 +33,17 @@ export default function Courses() {
                       {[co.city, co.region].filter(Boolean).join(', ')} · {men} men’s tee{men === 1 ? '' : 's'} · {ladies} ladies’ tee{ladies === 1 ? '' : 's'}
                     </Text>
                   </View>
-                  {edits?.[co.id] && (
+                  {shared?.[co.id] && !edits?.[co.id] && (
+                    <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm, backgroundColor: c.primary }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>FROM {(shared[co.id].fromName ?? 'FRIEND').split(' ')[0].toUpperCase()}</Text>
+                    </View>
+                  )}
+                  {edits?.[co.id] && isAddedCourse(co.id) && (
+                    <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm, backgroundColor: c.brand }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>ADDED</Text>
+                    </View>
+                  )}
+                  {edits?.[co.id] && !isAddedCourse(co.id) && (
                     <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm, backgroundColor: c.accent }}>
                       <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>EDITED</Text>
                     </View>

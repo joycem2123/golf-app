@@ -11,6 +11,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { evaluate, isResult, recordedMatches } from '@/lib/round';
 import { UNDO_WINDOW_MS, useStore, type EventRecord, type Remote, type RoundRecord } from '@/store/store';
 import { ensureSession } from './auth';
+import { pullSharedCourses } from './courses';
 import { supabase } from './supabase';
 
 // ------------------------------------------------------------------ documents
@@ -240,6 +241,7 @@ export async function shareWithPlayers() {
 
 /** Bring in every round and event I've been added to (and drop ones that were deleted). */
 export async function pullMine() {
+  void pullSharedCourses();
   const { data } = await supabase.auth.getSession();
   const uid = data.session?.user.id;
   if (!uid) return;
