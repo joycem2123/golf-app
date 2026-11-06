@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
+import { autoLinkMyRounds } from '@/lib/me';
 import { accountKey, checkLegacy, getAccountKey, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
 import { restoreMe } from './auth';
@@ -22,6 +23,7 @@ async function loadAccountFor(session: Session | null) {
   // Signed in with a real account: go straight to the app.
   if (user && !user.is_anonymous && !st.onboarded) st.setOnboarded(true);
   if (user) await restoreMe().catch(() => undefined);
+  autoLinkMyRounds();
   watchFriends(user?.id ?? null);
   syncSubscriptions();
   void flush();
@@ -42,6 +44,7 @@ export function SyncProvider() {
     // Re-check subscriptions whenever rounds/events change; send new scores right away.
     const unsub = useStore.subscribe((s, prev) => {
       if (s.rounds !== prev.rounds || s.events !== prev.events) syncSubscriptions();
+      if (s.myPlayerId !== prev.myPlayerId || s.rounds.length !== prev.rounds.length || (s.players !== prev.players && s.myPlayerId)) autoLinkMyRounds();
       if (s.outbox.length > lastOutbox || s.dirtyRounds.length > prev.dirtyRounds.length || s.dirtyEvents.length > prev.dirtyEvents.length) void flush();
       lastOutbox = s.outbox.length;
     });

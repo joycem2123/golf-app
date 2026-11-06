@@ -266,3 +266,35 @@ export function FriendRequestsCard() {
     </Card>
   );
 }
+
+/** Finished rounds that don't know which player was me: tap your name so they count. */
+export function UnclaimedRounds() {
+  const c = useColors();
+  const rounds = useStore((s) => s.rounds);
+  const myPlayerId = useStore((s) => s.myPlayerId);
+  const meAliases = useStore((s) => s.meAliases);
+  const dismissed = useStore((s) => s.identityDismissed);
+  const addMeAlias = useStore((s) => s.addMeAlias);
+  const dismiss = useStore((s) => s.dismissIdentity);
+  if (!myPlayerId) return null;
+  const mine = (id: string) => id === myPlayerId || meAliases.includes(id);
+  const list = rounds.filter((r) => r.status === 'complete' && !r.players.some((p) => mine(p.id)) && !dismissed.includes(r.id)).slice(0, 5);
+  if (list.length === 0) return null;
+  return (
+    <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
+      <H2>Were you in these rounds?</H2>
+      <Body muted>Tap your name so the round counts in your stats.</Body>
+      {list.map((r) => (
+        <View key={r.id} style={{ gap: space.xs, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: c.border }}>
+          <Label style={{ letterSpacing: 0.5 }}>{new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</Label>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+            {r.players.map((p) => (
+              <Button key={p.id} small kind="secondary" title={`I was ${p.name}`} onPress={() => addMeAlias(p.id)} />
+            ))}
+            <Button small kind="ghost" title="Not me" onPress={() => dismiss(r.id)} />
+          </View>
+        </View>
+      ))}
+    </Card>
+  );
+}

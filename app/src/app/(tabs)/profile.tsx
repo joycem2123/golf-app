@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
 import { AnalyticsSection } from '@/components/analytics-section';
-import { MeCard, StatTiles } from '@/components/people';
+import { MeCard, StatTiles, UnclaimedRounds } from '@/components/people';
 import { TabHeader } from '@/components/tab-header';
 import { Body, Button, Card, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
@@ -39,6 +39,7 @@ export default function Profile() {
           />
         )}
 
+        <UnclaimedRounds />
         <AnalyticsSection />
 
         {guest ? (
