@@ -1,7 +1,7 @@
 import { lockHandicaps, type Player } from '@golf/engine';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Calendar } from '@/components/calendar';
 import { GameOptions } from '@/components/game-options';
@@ -153,7 +153,28 @@ export default function NewEvent() {
     (s === 'matchups' && !detailsProblem && !playersProblem && teamsDone && !roundsProblem);
 
   const create = () => {
-    if (!canGo('matchups') || matchupProblems.some((x) => x)) return;
+    // Never fail silently: say what's still missing, or what went wrong.
+    const firstBad = matchupProblems.findIndex((x) => x);
+    const blocked =
+      detailsProblem ? `Event step: ${detailsProblem}.`
+        : playersProblem ? `Players step: ${playersProblem}.`
+          : !teamsDone ? 'Teams step: put every player on a team.'
+            : roundsProblem ? `Rounds step: ${roundsProblem}.`
+              : firstBad >= 0 ? `Round ${firstBad + 1}: ${matchupProblems[firstBad]}.`
+                : null;
+    if (blocked) {
+      Alert.alert('Not quite ready', blocked);
+      if (firstBad >= 0 && !detailsProblem && !playersProblem && teamsDone && !roundsProblem) setCurrent(firstBad);
+      return;
+    }
+    try {
+      build();
+    } catch (err) {
+      Alert.alert('Couldn’t create the event', err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const build = () => {
     const chosen = saved.filter((p) => ids.includes(p.id));
     const teamIds = (L: string) => ids.filter((id) => teamOf[id] === L);
     const cupPoints = plans.reduce((s, p) => s + (p.draft && isMatchFormat(p.draft.kind) ? p.draft.matches.length : 0), 0);
@@ -178,7 +199,14 @@ export default function NewEvent() {
       rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
     };
     addEvent(e);
-    router.replace(`/event/${e.id}`);
+    // The event is saved; go to it once this screen has finished handling the tap.
+    setTimeout(() => {
+      try {
+        router.replace(`/event/${e.id}`);
+      } catch {
+        router.dismissTo('/');
+      }
+    }, 0);
   };
 
   const stepBar = (
@@ -498,7 +526,7 @@ export default function NewEvent() {
                   Finish the matchups for {matchupProblems.map((x, i) => (x ? `Round ${i + 1}` : null)).filter(Boolean).join(', ')} first.
                 </Body>
               )}
-              <Button title="Create event" disabled={matchupProblems.some((x) => x)} onPress={create} />
+              <Button title="Create event" onPress={create} />
             </>
           )}
         </>
