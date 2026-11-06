@@ -18,7 +18,7 @@ import { gameKeys, gameName, matchLabel } from '@/lib/games';
 import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, shortCourseName, teeFor, type ScoreKey } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import { useRound, useStore, type RoundRecord } from '@/store/store';
-import { shareRound } from '@/sync/sync';
+import { flush, shareRound } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
@@ -460,9 +460,10 @@ export default function Scorecard() {
           onCancel={() => setQuitting(false)}
           onConfirm={() => {
             setQuitting(false);
-            if (r.remote?.role === 'owner') void supabase.from('rounds').delete().eq('id', r.id);
             router.dismissTo('/');
-            deleteRound(r.id);
+            // Deleted online by the sync straight away (or left, if someone else started it).
+            deleteRound(r.id, { now: true });
+            void flush();
           }}
         />
       </ScrollView>

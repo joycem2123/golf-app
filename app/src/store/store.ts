@@ -182,6 +182,9 @@ interface State {
   dirtyRounds: string[];
   /** Events whose details or schedule need uploading. */
   dirtyEvents: string[];
+  /** Rounds/events I deleted: the sync removes them online, and never downloads them again. */
+  deleted: Record<string, Tombstone>;
+  markDeletedDone: (ids: string[]) => void;
   saveScheduled: (eventId: string, m: ScheduledMatch) => void;
   /** Link a started round to the event round it was planned as. */
   setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
@@ -208,7 +211,8 @@ interface State {
   upsertPlayer: (p: SavedPlayer) => void;
   removePlayer: (id: string) => void;
   addRound: (r: RoundRecord) => void;
-  deleteRound: (id: string) => void;
+  /** now: skip the undo window (Quit round). */
+  deleteRound: (id: string, opts?: { now?: boolean }) => void;
   /** Put back a deleted round (Undo). */
   restoreRound: (r: RoundRecord, matches: RecordedMatch[]) => void;
   /** Put back a deleted event and re-link its rounds (Undo). */
@@ -237,6 +241,20 @@ const dirtyEvent = (s: { events: EventRecord[]; dirtyEvents: string[] }, eventId
 export const STORE_VERSION = 7;
 
 /** Everything an account saves, empty. */
+export interface Tombstone {
+  kind: 'round' | 'event';
+  /** When it was deleted (the server copy goes once the undo window has passed). */
+  at: number;
+  /** I own it (delete it for everyone) or just joined it (leave it). */
+  owner: boolean;
+  online: boolean;
+  /** Done online. */
+  done?: boolean;
+}
+
+/** How long Undo is offered before a delete reaches the server. */
+export const UNDO_WINDOW_MS = 6000;
+
 export const EMPTY_DATA = {
   players: [] as SavedPlayer[],
   rounds: [] as RoundRecord[],
@@ -253,6 +271,7 @@ export const EMPTY_DATA = {
   outbox: [] as OutboxItem[],
   dirtyRounds: [] as string[],
   dirtyEvents: [] as string[],
+  deleted: {} as Record<string, Tombstone>,
 };
 
 const mapRound = (rounds: RoundRecord[], id: string, fn: (r: RoundRecord) => RoundRecord) =>
@@ -302,6 +321,9 @@ export const useStore = create<State>()(
       outbox: [],
       dirtyRounds: [],
       dirtyEvents: [],
+      deleted: {},
+      markDeletedDone: (ids) =>
+        set((s) => ({ deleted: Object.fromEntries(Object.entries(s.deleted ?? {}).map(([k, t]) => [k, ids.includes(k) ? { ...t, done: true } : t])) })),
 
       setEventRoundId: (eventId, eventRoundId, roundId) =>
         set((s) => ({
@@ -357,6 +379,7 @@ export const useStore = create<State>()(
 
       upsertRemoteRound: (round) =>
         set((s) => {
+          if (s.deleted?.[round.id]) return {}; // I deleted it: don't bring it back
           const existing = s.rounds.find((r) => r.id === round.id);
           if (!existing) return { rounds: [round, ...s.rounds] };
           // Keep local scores, stats and current hole; take the shared setup.
@@ -381,7 +404,7 @@ export const useStore = create<State>()(
         })),
 
       upsertRemoteEvent: (e) =>
-        set((s) => ({
+        set((s) => (s.deleted?.[e.id] ? {} : {
           events: s.events.some((x) => x.id === e.id)
             ? s.events.map((x) =>
                 x.id === e.id
@@ -399,7 +422,14 @@ export const useStore = create<State>()(
         })),
       updateEvent: (e) => set((s) => ({ events: s.events.map((x) => (x.id === e.id ? e : x)) })),
       deleteEvent: (id) =>
-        set((s) => ({ events: s.events.filter((e) => e.id !== id), rounds: s.rounds.map((r) => (r.eventId === id ? { ...r, eventId: undefined } : r)) })),
+        set((s) => {
+          const e = s.events.find((x) => x.id === id);
+          return {
+            events: s.events.filter((x) => x.id !== id),
+            rounds: s.rounds.map((r) => (r.eventId === id ? { ...r, eventId: undefined } : r)),
+            deleted: { ...s.deleted, [id]: { kind: 'event', at: Date.now(), owner: e?.remote?.role === 'owner', online: !!e?.remote } },
+          };
+        }),
 
       upsertPlayer: (p) =>
         set((s) => ({ players: s.players.some((x) => x.id === p.id) ? s.players.map((x) => (x.id === p.id ? p : x)) : [...s.players, p] })),
@@ -408,16 +438,22 @@ export const useStore = create<State>()(
       addRound: (r) => set((s) => ({ rounds: [r, ...s.rounds] })),
       restoreRound: (r, matches) =>
         set((s) => ({
+          deleted: Object.fromEntries(Object.entries(s.deleted ?? {}).filter(([k]) => k !== r.id)),
           rounds: s.rounds.some((x) => x.id === r.id) ? s.rounds : [...s.rounds, r].sort((a, b) => b.createdAt - a.createdAt),
           history: [...s.history.filter((m) => m.eventId !== r.id), ...matches],
         })),
       restoreEvent: (e, roundIds) =>
         set((s) => ({
+          deleted: Object.fromEntries(Object.entries(s.deleted ?? {}).filter(([k]) => k !== e.id)),
           events: s.events.some((x) => x.id === e.id) ? s.events : [...s.events, e].sort((a, b) => b.createdAt - a.createdAt),
           rounds: s.rounds.map((r) => (roundIds.includes(r.id) ? { ...r, eventId: e.id } : r)),
         })),
-      deleteRound: (id) =>
+      deleteRound: (id, opts) =>
         set((s) => ({
+          deleted: (() => {
+            const r = s.rounds.find((x) => x.id === id);
+            return { ...s.deleted, [id]: { kind: 'round' as const, at: opts?.now ? 0 : Date.now(), owner: r?.remote?.role === 'owner', online: !!r?.remote } };
+          })(),
           rounds: s.rounds.filter((r) => r.id !== id),
           history: s.history.filter((m) => m.eventId !== id),
           events: s.events.map((e) => {
@@ -426,9 +462,12 @@ export const useStore = create<State>()(
             if (e.rounds?.some((x) => x.roundId === id)) next = { ...next, rounds: e.rounds.map((x) => (x.roundId === id ? { ...x, roundId: undefined } : x)) };
             return next;
           }),
-          dirtyEvents: s.events.some((e) => e.remote && e.remote.role !== 'viewer' && e.schedule?.some((m) => m.roundId === id) && !s.dirtyEvents.includes(e.id))
-            ? [...s.dirtyEvents, ...s.events.filter((e) => e.schedule?.some((m) => m.roundId === id)).map((e) => e.id)]
-            : s.dirtyEvents,
+          dirtyEvents: [
+            ...s.dirtyEvents,
+            ...s.events
+              .filter((e) => e.remote && e.remote.role !== 'viewer' && (e.schedule?.some((m) => m.roundId === id) || e.rounds?.some((x) => x.roundId === id)) && !s.dirtyEvents.includes(e.id))
+              .map((e) => e.id),
+          ],
         })),
 
       setScore: (roundId, key, hole, gross) =>

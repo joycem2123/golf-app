@@ -66,10 +66,8 @@ export function useDeleteWithUndo() {
   const [ask, setAsk] = useState<{ kind: 'round' | 'event'; id: string; title: string; detail: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const finalize = (p: Pending) => {
-    if (p.kind === 'round' && p.round.remote?.role === 'owner') void supabase.from('rounds').delete().eq('id', p.round.id);
-    if (p.kind === 'event' && p.event.remote?.role === 'owner') void supabase.from('events').delete().eq('id', p.event.id);
-  };
+  // The online copy is removed by the sync once the undo window has passed (see flush), even if this screen closes.
+  const finalize = (_p: Pending) => undefined;
 
   const start = (p: Pending) => {
     if (timer.current) clearTimeout(timer.current);

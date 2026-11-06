@@ -9,7 +9,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { evaluate, isResult, recordedMatches } from '@/lib/round';
-import { useStore, type EventRecord, type Remote, type RoundRecord } from '@/store/store';
+import { UNDO_WINDOW_MS, useStore, type EventRecord, type Remote, type RoundRecord } from '@/store/store';
 import { ensureSession } from './auth';
 import { supabase } from './supabase';
 
@@ -155,7 +155,7 @@ async function pullEvent(eventId: string, role?: Remote['role']) {
   const resolvedRole = role ?? st.events.find((x) => x.id === eventId)?.remote?.role ?? (await myRole('event_members', 'event_id', eventId));
   st.upsertRemoteEvent({ ...e, remote: { shareCode: row.share_code, role: resolvedRole } });
   const { data: rounds } = await supabase.from('rounds').select('id').eq('event_id', eventId);
-  for (const r of rounds ?? []) await pullRound(r.id, resolvedRole === 'owner' ? 'scorer' : resolvedRole);
+  for (const r of rounds ?? []) if (!useStore.getState().deleted?.[r.id]) await pullRound(r.id, resolvedRole === 'owner' ? 'scorer' : resolvedRole);
 }
 
 /** Join a round or event with its 6-character code. */
@@ -249,8 +249,9 @@ export async function pullMine() {
   ]);
   if (rm.error || em.error) return;
   const st = useStore.getState();
-  for (const m of em.data ?? []) if (!st.events.some((e) => e.id === m.event_id)) await pullEvent(m.event_id, m.role as Remote['role']);
-  for (const m of rm.data ?? []) if (!useStore.getState().rounds.some((r) => r.id === m.round_id)) await pullRound(m.round_id, m.role as Remote['role']);
+  const gone = st.deleted ?? {};
+  for (const m of em.data ?? []) if (!gone[m.event_id] && !st.events.some((e) => e.id === m.event_id)) await pullEvent(m.event_id, m.role as Remote['role']);
+  for (const m of rm.data ?? []) if (!gone[m.round_id] && !useStore.getState().rounds.some((r) => r.id === m.round_id)) await pullRound(m.round_id, m.role as Remote['role']);
   // Someone else's unfinished round I can no longer see: check whether it was deleted.
   const roundIds = new Set((rm.data ?? []).map((m) => m.round_id as string));
   const eventIds = new Set((em.data ?? []).map((m) => m.event_id as string));
@@ -312,6 +313,19 @@ export async function flush() {
       done.push(item);
     }
     if (done.length) useStore.getState().removeOutbox(done);
+
+    // Deletions: once Undo is no longer offered, delete it online (or leave it, if someone else started it).
+    const doneDeletes: string[] = [];
+    for (const [id, t] of Object.entries(useStore.getState().deleted ?? {})) {
+      if (t.done || Date.now() - t.at < UNDO_WINDOW_MS) continue;
+      if (!t.online) { doneDeletes.push(id); continue; }
+      const table = t.kind === 'round' ? 'rounds' : 'events';
+      const { error } = t.owner
+        ? await supabase.from(table).delete().eq('id', id)
+        : await supabase.rpc(t.kind === 'round' ? 'leave_round' : 'leave_event', t.kind === 'round' ? { rid: id } : { eid: id });
+      if (!error || !/fetch|network|timeout/i.test(error.message)) doneDeletes.push(id);
+    }
+    if (doneDeletes.length) useStore.getState().markDeletedDone(doneDeletes);
 
     const dirty = useStore.getState().dirtyRounds;
     const cleared: string[] = [];
