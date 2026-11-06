@@ -32,7 +32,7 @@ function Tile({ title, sub, icon, onPress, primary }: { title: string; sub: stri
       <View
         style={{
           backgroundColor: primary ? c.primary : c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: primary ? c.primary : c.border,
-          padding: space.lg, gap: 6, minHeight: 112,
+          flex: 1, padding: space.lg, gap: 6, minHeight: 112,
           shadowColor: '#3B3423', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
         }}>
         <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: primary ? '#ffffff22' : c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
