@@ -1,0 +1,606 @@
+[
+ {
+  "until": 1793976797000,
+  "course": {
+   "id": "willow-park",
+   "name": "Willow Park Golf & Country Club",
+   "city": "Calgary",
+   "region": "AB",
+   "country": "CA",
+   "source": "golfify.io",
+   "verified": false,
+   "tees": [
+    {
+     "id": "blue",
+     "name": "Blue",
+     "gender": "M",
+     "courseRating": 70.6,
+     "slope": 130,
+     "par": 71,
+     "holes": [
+      {
+       "number": 1,
+       "par": 5,
+       "strokeIndex": 3,
+       "yards": 517
+      },
+      {
+       "number": 2,
+       "par": 3,
+       "strokeIndex": 15,
+       "yards": 154
+      },
+      {
+       "number": 3,
+       "par": 4,
+       "strokeIndex": 11,
+       "yards": 372
+      },
+      {
+       "number": 4,
+       "par": 4,
+       "strokeIndex": 9,
+       "yards": 368
+      },
+      {
+       "number": 5,
+       "par": 5,
+       "strokeIndex": 1,
+       "yards": 555
+      },
+      {
+       "number": 6,
+       "par": 3,
+       "strokeIndex": 17,
+       "yards": 155
+      },
+      {
+       "number": 7,
+       "par": 4,
+       "strokeIndex": 7,
+       "yards": 430
+      },
+      {
+       "number": 8,
+       "par": 4,
+       "strokeIndex": 13,
+       "yards": 355
+      },
+      {
+       "number": 9,
+       "par": 4,
+       "strokeIndex": 5,
+       "yards": 395
+      },
+      {
+       "number": 10,
+       "par": 4,
+       "strokeIndex": 12,
+       "yards": 345
+      },
+      {
+       "number": 11,
+       "par": 4,
+       "strokeIndex": 8,
+       "yards": 396
+      },
+      {
+       "number": 12,
+       "par": 3,
+       "strokeIndex": 14,
+       "yards": 189
+      },
+      {
+       "number": 13,
+       "par": 4,
+       "strokeIndex": 6,
+       "yards": 426
+      },
+      {
+       "number": 14,
+       "par": 5,
+       "strokeIndex": 4,
+       "yards": 521
+      },
+      {
+       "number": 15,
+       "par": 3,
+       "strokeIndex": 18,
+       "yards": 157
+      },
+      {
+       "number": 16,
+       "par": 4,
+       "strokeIndex": 10,
+       "yards": 381
+      },
+      {
+       "number": 17,
+       "par": 5,
+       "strokeIndex": 16,
+       "yards": 523
+      },
+      {
+       "number": 18,
+       "par": 3,
+       "strokeIndex": 2,
+       "yards": 200
+      }
+     ]
+    },
+    {
+     "id": "white",
+     "name": "White",
+     "gender": "M",
+     "courseRating": 68.4,
+     "slope": 125,
+     "par": 71,
+     "holes": [
+      {
+       "number": 1,
+       "par": 5,
+       "strokeIndex": 3,
+       "yards": 497
+      },
+      {
+       "number": 2,
+       "par": 3,
+       "strokeIndex": 15,
+       "yards": 142
+      },
+      {
+       "number": 3,
+       "par": 4,
+       "strokeIndex": 11,
+       "yards": 361
+      },
+      {
+       "number": 4,
+       "par": 4,
+       "strokeIndex": 9,
+       "yards": 357
+      },
+      {
+       "number": 5,
+       "par": 5,
+       "strokeIndex": 1,
+       "yards": 544
+      },
+      {
+       "number": 6,
+       "par": 3,
+       "strokeIndex": 17,
+       "yards": 136
+      },
+      {
+       "number": 7,
+       "par": 4,
+       "strokeIndex": 7,
+       "yards": 374
+      },
+      {
+       "number": 8,
+       "par": 4,
+       "strokeIndex": 13,
+       "yards": 337
+      },
+      {
+       "number": 9,
+       "par": 4,
+       "strokeIndex": 5,
+       "yards": 387
+      },
+      {
+       "number": 10,
+       "par": 4,
+       "strokeIndex": 12,
+       "yards": 330
+      },
+      {
+       "number": 11,
+       "par": 4,
+       "strokeIndex": 8,
+       "yards": 335
+      },
+      {
+       "number": 12,
+       "par": 3,
+       "strokeIndex": 14,
+       "yards": 154
+      },
+      {
+       "number": 13,
+       "par": 4,
+       "strokeIndex": 6,
+       "yards": 385
+      },
+      {
+       "number": 14,
+       "par": 5,
+       "strokeIndex": 4,
+       "yards": 499
+      },
+      {
+       "number": 15,
+       "par": 3,
+       "strokeIndex": 18,
+       "yards": 140
+      },
+      {
+       "number": 16,
+       "par": 4,
+       "strokeIndex": 10,
+       "yards": 363
+      },
+      {
+       "number": 17,
+       "par": 5,
+       "strokeIndex": 16,
+       "yards": 507
+      },
+      {
+       "number": 18,
+       "par": 3,
+       "strokeIndex": 2,
+       "yards": 186
+      }
+     ]
+    },
+    {
+     "id": "gold",
+     "name": "Gold",
+     "gender": "M",
+     "courseRating": 67.2,
+     "slope": 123,
+     "par": 71,
+     "holes": [
+      {
+       "number": 1,
+       "par": 5,
+       "strokeIndex": 3,
+       "yards": 477
+      },
+      {
+       "number": 2,
+       "par": 3,
+       "strokeIndex": 15,
+       "yards": 132
+      },
+      {
+       "number": 3,
+       "par": 4,
+       "strokeIndex": 11,
+       "yards": 353
+      },
+      {
+       "number": 4,
+       "par": 4,
+       "strokeIndex": 9,
+       "yards": 351
+      },
+      {
+       "number": 5,
+       "par": 5,
+       "strokeIndex": 1,
+       "yards": 536
+      },
+      {
+       "number": 6,
+       "par": 3,
+       "strokeIndex": 17,
+       "yards": 123
+      },
+      {
+       "number": 7,
+       "par": 4,
+       "strokeIndex": 7,
+       "yards": 326
+      },
+      {
+       "number": 8,
+       "par": 4,
+       "strokeIndex": 13,
+       "yards": 319
+      },
+      {
+       "number": 9,
+       "par": 4,
+       "strokeIndex": 5,
+       "yards": 380
+      },
+      {
+       "number": 10,
+       "par": 4,
+       "strokeIndex": 12,
+       "yards": 321
+      },
+      {
+       "number": 11,
+       "par": 4,
+       "strokeIndex": 8,
+       "yards": 322
+      },
+      {
+       "number": 12,
+       "par": 3,
+       "strokeIndex": 14,
+       "yards": 142
+      },
+      {
+       "number": 13,
+       "par": 4,
+       "strokeIndex": 6,
+       "yards": 367
+      },
+      {
+       "number": 14,
+       "par": 5,
+       "strokeIndex": 4,
+       "yards": 479
+      },
+      {
+       "number": 15,
+       "par": 3,
+       "strokeIndex": 18,
+       "yards": 129
+      },
+      {
+       "number": 16,
+       "par": 4,
+       "strokeIndex": 10,
+       "yards": 351
+      },
+      {
+       "number": 17,
+       "par": 5,
+       "strokeIndex": 16,
+       "yards": 493
+      },
+      {
+       "number": 18,
+       "par": 3,
+       "strokeIndex": 2,
+       "yards": 175
+      }
+     ]
+    },
+    {
+     "id": "white-women",
+     "name": "White",
+     "gender": "F",
+     "courseRating": 74.0,
+     "slope": 134,
+     "par": 71,
+     "holes": [
+      {
+       "number": 1,
+       "par": 5,
+       "strokeIndex": 3,
+       "yards": 497
+      },
+      {
+       "number": 2,
+       "par": 3,
+       "strokeIndex": 15,
+       "yards": 142
+      },
+      {
+       "number": 3,
+       "par": 4,
+       "strokeIndex": 11,
+       "yards": 361
+      },
+      {
+       "number": 4,
+       "par": 4,
+       "strokeIndex": 9,
+       "yards": 357
+      },
+      {
+       "number": 5,
+       "par": 5,
+       "strokeIndex": 1,
+       "yards": 544
+      },
+      {
+       "number": 6,
+       "par": 3,
+       "strokeIndex": 17,
+       "yards": 136
+      },
+      {
+       "number": 7,
+       "par": 4,
+       "strokeIndex": 7,
+       "yards": 374
+      },
+      {
+       "number": 8,
+       "par": 4,
+       "strokeIndex": 13,
+       "yards": 337
+      },
+      {
+       "number": 9,
+       "par": 4,
+       "strokeIndex": 5,
+       "yards": 387
+      },
+      {
+       "number": 10,
+       "par": 4,
+       "strokeIndex": 12,
+       "yards": 330
+      },
+      {
+       "number": 11,
+       "par": 4,
+       "strokeIndex": 8,
+       "yards": 335
+      },
+      {
+       "number": 12,
+       "par": 3,
+       "strokeIndex": 14,
+       "yards": 154
+      },
+      {
+       "number": 13,
+       "par": 4,
+       "strokeIndex": 6,
+       "yards": 385
+      },
+      {
+       "number": 14,
+       "par": 5,
+       "strokeIndex": 4,
+       "yards": 499
+      },
+      {
+       "number": 15,
+       "par": 3,
+       "strokeIndex": 18,
+       "yards": 140
+      },
+      {
+       "number": 16,
+       "par": 4,
+       "strokeIndex": 10,
+       "yards": 363
+      },
+      {
+       "number": 17,
+       "par": 5,
+       "strokeIndex": 16,
+       "yards": 507
+      },
+      {
+       "number": 18,
+       "par": 3,
+       "strokeIndex": 2,
+       "yards": 186
+      }
+     ]
+    },
+    {
+     "id": "gold-women",
+     "name": "Gold",
+     "gender": "F",
+     "courseRating": 72.6,
+     "slope": 131,
+     "par": 71,
+     "holes": [
+      {
+       "number": 1,
+       "par": 5,
+       "strokeIndex": 3,
+       "yards": 477
+      },
+      {
+       "number": 2,
+       "par": 3,
+       "strokeIndex": 15,
+       "yards": 132
+      },
+      {
+       "number": 3,
+       "par": 4,
+       "strokeIndex": 11,
+       "yards": 353
+      },
+      {
+       "number": 4,
+       "par": 4,
+       "strokeIndex": 9,
+       "yards": 351
+      },
+      {
+       "number": 5,
+       "par": 5,
+       "strokeIndex": 1,
+       "yards": 536
+      },
+      {
+       "number": 6,
+       "par": 3,
+       "strokeIndex": 17,
+       "yards": 123
+      },
+      {
+       "number": 7,
+       "par": 4,
+       "strokeIndex": 7,
+       "yards": 326
+      },
+      {
+       "number": 8,
+       "par": 4,
+       "strokeIndex": 13,
+       "yards": 319
+      },
+      {
+       "number": 9,
+       "par": 4,
+       "strokeIndex": 5,
+       "yards": 380
+      },
+      {
+       "number": 10,
+       "par": 4,
+       "strokeIndex": 12,
+       "yards": 321
+      },
+      {
+       "number": 11,
+       "par": 4,
+       "strokeIndex": 8,
+       "yards": 322
+      },
+      {
+       "number": 12,
+       "par": 3,
+       "strokeIndex": 14,
+       "yards": 142
+      },
+      {
+       "number": 13,
+       "par": 4,
+       "strokeIndex": 6,
+       "yards": 367
+      },
+      {
+       "number": 14,
+       "par": 5,
+       "strokeIndex": 4,
+       "yards": 479
+      },
+      {
+       "number": 15,
+       "par": 3,
+       "strokeIndex": 18,
+       "yards": 129
+      },
+      {
+       "number": 16,
+       "par": 4,
+       "strokeIndex": 10,
+       "yards": 351
+      },
+      {
+       "number": 17,
+       "par": 5,
+       "strokeIndex": 16,
+       "yards": 493
+      },
+      {
+       "number": 18,
+       "par": 3,
+       "strokeIndex": 2,
+       "yards": 175
+      }
+     ]
+    }
+   ]
+  }
+ }
+]

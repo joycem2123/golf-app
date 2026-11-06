@@ -37,3 +37,14 @@ describe('seed courses', () => {
     expect(validateCourse(bad)[0]).toMatch(/no repeats/);
   });
 });
+
+describe('course history', () => {
+  it('rounds played before a scorecard change keep the old card', async () => {
+    const { courseAsOf, findCourse } = await import('../src');
+    const old = courseAsOf('willow-park', Date.UTC(2026, 9, 1));
+    expect(old?.tees.map((t) => t.id)).not.toContain('black');
+    expect(old?.tees[0].holes[0].strokeIndex).toBe(3);
+    expect(courseAsOf('willow-park', Date.now())).toBeUndefined();
+    expect(findCourse('willow-park')?.tees.map((t) => t.name)).toEqual(['Black', 'Blue', 'White', 'Gold', 'Silver', 'White', 'Gold']);
+  });
+});

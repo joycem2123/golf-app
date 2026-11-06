@@ -1,8 +1,23 @@
 import type { Course, Tee } from '../types';
 import seed from './seed-courses.json';
+import willowParkHistory from './willow-park-history.json';
 
 /** Courses bundled with the app (works offline). Replaced by a full course database later. */
 export const SEED_COURSES = seed as Course[];
+
+/**
+ * Earlier versions of built-in courses. When a course's scorecard is updated, the old card is kept
+ * here so rounds played before the change are still scored on the card they were played on.
+ * `until` is when the old card stopped being used (ms since 1970).
+ */
+const COURSE_HISTORY: Record<string, { until: number; course: Course }[]> = {
+  'willow-park': willowParkHistory as { until: number; course: Course }[],
+};
+
+/** The built-in version of a course that was current at a given time (undefined = use today's). */
+export function courseAsOf(id: string, at: number): Course | undefined {
+  return (COURSE_HISTORY[id] ?? []).filter((v) => at < v.until).sort((a, b) => a.until - b.until)[0]?.course;
+}
 
 /** Problems found in a tee's data; an empty list means it looks valid. */
 export function validateTee(tee: Tee): string[] {

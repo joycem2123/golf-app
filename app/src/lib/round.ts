@@ -1,4 +1,5 @@
 import {
+  courseAsOf,
   evaluateGame,
   ledgerToScorecard,
   postingReminders,
@@ -28,7 +29,8 @@ export function shortCourseName(name: string): string {
 }
 
 export function courseFor(r: RoundRecord): Course {
-  const c = r.course ?? getCourse(r.courseId);
+  // The course as the round was played: its own copy, else the built-in card in use back then.
+  const c = r.course ?? courseAsOf(r.courseId, r.createdAt) ?? getCourse(r.courseId);
   if (!c) throw new Error(`Course ${r.courseId} is missing`);
   return c;
 }

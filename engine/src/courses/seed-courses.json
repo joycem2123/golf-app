@@ -5,9 +5,127 @@
     "city": "Calgary",
     "region": "AB",
     "country": "CA",
-    "source": "golfify.io",
+    "source": "club scorecard (Nov 2026); Black and Silver ratings unverified",
     "verified": false,
     "tees": [
+      {
+        "id": "black",
+        "name": "Black",
+        "gender": "M",
+        "courseRating": 71.0,
+        "slope": 137,
+        "par": 71,
+        "holes": [
+          {
+            "number": 1,
+            "par": 5,
+            "strokeIndex": 13,
+            "yards": 533
+          },
+          {
+            "number": 2,
+            "par": 3,
+            "strokeIndex": 17,
+            "yards": 156
+          },
+          {
+            "number": 3,
+            "par": 4,
+            "strokeIndex": 7,
+            "yards": 378
+          },
+          {
+            "number": 4,
+            "par": 4,
+            "strokeIndex": 11,
+            "yards": 374
+          },
+          {
+            "number": 5,
+            "par": 5,
+            "strokeIndex": 1,
+            "yards": 564
+          },
+          {
+            "number": 6,
+            "par": 3,
+            "strokeIndex": 15,
+            "yards": 160
+          },
+          {
+            "number": 7,
+            "par": 4,
+            "strokeIndex": 5,
+            "yards": 430
+          },
+          {
+            "number": 8,
+            "par": 4,
+            "strokeIndex": 9,
+            "yards": 364
+          },
+          {
+            "number": 9,
+            "par": 4,
+            "strokeIndex": 3,
+            "yards": 404
+          },
+          {
+            "number": 10,
+            "par": 4,
+            "strokeIndex": 16,
+            "yards": 350
+          },
+          {
+            "number": 11,
+            "par": 4,
+            "strokeIndex": 4,
+            "yards": 408
+          },
+          {
+            "number": 12,
+            "par": 3,
+            "strokeIndex": 10,
+            "yards": 201
+          },
+          {
+            "number": 13,
+            "par": 4,
+            "strokeIndex": 2,
+            "yards": 426
+          },
+          {
+            "number": 14,
+            "par": 5,
+            "strokeIndex": 12,
+            "yards": 504
+          },
+          {
+            "number": 15,
+            "par": 3,
+            "strokeIndex": 18,
+            "yards": 158
+          },
+          {
+            "number": 16,
+            "par": 4,
+            "strokeIndex": 6,
+            "yards": 383
+          },
+          {
+            "number": 17,
+            "par": 5,
+            "strokeIndex": 14,
+            "yards": 528
+          },
+          {
+            "number": 18,
+            "par": 3,
+            "strokeIndex": 8,
+            "yards": 212
+          }
+        ]
+      },
       {
         "id": "blue",
         "name": "Blue",
@@ -19,110 +137,110 @@
           {
             "number": 1,
             "par": 5,
-            "strokeIndex": 3,
-            "yards": 517
+            "strokeIndex": 13,
+            "yards": 525
           },
           {
             "number": 2,
             "par": 3,
-            "strokeIndex": 15,
-            "yards": 154
+            "strokeIndex": 17,
+            "yards": 150
           },
           {
             "number": 3,
             "par": 4,
-            "strokeIndex": 11,
-            "yards": 372
+            "strokeIndex": 7,
+            "yards": 368
           },
           {
             "number": 4,
             "par": 4,
-            "strokeIndex": 9,
+            "strokeIndex": 11,
             "yards": 368
           },
           {
             "number": 5,
             "par": 5,
             "strokeIndex": 1,
-            "yards": 555
+            "yards": 544
           },
           {
             "number": 6,
             "par": 3,
-            "strokeIndex": 17,
+            "strokeIndex": 15,
             "yards": 155
           },
           {
             "number": 7,
             "par": 4,
-            "strokeIndex": 7,
-            "yards": 430
+            "strokeIndex": 5,
+            "yards": 398
           },
           {
             "number": 8,
             "par": 4,
-            "strokeIndex": 13,
-            "yards": 355
+            "strokeIndex": 9,
+            "yards": 339
           },
           {
             "number": 9,
             "par": 4,
-            "strokeIndex": 5,
-            "yards": 395
+            "strokeIndex": 3,
+            "yards": 393
           },
           {
             "number": 10,
             "par": 4,
-            "strokeIndex": 12,
-            "yards": 345
+            "strokeIndex": 16,
+            "yards": 340
           },
           {
             "number": 11,
             "par": 4,
-            "strokeIndex": 8,
-            "yards": 396
+            "strokeIndex": 4,
+            "yards": 389
           },
           {
             "number": 12,
             "par": 3,
-            "strokeIndex": 14,
-            "yards": 189
+            "strokeIndex": 10,
+            "yards": 180
           },
           {
             "number": 13,
             "par": 4,
-            "strokeIndex": 6,
-            "yards": 426
+            "strokeIndex": 2,
+            "yards": 406
           },
           {
             "number": 14,
             "par": 5,
-            "strokeIndex": 4,
-            "yards": 521
+            "strokeIndex": 12,
+            "yards": 490
           },
           {
             "number": 15,
             "par": 3,
             "strokeIndex": 18,
-            "yards": 157
+            "yards": 155
           },
           {
             "number": 16,
             "par": 4,
-            "strokeIndex": 10,
-            "yards": 381
+            "strokeIndex": 6,
+            "yards": 372
           },
           {
             "number": 17,
             "par": 5,
-            "strokeIndex": 16,
-            "yards": 523
+            "strokeIndex": 14,
+            "yards": 520
           },
           {
             "number": 18,
             "par": 3,
-            "strokeIndex": 2,
-            "yards": 200
+            "strokeIndex": 8,
+            "yards": 190
           }
         ]
       },
@@ -137,86 +255,86 @@
           {
             "number": 1,
             "par": 5,
-            "strokeIndex": 3,
-            "yards": 497
+            "strokeIndex": 13,
+            "yards": 489
           },
           {
             "number": 2,
             "par": 3,
-            "strokeIndex": 15,
-            "yards": 142
+            "strokeIndex": 17,
+            "yards": 137
           },
           {
             "number": 3,
             "par": 4,
-            "strokeIndex": 11,
-            "yards": 361
+            "strokeIndex": 7,
+            "yards": 354
           },
           {
             "number": 4,
             "par": 4,
-            "strokeIndex": 9,
+            "strokeIndex": 11,
             "yards": 357
           },
           {
             "number": 5,
             "par": 5,
             "strokeIndex": 1,
-            "yards": 544
+            "yards": 506
           },
           {
             "number": 6,
             "par": 3,
-            "strokeIndex": 17,
+            "strokeIndex": 15,
             "yards": 136
           },
           {
             "number": 7,
             "par": 4,
-            "strokeIndex": 7,
+            "strokeIndex": 5,
             "yards": 374
           },
           {
             "number": 8,
             "par": 4,
-            "strokeIndex": 13,
-            "yards": 337
+            "strokeIndex": 9,
+            "yards": 323
           },
           {
             "number": 9,
             "par": 4,
-            "strokeIndex": 5,
-            "yards": 387
+            "strokeIndex": 3,
+            "yards": 366
           },
           {
             "number": 10,
             "par": 4,
-            "strokeIndex": 12,
+            "strokeIndex": 16,
             "yards": 330
           },
           {
             "number": 11,
             "par": 4,
-            "strokeIndex": 8,
+            "strokeIndex": 4,
             "yards": 335
           },
           {
             "number": 12,
             "par": 3,
-            "strokeIndex": 14,
+            "strokeIndex": 10,
             "yards": 154
           },
           {
             "number": 13,
             "par": 4,
-            "strokeIndex": 6,
+            "strokeIndex": 2,
             "yards": 385
           },
           {
             "number": 14,
             "par": 5,
-            "strokeIndex": 4,
-            "yards": 499
+            "strokeIndex": 12,
+            "yards": 481
           },
           {
             "number": 15,
@@ -227,20 +345,20 @@
           {
             "number": 16,
             "par": 4,
-            "strokeIndex": 10,
+            "strokeIndex": 6,
             "yards": 363
           },
           {
             "number": 17,
             "par": 5,
-            "strokeIndex": 16,
+            "strokeIndex": 14,
             "yards": 507
           },
           {
             "number": 18,
             "par": 3,
-            "strokeIndex": 2,
-            "yards": 186
+            "strokeIndex": 8,
+            "yards": 175
           }
         ]
       },
@@ -255,86 +373,86 @@
           {
             "number": 1,
             "par": 5,
-            "strokeIndex": 3,
-            "yards": 477
+            "strokeIndex": 13,
+            "yards": 417
           },
           {
             "number": 2,
             "par": 3,
-            "strokeIndex": 15,
-            "yards": 132
+            "strokeIndex": 17,
+            "yards": 126
           },
           {
             "number": 3,
             "par": 4,
-            "strokeIndex": 11,
-            "yards": 353
+            "strokeIndex": 7,
+            "yards": 317
           },
           {
             "number": 4,
             "par": 4,
-            "strokeIndex": 9,
-            "yards": 351
+            "strokeIndex": 11,
+            "yards": 316
           },
           {
             "number": 5,
             "par": 5,
             "strokeIndex": 1,
-            "yards": 536
+            "yards": 457
           },
           {
             "number": 6,
             "par": 3,
-            "strokeIndex": 17,
+            "strokeIndex": 15,
             "yards": 123
           },
           {
             "number": 7,
             "par": 4,
-            "strokeIndex": 7,
+            "strokeIndex": 5,
             "yards": 326
           },
           {
             "number": 8,
             "par": 4,
-            "strokeIndex": 13,
-            "yards": 319
+            "strokeIndex": 9,
+            "yards": 285
           },
           {
             "number": 9,
             "par": 4,
-            "strokeIndex": 5,
-            "yards": 380
+            "strokeIndex": 3,
+            "yards": 337
           },
           {
             "number": 10,
             "par": 4,
-            "strokeIndex": 12,
+            "strokeIndex": 16,
             "yards": 321
           },
           {
             "number": 11,
             "par": 4,
-            "strokeIndex": 8,
+            "strokeIndex": 4,
             "yards": 322
           },
           {
             "number": 12,
             "par": 3,
-            "strokeIndex": 14,
+            "strokeIndex": 10,
             "yards": 142
           },
           {
             "number": 13,
             "par": 4,
-            "strokeIndex": 6,
+            "strokeIndex": 2,
             "yards": 367
           },
           {
             "number": 14,
             "par": 5,
-            "strokeIndex": 4,
-            "yards": 479
+            "strokeIndex": 12,
+            "yards": 419
           },
           {
             "number": 15,
@@ -345,20 +463,138 @@
           {
             "number": 16,
             "par": 4,
-            "strokeIndex": 10,
-            "yards": 351
+            "strokeIndex": 6,
+            "yards": 295
           },
           {
             "number": 17,
             "par": 5,
-            "strokeIndex": 16,
+            "strokeIndex": 14,
             "yards": 493
           },
           {
             "number": 18,
             "par": 3,
+            "strokeIndex": 8,
+            "yards": 154
+          }
+        ]
+      },
+      {
+        "id": "silver",
+        "name": "Silver",
+        "gender": "M",
+        "courseRating": 62.6,
+        "slope": 110,
+        "par": 71,
+        "holes": [
+          {
+            "number": 1,
+            "par": 5,
+            "strokeIndex": 13,
+            "yards": 403
+          },
+          {
+            "number": 2,
+            "par": 3,
+            "strokeIndex": 17,
+            "yards": 116
+          },
+          {
+            "number": 3,
+            "par": 4,
+            "strokeIndex": 7,
+            "yards": 300
+          },
+          {
+            "number": 4,
+            "par": 4,
+            "strokeIndex": 11,
+            "yards": 303
+          },
+          {
+            "number": 5,
+            "par": 5,
+            "strokeIndex": 1,
+            "yards": 418
+          },
+          {
+            "number": 6,
+            "par": 3,
+            "strokeIndex": 15,
+            "yards": 118
+          },
+          {
+            "number": 7,
+            "par": 4,
+            "strokeIndex": 5,
+            "yards": 277
+          },
+          {
+            "number": 8,
+            "par": 4,
+            "strokeIndex": 9,
+            "yards": 275
+          },
+          {
+            "number": 9,
+            "par": 4,
+            "strokeIndex": 3,
+            "yards": 325
+          },
+          {
+            "number": 10,
+            "par": 4,
+            "strokeIndex": 16,
+            "yards": 286
+          },
+          {
+            "number": 11,
+            "par": 4,
+            "strokeIndex": 4,
+            "yards": 248
+          },
+          {
+            "number": 12,
+            "par": 3,
+            "strokeIndex": 10,
+            "yards": 76
+          },
+          {
+            "number": 13,
+            "par": 4,
             "strokeIndex": 2,
-            "yards": 175
+            "yards": 292
+          },
+          {
+            "number": 14,
+            "par": 5,
+            "strokeIndex": 12,
+            "yards": 378
+          },
+          {
+            "number": 15,
+            "par": 3,
+            "strokeIndex": 18,
+            "yards": 124
+          },
+          {
+            "number": 16,
+            "par": 4,
+            "strokeIndex": 6,
+            "yards": 281
+          },
+          {
+            "number": 17,
+            "par": 5,
+            "strokeIndex": 14,
+            "yards": 382
+          },
+          {
+            "number": 18,
+            "par": 3,
+            "strokeIndex": 8,
+            "yards": 108
           }
         ]
       },
@@ -373,20 +609,20 @@
           {
             "number": 1,
             "par": 5,
-            "strokeIndex": 3,
-            "yards": 497
+            "strokeIndex": 11,
+            "yards": 489
           },
           {
             "number": 2,
             "par": 3,
             "strokeIndex": 15,
-            "yards": 142
+            "yards": 137
           },
           {
             "number": 3,
             "par": 4,
-            "strokeIndex": 11,
-            "yards": 361
+            "strokeIndex": 7,
+            "yards": 354
           },
           {
             "number": 4,
@@ -398,7 +634,7 @@
             "number": 5,
             "par": 5,
             "strokeIndex": 1,
-            "yards": 544
+            "yards": 506
           },
           {
             "number": 6,
@@ -409,20 +645,20 @@
           {
             "number": 7,
             "par": 4,
-            "strokeIndex": 7,
+            "strokeIndex": 5,
             "yards": 374
           },
           {
             "number": 8,
             "par": 4,
             "strokeIndex": 13,
-            "yards": 337
+            "yards": 323
           },
           {
             "number": 9,
             "par": 4,
-            "strokeIndex": 5,
-            "yards": 387
+            "strokeIndex": 3,
+            "yards": 366
           },
           {
             "number": 10,
@@ -433,7 +669,7 @@
           {
             "number": 11,
             "par": 4,
-            "strokeIndex": 8,
+            "strokeIndex": 6,
             "yards": 335
           },
           {
@@ -445,14 +681,14 @@
           {
             "number": 13,
             "par": 4,
-            "strokeIndex": 6,
+            "strokeIndex": 2,
             "yards": 385
           },
           {
             "number": 14,
             "par": 5,
-            "strokeIndex": 4,
-            "yards": 499
+            "strokeIndex": 16,
+            "yards": 481
           },
           {
             "number": 15,
@@ -463,20 +699,20 @@
           {
             "number": 16,
             "par": 4,
-            "strokeIndex": 10,
+            "strokeIndex": 8,
             "yards": 363
           },
           {
             "number": 17,
             "par": 5,
-            "strokeIndex": 16,
+            "strokeIndex": 4,
             "yards": 507
           },
           {
             "number": 18,
             "par": 3,
-            "strokeIndex": 2,
-            "yards": 186
+            "strokeIndex": 10,
+            "yards": 175
           }
         ]
       },
@@ -491,32 +727,32 @@
           {
             "number": 1,
             "par": 5,
-            "strokeIndex": 3,
-            "yards": 477
+            "strokeIndex": 11,
+            "yards": 417
           },
           {
             "number": 2,
             "par": 3,
             "strokeIndex": 15,
-            "yards": 132
+            "yards": 126
           },
           {
             "number": 3,
             "par": 4,
-            "strokeIndex": 11,
-            "yards": 353
+            "strokeIndex": 7,
+            "yards": 317
           },
           {
             "number": 4,
             "par": 4,
             "strokeIndex": 9,
-            "yards": 351
+            "yards": 316
           },
           {
             "number": 5,
             "par": 5,
             "strokeIndex": 1,
-            "yards": 536
+            "yards": 457
           },
           {
             "number": 6,
@@ -527,20 +763,20 @@
           {
             "number": 7,
             "par": 4,
-            "strokeIndex": 7,
+            "strokeIndex": 5,
             "yards": 326
           },
           {
             "number": 8,
             "par": 4,
             "strokeIndex": 13,
-            "yards": 319
+            "yards": 285
           },
           {
             "number": 9,
             "par": 4,
-            "strokeIndex": 5,
-            "yards": 380
+            "strokeIndex": 3,
+            "yards": 337
           },
           {
             "number": 10,
@@ -551,7 +787,7 @@
           {
             "number": 11,
             "par": 4,
-            "strokeIndex": 8,
+            "strokeIndex": 6,
             "yards": 322
           },
           {
@@ -563,14 +799,14 @@
           {
             "number": 13,
             "par": 4,
-            "strokeIndex": 6,
+            "strokeIndex": 2,
             "yards": 367
           },
           {
             "number": 14,
             "par": 5,
-            "strokeIndex": 4,
-            "yards": 479
+            "strokeIndex": 16,
+            "yards": 419
           },
           {
             "number": 15,
@@ -581,20 +817,20 @@
           {
             "number": 16,
             "par": 4,
-            "strokeIndex": 10,
-            "yards": 351
+            "strokeIndex": 8,
+            "yards": 295
           },
           {
             "number": 17,
             "par": 5,
-            "strokeIndex": 16,
+            "strokeIndex": 4,
             "yards": 493
           },
           {
             "number": 18,
             "par": 3,
-            "strokeIndex": 2,
-            "yards": 175
+            "strokeIndex": 10,
+            "yards": 154
           }
         ]
       }
@@ -602,7 +838,7 @@
   },
   {
     "id": "indian-ridge-arroyo",
-    "name": "Indian Ridge Country Club – Arroyo",
+    "name": "Indian Ridge Country Club \u2013 Arroyo",
     "city": "Palm Desert",
     "region": "CA",
     "country": "US",
@@ -1911,7 +2147,7 @@
   },
   {
     "id": "indian-ridge-grove",
-    "name": "Indian Ridge Country Club – Grove",
+    "name": "Indian Ridge Country Club \u2013 Grove",
     "city": "Palm Desert",
     "region": "CA",
     "country": "US",
