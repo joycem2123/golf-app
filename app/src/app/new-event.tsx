@@ -16,7 +16,7 @@ import { newId, useStore, type EventRecord, type EventType, type SavedPlayer } f
 import { fonts, radius, space, useColors } from '@/theme';
 
 type Step = 'details' | 'players' | 'teams' | 'rounds' | 'matchups';
-type Plan = { id: string; date?: string; draft: GameDraft | null };
+type Plan = { id: string; date?: string; draft: GameDraft | null; tbd?: boolean };
 
 const TYPES: { value: EventType; label: string; icon: string; blurb: string }[] = [
   { value: 'trip', label: 'Trip', icon: '✈︎', blurb: 'A few rounds over a few days. Standings from every match.' },
@@ -82,6 +82,7 @@ export default function NewEvent() {
 
   const isSeason = type === 'season';
   const isCup = type === 'cup';
+  const asYouGo = isSeason && rec.every === 'asYouGo';
   const eventDays = useMemo(() => daysBetween(start, end), [start, end]);
   const seasonDates = useMemo(() => (isSeason ? occurrences(start, end, rec).slice(0, 60) : []), [isSeason, start, end, rec]);
 
@@ -103,16 +104,16 @@ export default function NewEvent() {
   useEffect(() => setPlans((ps) => rebuild(ps, teams)), [ids.join(','), noTeams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep one plan per round, with a sensible date.
-  const roundCount = isSeason ? seasonDates.length : count;
+  const roundCount = isSeason && !asYouGo ? seasonDates.length : count;
   useEffect(() => {
     setPlans((ps) =>
       Array.from({ length: roundCount }, (_, i) => {
-        const date = isSeason ? seasonDates[i] : ps[i]?.date && eventDays.includes(ps[i].date!) ? ps[i].date : eventDays[Math.min(i, eventDays.length - 1)];
-        return { id: ps[i]?.id ?? newId(), date, draft: ps[i]?.draft ?? null };
+        const date = asYouGo ? undefined : isSeason ? seasonDates[i] : ps[i]?.date && eventDays.includes(ps[i].date!) ? ps[i].date : eventDays[Math.min(i, eventDays.length - 1)];
+        return { id: ps[i]?.id ?? newId(), date, draft: ps[i]?.draft ?? null, tbd: ps[i]?.tbd };
       }),
     );
     setCurrent((x) => Math.min(x, Math.max(0, roundCount - 1)));
-  }, [roundCount, isSeason, seasonDates.join(','), eventDays.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roundCount, isSeason, asYouGo, seasonDates.join(','), eventDays.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (p: SavedPlayer) => {
     setIds((x) => (x.includes(p.id) ? x.filter((y) => y !== p.id) : [...x, p.id]));
@@ -134,14 +135,15 @@ export default function NewEvent() {
     ? 'Give the event a name'
     : end < start
       ? 'The end date is before the start'
-      : isSeason && rec.days.length === 0
+      : isSeason && !asYouGo && rec.days.length === 0
         ? 'Pick the days rounds are played'
-        : isSeason && seasonDates.length === 0
+        : isSeason && !asYouGo && seasonDates.length === 0
           ? 'No rounds fall between these dates'
           : null;
   const playersProblem = ids.length < 2 ? 'Add at least 2 players' : null;
   const roundsProblem = plans.some((p) => !p.draft) ? 'Choose a format for every round' : null;
-  const matchupProblems = plans.map((p) => (p.draft ? draftProblem(p.draft, players) : 'Choose a format'));
+  // Round 1's matchups must be set; later rounds can be decided as the event is played.
+  const matchupProblems = plans.map((p, i) => (!p.draft ? 'Choose a format' : i > 0 && p.tbd ? null : draftProblem(p.draft, players)));
 
   const canGo = (s: Step) =>
     s === 'details' ||
@@ -173,7 +175,7 @@ export default function NewEvent() {
       recurrence: isSeason ? rec : undefined,
       teamOf: teams ? Object.fromEntries(ids.map((id) => [id, teamOf[id]])) : undefined,
       teamLetters: teams ? letters : undefined,
-      rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined })),
+      rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
     };
     addEvent(e);
     router.replace(`/event/${e.id}`);
@@ -266,10 +268,16 @@ export default function NewEvent() {
             <Card>
               <H2>Repeats</H2>
               <Segmented
-                options={[{ value: 'weekly', label: 'Weekly' }, { value: 'biweekly', label: 'Every 2 weeks' }, { value: 'monthly', label: 'Monthly' }]}
+                options={[{ value: 'weekly', label: 'Weekly' }, { value: 'biweekly', label: '2 weeks' }, { value: 'monthly', label: 'Monthly' }, { value: 'asYouGo', label: 'As you go' }]}
                 value={rec.every}
                 onChange={(every) => setRec((r) => ({ ...r, every, days: every === 'monthly' ? r.days.slice(0, 1) : r.days }))}
               />
+              {asYouGo && (
+                <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, gap: 2 }}>
+                  <Text style={{ color: c.primary, fontWeight: '700' }}>Play as you go</Text>
+                  <Text style={{ color: c.muted, fontSize: 13 }}>No fixed days. Plan the first rounds now and add more from the event page whenever you play.</Text>
+                </View>
+              )}
               {rec.every === 'monthly' && (
                 <OptionRow label="Which week">
                   <Segmented
@@ -279,8 +287,8 @@ export default function NewEvent() {
                   />
                 </OptionRow>
               )}
-              <Label>{rec.every === 'monthly' ? 'On' : 'On these days'}</Label>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              {!asYouGo && <Label>{rec.every === 'monthly' ? 'On' : 'On these days'}</Label>}
+              {!asYouGo && <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 {WEEKDAYS.map((d, i) => {
                   const on = rec.days.includes(i);
                   return (
@@ -295,8 +303,8 @@ export default function NewEvent() {
                     </Pressable>
                   );
                 })}
-              </View>
-              {rec.days.length > 0 && (
+              </View>}
+              {!asYouGo && rec.days.length > 0 && (
                 <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, gap: 2 }}>
                   <Text style={{ color: c.primary, fontWeight: '700' }}>{describeRecurrence(rec)}</Text>
                   <Text style={{ color: c.muted, fontSize: 13 }}>
@@ -373,13 +381,14 @@ export default function NewEvent() {
         <>
           <Card>
             <H2>Rounds</H2>
-            {isSeason ? (
+            {isSeason && !asYouGo ? (
               <Body muted>{describeRecurrence(rec)}: {plans.length} round{plans.length === 1 ? '' : 's'} from {formatDate(start)} to {formatDate(end)}.</Body>
             ) : (
-              <OptionRow label="Number of rounds">
-                <Stepper value={count} min={1} max={12} onChange={setCount} />
+              <OptionRow label={asYouGo ? 'Rounds to plan now' : 'Number of rounds'}>
+                <Stepper value={count} min={1} max={asYouGo ? 30 : 12} onChange={setCount} />
               </OptionRow>
             )}
+            {asYouGo && <Text style={{ color: c.muted, fontSize: 13 }}>You can add more rounds from the event page any time during the season.</Text>}
             <Text style={{ color: c.muted, fontSize: 13 }}>Choose the format for each round. You’ll set the matchups next.</Text>
             {plans[0]?.draft && plans.length > 1 && (
               <Button
@@ -440,7 +449,7 @@ export default function NewEvent() {
                   onPress={() => setCurrent(i)}
                   style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1.5, borderColor: sel ? c.primary : c.border, backgroundColor: sel ? c.primary : c.card }}>
                   <Text style={{ color: sel ? c.onPrimary : c.text, fontWeight: '700', fontSize: 13 }}>{ok ? '✓ ' : ''}Round {i + 1}</Text>
-                  <Text style={{ color: sel ? '#ffffffcc' : c.muted, fontSize: 11 }}>{p.draft ? gameInfo(p.draft.kind).name : ''}</Text>
+                  <Text style={{ color: sel ? '#ffffffcc' : c.muted, fontSize: 11 }}>{p.draft ? gameInfo(p.draft.kind).name : ''}{i > 0 && p.tbd ? ' · TBD' : ''}</Text>
                 </Pressable>
               );
             })}
@@ -451,16 +460,37 @@ export default function NewEvent() {
             {plan.date && <Text style={{ color: c.muted }}>{formatDate(plan.date, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>}
           </View>
           <GameRulesButton kind={plan.draft.kind} />
+          {current > 0 && (
+            <Card>
+              <Toggle
+                label="Decide matchups later (TBD)"
+                hint="Often set once the earlier rounds are played. You'll pick them when this round starts."
+                value={!!plan.tbd}
+                onChange={(v) => setPlans((ps) => ps.map((x) => (x.id === plan.id ? { ...x, tbd: v } : x)))}
+              />
+            </Card>
+          )}
           <GameOptions
             draft={plan.draft}
             players={players}
             teamOf={teams}
+            hideMatchups={current > 0 && !!plan.tbd}
             onChange={(d) => setPlans((ps) => ps.map((x) => (x.id === plan.id ? { ...x, draft: d } : x)))}
           />
 
           {matchupProblems[current] ? <Body style={{ color: c.danger, textAlign: 'center' }}>{matchupProblems[current]}</Body> : null}
           {current < plans.length - 1 ? (
-            <Button title={`Next: Round ${current + 2}`} disabled={!!matchupProblems[current]} onPress={() => setCurrent(current + 1)} />
+            <>
+              <Button title={`Next: Round ${current + 2}`} disabled={!!matchupProblems[current]} onPress={() => setCurrent(current + 1)} />
+              {plans.length > 2 && plans.slice(1).some((p) => !p.tbd) && (
+                <Button
+                  title="Decide all later rounds later (TBD)"
+                  kind="ghost"
+                  onPress={() => setPlans((ps) => ps.map((x, i) => (i > 0 ? { ...x, tbd: true } : x)))}
+                />
+              )}
+              {matchupProblems.every((x) => !x) && <Button title="Create event" kind="secondary" onPress={create} />}
+            </>
           ) : (
             <>
               {matchupProblems.some((x) => x) && (

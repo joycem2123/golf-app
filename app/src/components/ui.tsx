@@ -136,11 +136,12 @@ export function Stepper({
 export function Toggle({ label, value, onChange, hint }: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string }) {
   const c = useColors();
   return (
+    // The whole row is tappable, not just the switch.
     <View style={[styles.row, { justifyContent: 'space-between', paddingVertical: space.xs }]}>
-      <View style={{ flex: 1, paddingRight: space.md }}>
+      <Pressable style={{ flex: 1, paddingRight: space.md }} onPress={() => onChange(!value)} accessibilityRole="switch" accessibilityState={{ checked: value }} accessibilityLabel={label}>
         <Body>{label}</Body>
         {hint ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>{hint}</Label> : null}
-      </View>
+      </Pressable>
       <Switch value={value} onValueChange={onChange} trackColor={{ true: c.primary }} />
     </View>
   );

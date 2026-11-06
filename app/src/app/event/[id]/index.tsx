@@ -173,7 +173,7 @@ export default function EventScreen() {
           </>
         )}
 
-        {e.remote?.role !== 'viewer' && (
+        {e.remote?.role !== 'viewer' && !e.rounds && (
           <Button small kind="ghost" title={e.teams ? 'Start an unscheduled match' : 'Start an unscheduled round'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id } })} />
         )}
         <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />

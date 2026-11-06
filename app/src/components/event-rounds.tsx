@@ -3,8 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 
 import { formatDate, today } from '@/lib/dates';
 import { formatPoints } from '@/lib/events';
-import { gameInfo } from '@/lib/games';
-import { roundTeamScore } from '@/lib/results';
+import { gameInfo, gameName } from '@/lib/games';
+import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
@@ -30,8 +30,9 @@ export function EventRounds({ e }: { e: EventRecord }) {
         const results = r ? evaluate(r) : [];
         const score = r ? roundTeamScore(r, results) : null;
         const summary = !score && r && results[0] && isResult(results[0]) ? results[0].summary : null;
-        const fmt = x.draft ? gameInfo(x.draft.kind).name : 'Format TBD';
-        const matches = x.draft?.matches.length ?? 0;
+        const fmt = r ? gameName(r.games[0]) : x.draft ? gameInfo(x.draft.kind).name : 'Format TBD';
+        const matches = r ? matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-')).length : x.matchupsLater ? 0 : (x.draft?.matches.length ?? 0);
+        const date = x.date ?? (r ? new Date(r.createdAt).toISOString().slice(0, 10) : undefined);
         let course = '';
         try { if (r) course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
         const isNext = x.id === nextUp;
@@ -44,11 +45,11 @@ export function EventRounds({ e }: { e: EventRecord }) {
             {({ pressed }) => (
               <View style={{ flexDirection: 'row', gap: space.md, paddingVertical: space.md, borderTopWidth: 1, borderTopColor: c.border, opacity: pressed ? 0.6 : 1 }}>
                 <View style={{ width: 50, alignItems: 'center', paddingTop: 2 }}>
-                  <Text style={{ color: x.date && x.date < today() && status === 'upcoming' ? c.muted : c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>
-                    {x.date ? formatDate(x.date, { weekday: 'short' }).toUpperCase() : 'TBD'}
+                  <Text style={{ color: date && date < today() && status === 'upcoming' ? c.muted : c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>
+                    {date ? formatDate(date, { weekday: 'short' }).toUpperCase() : 'DATE'}
                   </Text>
-                  <Text style={{ color: c.text, fontFamily: fonts.serif, fontSize: 22, fontWeight: '700' }}>{x.date ? formatDate(x.date, { day: 'numeric' }) : '–'}</Text>
-                  <Text style={{ color: c.muted, fontSize: 11 }}>{x.date ? formatDate(x.date, { month: 'short' }) : ''}</Text>
+                  <Text style={{ color: c.text, fontFamily: fonts.serif, fontSize: 22, fontWeight: '700' }}>{date ? formatDate(date, { day: 'numeric' }) : 'TBD'}</Text>
+                  <Text style={{ color: c.muted, fontSize: 11 }}>{date ? formatDate(date, { month: 'short' }) : ''}</Text>
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -59,7 +60,7 @@ export function EventRounds({ e }: { e: EventRecord }) {
                       </Text>
                     </View>
                   </View>
-                  <Text style={{ color: c.muted, fontSize: 13 }}>{[fmt, matches ? `${matches} match${matches === 1 ? '' : 'es'}` : null, course || null].filter(Boolean).join(' · ')}</Text>
+                  <Text style={{ color: c.muted, fontSize: 13 }}>{[fmt, x.matchupsLater && !r ? 'Matchups TBD' : matches ? `${matches} match${matches === 1 ? '' : 'es'}` : null, course || null].filter(Boolean).join(' · ')}</Text>
                   {score && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                       {score.map((t) => (
@@ -82,6 +83,14 @@ export function EventRounds({ e }: { e: EventRecord }) {
           </Pressable>
         );
       })}
+      {list.length === 0 && <Text style={{ color: c.muted }}>No rounds yet. Start one when you play.</Text>}
+      {canEdit && e.status !== 'complete' && (
+        <Button
+          title={e.recurrence?.every === 'asYouGo' ? '+ Play a new round' : '+ Add a round'}
+          kind="secondary"
+          onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id, addRound: '1' } })}
+        />
+      )}
     </Card>
   );
 }

@@ -20,11 +20,14 @@ export function GameOptions({
   players,
   onChange,
   teamOf,
+  hideMatchups,
 }: {
   draft: GameDraft;
   players: Player[];
   onChange: (d: GameDraft) => void;
   teamOf?: TeamOf;
+  /** Matchups decided later (an event round that's still TBD). */
+  hideMatchups?: boolean;
 }) {
   const c = useColors();
   const info = gameInfo(draft.kind);
@@ -33,7 +36,7 @@ export function GameOptions({
 
   return (
     <>
-      {info.teamSizes && <MatchupsEditor draft={draft} players={players} onChange={onChange} teamOf={teamOf} />}
+      {info.teamSizes && !hideMatchups && <MatchupsEditor draft={draft} players={players} onChange={onChange} teamOf={teamOf} />}
       {showTeams && (
         <Card>
           <H2>Teams</H2>

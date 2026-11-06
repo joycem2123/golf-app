@@ -112,6 +112,8 @@ export interface EventRound {
   draft?: GameDraft;
   /** Set once the round has been started. */
   roundId?: string;
+  /** Matchups to be decided when the round is played. */
+  matchupsLater?: boolean;
 }
 
 export interface EventRecord {
@@ -199,6 +201,8 @@ interface State {
   /** Results of a shared round someone else finished (for my records and head-to-head). */
   recordRemoteResults: (roundId: string, matches: RecordedMatch[]) => void;
   addEvent: (e: EventRecord) => void;
+  /** A round added to an event as it's played ("play as you go"). */
+  addEventRound: (eventId: string, round: EventRound) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
   upsertPlayer: (p: SavedPlayer) => void;
@@ -388,6 +392,11 @@ export const useStore = create<State>()(
         })),
 
       addEvent: (e) => set((s) => ({ events: [e, ...s.events] })),
+      addEventRound: (eventId, round) =>
+        set((s) => ({
+          events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: [...(e.rounds ?? []), { ...round, number: (e.rounds?.length ?? 0) + 1 }] } : e)),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
       updateEvent: (e) => set((s) => ({ events: s.events.map((x) => (x.id === e.id ? e : x)) })),
       deleteEvent: (id) =>
         set((s) => ({ events: s.events.filter((e) => e.id !== id), rounds: s.rounds.map((r) => (r.eventId === id ? { ...r, eventId: undefined } : r)) })),

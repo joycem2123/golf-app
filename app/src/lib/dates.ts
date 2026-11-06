@@ -42,7 +42,8 @@ export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export interface Recurrence {
-  every: 'weekly' | 'biweekly' | 'monthly';
+  /** asYouGo: no fixed schedule; rounds are added during the season. */
+  every: 'weekly' | 'biweekly' | 'monthly' | 'asYouGo';
   /** Days of the week, 0 = Sunday. */
   days: number[];
   /** Monthly only: which week of the month (1–4, or -1 for the last). */
@@ -51,7 +52,7 @@ export interface Recurrence {
 
 /** The dates a repeating schedule lands on between start and end. */
 export function occurrences(start: string, end: string, rec: Recurrence): string[] {
-  if (!rec.days.length || end < start) return [];
+  if (rec.every === 'asYouGo' || !rec.days.length || end < start) return [];
   const all = daysBetween(start, end);
   // Every-2-weeks counts from the week of the first round on or after the start.
   const first = all.find((s) => rec.days.includes(fromISODate(s).getDay()));
@@ -75,6 +76,7 @@ export function occurrences(start: string, end: string, rec: Recurrence): string
 const ORD = ['', 'first', 'second', 'third', 'fourth'];
 /** "Every week on Tuesday and Thursday", "Every 2 weeks on Saturday", "Monthly on the last Sunday". */
 export function describeRecurrence(rec: Recurrence): string {
+  if (rec.every === 'asYouGo') return 'Play as you go';
   const days = [...rec.days].sort().map((d) => WEEKDAY_NAMES[d]);
   const list = days.length > 1 ? `${days.slice(0, -1).join(', ')} and ${days.at(-1)}` : (days[0] ?? '…');
   if (rec.every === 'weekly') return `Every week on ${list}`;

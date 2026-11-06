@@ -14,6 +14,7 @@ import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, sideMatch
 import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
 import { autoShare } from '@/sync/sync';
 import { space, teamColor, useColors } from '@/theme';
+import { today } from '@/lib/dates';
 
 type Step = 'course' | 'players' | 'teams' | 'game';
 
@@ -26,7 +27,7 @@ function teesFor(course: Course, gender: 'M' | 'F') {
 
 export default function NewRound() {
   const c = useColors();
-  const { eventId, matchId, eventRound } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string }>();
+  const { eventId, matchId, eventRound, addRound: addingRound } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string; addRound?: string }>();
   const event = useEvent(eventId);
   // A round planned in the event (format and matchups already set).
   const planned = event?.rounds?.find((x) => x.id === eventRound);
@@ -128,16 +129,29 @@ export default function NewRound() {
   }, [players, scheduled]);
 
   // Planned event round: once the course is picked, bring in its players and its game.
-  const plannedIds = planned?.draft ? Object.keys(planned.draft.teamOf).filter((id) => saved.some((p) => p.id === id)) : [];
+  // Matchups decided on the day start with the whole event group (take out anyone not playing).
+  const plannedIds = planned?.matchupsLater
+    ? saved.filter((p) => event!.playerIds.includes(p.id)).map((p) => p.id)
+    : planned?.draft
+      ? Object.keys(planned.draft.teamOf).filter((id) => saved.some((p) => p.id === id))
+      : [];
   const plannedDraftSet = useRef(false);
   useEffect(() => {
+    // TBD matchups: keep the round's format and options, and suggest matchups for whoever is playing.
+    if (planned?.draft && planned.matchupsLater) {
+      if (draft || players.length === 0) return;
+      const fresh = newDraft(planned.draft.kind, players, noTeams ? undefined : teamOf);
+      setDraft({ ...planned.draft, teamOf: fresh.teamOf, teamSize: fresh.teamSize, matches: fresh.matches });
+      return;
+    }
     if (!planned?.draft || plannedDraftSet.current || players.length === 0) return;
     const same = players.length === plannedIds.length && players.every((p) => plannedIds.includes(p.id));
     if (!same) return;
     plannedDraftSet.current = true;
     setDraft({ ...planned.draft, teamOf: { ...planned.draft.teamOf } });
-  }, [players]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [players, draft]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const addEventRound = useStore((s) => s.addEventRound);
   const setEventRoundId = useStore((s) => s.setEventRoundId);
   const start = () => {
     if (!course || !draft || problem) return;
@@ -155,12 +169,13 @@ export default function NewRound() {
       status: 'active',
       notices: [],
       eventId: event?.id,
-      label: planned ? `Round ${planned.number}` : scheduled?.label,
+      label: planned ? `Round ${planned.number}` : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : scheduled?.label,
       teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
     };
     addRound(round);
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
     if (event && planned) setEventRoundId(event.id, planned.id, id);
+    if (event && addingRound && !planned) addEventRound(event.id, { id: newId(), number: 0, date: today(), draft, roundId: id });
     void autoShare(id);
     router.replace(`/round/${id}`);
   };
