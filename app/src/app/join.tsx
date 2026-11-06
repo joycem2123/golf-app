@@ -29,7 +29,7 @@ export default function Join() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       <Body muted>Enter the 6-character code from the person who set up the round or event.</Body>
       <TextInput
         value={clean}

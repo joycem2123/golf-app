@@ -25,7 +25,7 @@ export default function Profile() {
   return (
     <View style={{ flex: 1 }}>
       <TabHeader title={me?.name ?? 'Profile'} sub={guest ? 'Playing as a guest' : user?.email} />
-      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
         <Label>Me</Label>
         <MeCard />
         {stats && (

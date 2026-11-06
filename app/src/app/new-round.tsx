@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GameOptions } from '@/components/game-options';
-import { FriendSearch } from '@/components/friend-search';
+import { usePickBus } from '@/store/pick';
 import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
@@ -88,6 +88,16 @@ export default function NewRound() {
     setRoster(ids.map((id) => ({ id, teeId: defaultTee(co, saved.find((p) => p.id === id)!) })));
     setStep(ids.length ? 'game' : 'players');
   }, [scheduled]);
+  // A friend picked on the Add Friend screen joins the group.
+  const picked = usePickBus((s) => s.picked);
+  useEffect(() => {
+    if (!course || picked.length === 0) return;
+    const add = usePickBus.getState().take('new-round');
+    if (!add.length) return;
+    setRoster((r) => [...r, ...add.filter((p) => !r.some((x) => x.id === p.id)).map((p) => ({ id: p.id, teeId: defaultTee(course, p) }))]);
+    setDraft(null);
+  }, [picked, course]);
+
   const draftPrefilled = useRef(false);
   useEffect(() => {
     if (!scheduled?.kind || draftPrefilled.current || players.length === 0) return;
@@ -139,7 +149,7 @@ export default function NewRound() {
   );
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {stepBar}
 
       {step === 'course' && (
@@ -206,15 +216,9 @@ export default function NewRound() {
           {event?.lockHandicaps ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Handicaps are locked for {event.name}.</Label> : null}
 
           {event ? null : addingPlayer ? (
-            <FriendSearch
-              onClose={() => setAddingPlayer(false)}
-              onAdded={(p) => {
-                setRoster((r) => (r.some((x) => x.id === p.id) ? r : [...r, { id: p.id, teeId: defaultTee(course, p) }]));
-                setDraft(null);
-              }}
-            />
+            null
           ) : (
-            <Button title="+ Add a friend" kind="secondary" onPress={() => setAddingPlayer(true)} />
+            <Button title="+ Add a friend" kind="secondary" onPress={() => router.push({ pathname: '/add-friend', params: { pick: 'new-round' } })} />
           )}
 
           {roster.map((r) => {

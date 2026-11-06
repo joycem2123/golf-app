@@ -99,7 +99,7 @@ export default function ScheduleMatch() {
   return (
     <>
       <Stack.Screen options={{ title: existing ? 'Edit match' : 'Schedule a match' }} />
-      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
         <Field label="Name (optional)" value={label} onChangeText={setLabel} placeholder={e.type === 'season' ? 'Week 3' : 'Day 1 · Morning'} />
 
         <Label>Date · {formatDate(date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</Label>

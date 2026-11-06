@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { FriendSearch } from '@/components/friend-search';
+import { usePickBus } from '@/store/pick';
+import { useEffect } from 'react';
 import { Body, Button, Card, Chip, Field, H2, Label, OptionRow, Segmented, Stepper, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
@@ -37,6 +38,11 @@ export default function NewEvent() {
     setIds((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
     setTeamOf((t) => ({ ...t, [id]: t[id] ?? (Object.values(t).filter((v) => v === 'A').length <= Object.values(t).filter((v) => v === 'B').length ? 'A' : 'B') }));
   };
+  const picked = usePickBus((s) => s.picked);
+  useEffect(() => {
+    if (picked.length === 0) return;
+    for (const p of usePickBus.getState().take('new-event')) if (!ids.includes(p.id)) toggle(p.id);
+  }, [picked]);
   const pname = (id: string) => saved.find((p) => p.id === id)?.name ?? '?';
   const teamA = ids.filter((id) => teamOf[id] === 'A');
   const teamB = ids.filter((id) => teamOf[id] !== 'A');
@@ -70,7 +76,7 @@ export default function NewEvent() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       <Segmented options={TYPES.map((t) => ({ value: t.value, label: t.label }))} value={type} onChange={(t) => { setType(t); setLock(t !== 'season'); }} />
       <Body muted>{TYPES.find((t) => t.value === type)!.blurb}</Body>
 
@@ -84,9 +90,9 @@ export default function NewEvent() {
           ))}
         </View>
         {adding ? (
-          <FriendSearch onClose={() => setAdding(false)} onAdded={(p) => { if (!ids.includes(p.id)) toggle(p.id); }} />
+          null
         ) : (
-          <Button small kind="secondary" title="+ Add a friend" onPress={() => setAdding(true)} />
+          <Button small kind="secondary" title="+ Add a friend" onPress={() => router.push({ pathname: '/add-friend', params: { pick: 'new-event' } })} />
         )}
       </Card>
 

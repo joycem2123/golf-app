@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 
@@ -6,7 +7,6 @@ import { useMe } from '@/lib/me';
 import { useStore, type SavedPlayer } from '@/store/store';
 import { ensureSession, saveMyProfile } from '@/sync/auth';
 import { removeFriend } from '@/sync/friends';
-import { FriendSearch } from './friend-search';
 import { UsernameField, type UsernameStatus } from './username-field';
 import { fonts, radius, space, useColors } from '@/theme';
 import { PlayerForm, splitName } from './player-form';
@@ -168,11 +168,7 @@ export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
           ),
         )}
       </Card>
-      {adding ? (
-        <FriendSearch onClose={() => setAdding(false)} />
-      ) : (
-        <Button title="+ Add a friend" kind="secondary" onPress={() => setAdding(true)} />
-      )}
+      <Button title="+ Add a friend" kind="secondary" onPress={() => router.push('/add-friend')} />
       <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Friends on MatchDay keep their own handicap index up to date. Tap anyone else to edit theirs.</Text>
     </View>
   );
