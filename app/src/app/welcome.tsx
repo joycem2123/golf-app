@@ -9,7 +9,7 @@ import { passwordOk } from '@/lib/password';
 import { Body, Button, Card, Field, Segmented } from '@/components/ui';
 import { parseIndex } from '@/lib/format';
 import { UsernameField, type UsernameStatus } from '@/components/username-field';
-import { accountExists, cleanUsername, ensureSession, releaseUsername, restoreMe, saveMyProfile, sendPasswordReset, signIn, signUp } from '@/sync/auth';
+import { ensureSession, releaseUsername, restoreMe, saveMyProfile, sendPasswordReset, signIn, signUp } from '@/sync/auth';
 import { accountKey, GUEST_KEY, switchAccount } from '@/store/accounts';
 import { newId, useStore } from '@/store/store';
 import { supabase } from '@/sync/supabase';
@@ -28,9 +28,6 @@ export default function Welcome() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [password2, setPassword2] = useState('');
-  // Sign-in is two steps: who you are, then your password.
-  const [step, setStep] = useState<'id' | 'pw'>('id');
-  const [notFound, setNotFound] = useState(false);
   const [index, setIndex] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
   const upsertPlayer = useStore((s) => s.upsertPlayer);
@@ -91,7 +88,7 @@ export default function Welcome() {
 
         {mode === 'choose' && (
           <View style={{ gap: space.md, marginTop: 'auto' }}>
-            <Button title="Sign in" onPress={() => { setMode('signIn'); setStep('id'); }} kind="secondary" />
+            <Button title="Sign in" onPress={() => setMode('signIn')} kind="secondary" />
             <Button title="Create account" onPress={() => setMode('signUp')} kind="secondary" />
             <View style={{ borderTopWidth: 1, borderTopColor: '#ffffff33', marginVertical: space.sm }} />
             <Pressable
@@ -161,19 +158,12 @@ export default function Welcome() {
                 <Segmented options={[{ value: 'M', label: "Men's tees" }, { value: 'F', label: "Women's tees" }]} value={gender} onChange={setGender} />
               </>
             )}
-            {mode === 'signIn' && step === 'id' ? (
-              <Field label="Email or username" value={email} onChangeText={(v) => { setEmail(v); setNotFound(false); setMessage(null); }} placeholder="you@example.com or username" autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" autoFocus returnKeyType="next" />
-            ) : mode === 'signIn' ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.chip, borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 14 }}>
-                <Text style={{ color: c.text, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>{email.trim()}</Text>
-                <Pressable hitSlop={8} onPress={() => { setStep('id'); setPassword(''); setMessage(null); }}>
-                  <Text style={{ color: c.primary, fontWeight: '600' }}>Change</Text>
-                </Pressable>
-              </View>
+            {mode === 'signIn' ? (
+              <Field label="Email or username" value={email} onChangeText={setEmail} placeholder="you@example.com or username" autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" />
             ) : (
               <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
             )}
-            {!(mode === 'signIn' && step === 'id') && <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'Create a strong password' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} autoFocus={mode === 'signIn'} />}
+            <Field label="Password" value={password} onChangeText={setPassword} placeholder={mode === 'signUp' ? 'Create a strong password' : undefined} secureTextEntry autoComplete={mode === 'signUp' ? 'new-password' : 'current-password'} />
             {mode === 'signUp' && password.length > 0 && <PasswordChecklist password={password} />}
             {mode === 'signUp' && (
               <Field label="Retype password" value={password2} onChangeText={setPassword2} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
@@ -182,43 +172,6 @@ export default function Welcome() {
               <Text style={{ color: c.danger, fontSize: 13 }}>The passwords don’t match.</Text>
             )}
             {message ? <Body style={{ color: message.error ? c.danger : c.primary }}>{message.text}</Body> : null}
-            {mode === 'signIn' && step === 'id' ? (
-              <>
-                <Button
-                  title={busy ? 'Checking…' : 'Continue'}
-                  disabled={busy || email.trim().replace(/^@/, '').length < 3}
-                  onPress={() =>
-                    run(async () => {
-                      const found = await accountExists(email);
-                      // If we can't check right now, just carry on to the password step.
-                      if (found === false) {
-                        setNotFound(true);
-                        setMessage({ text: 'That email or username can’t be found.', error: true });
-                        return;
-                      }
-                      setStep('pw');
-                    })
-                  }
-                />
-                {notFound && (
-                  <Button
-                    title="Create an account"
-                    kind="secondary"
-                    onPress={() => {
-                      const v = email.trim();
-                      if (v.includes('@') && !v.startsWith('@')) setEmail(v);
-                      else {
-                        setUsername(cleanUsername(v));
-                        setEmail('');
-                      }
-                      setNotFound(false);
-                      setMessage(null);
-                      setMode('signUp');
-                    }}
-                  />
-                )}
-              </>
-            ) : (
             <Button
               title={busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
               disabled={busy || (mode === 'signIn' ? email.trim().replace(/^@/, '').length < 3 : !email.includes('@')) || (mode === 'signUp' ? !passwordOk(password) || password2 !== password : password.length === 0) || (mode === 'signUp' && !detailsOk)}
@@ -244,21 +197,18 @@ export default function Welcome() {
                     return done();
                   }
                   setMessage({ text: `We sent a confirmation link to ${email.trim()}. Tap it, then come back here and sign in.` });
-                  setPassword('');
-                  setStep('pw');
                   setMode('signIn');
                 })
               }
             />
-            )}
-            {mode === 'signIn' && step === 'pw' && (
+            {mode === 'signIn' && (
               <View style={{ alignItems: 'flex-end' }}>
                 <Pressable hitSlop={8} onPress={() => { setMode('forgotPw'); setMessage(null); if (!email.includes('@')) setEmail(''); }}>
                   <Text style={{ color: c.primary, fontWeight: '600' }}>Forgot password?</Text>
                 </Pressable>
               </View>
             )}
-            <Button title="Back" kind="ghost" onPress={() => { setMode('choose'); setMessage(null); setStep('id'); setNotFound(false); }} />
+            <Button title="Back" kind="ghost" onPress={() => { setMode('choose'); setMessage(null); }} />
           </Card>
         )}
 
@@ -278,7 +228,7 @@ export default function Welcome() {
                 })
               }
             />
-            <Button title="Back to sign in" kind="ghost" onPress={() => { setMode('signIn'); setStep('id'); setMessage(null); }} />
+            <Button title="Back to sign in" kind="ghost" onPress={() => { setMode('signIn'); setMessage(null); }} />
           </Card>
         )}
       </ScrollView>

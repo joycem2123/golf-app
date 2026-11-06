@@ -107,16 +107,6 @@ export async function restoreMe() {
   await pullFriends();
 }
 
-/** Step 1 of sign-in: is there an account for this email or username? Null if we can't tell (offline or too many checks). */
-export async function accountExists(emailOrUsername: string): Promise<boolean | null> {
-  const { data, error } = await supabase.rpc('account_exists', { identifier: emailOrUsername.trim() });
-  if (error) {
-    if (/fetch|network/i.test(error.message)) throw new Error('No connection. Try again when you have signal.');
-    return null;
-  }
-  return !!data;
-}
-
 /** Sign in with an email or a username. A username is swapped for its email only if the password is right. */
 export async function signIn(emailOrUsername: string, password: string) {
   let email = emailOrUsername.trim();
@@ -131,14 +121,14 @@ export async function signIn(emailOrUsername: string, password: string) {
             : 'Could not sign in. Try again.',
       );
     }
-    if (!data) throw new Error('Wrong password. Try again, or tap “Forgot password?”.');
+    if (!data) throw new Error('That username and password don’t match.');
     email = data as string;
   }
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     throw new Error(
       /invalid login|invalid credentials/i.test(error.message)
-        ? 'Wrong password. Try again, or tap “Forgot password?”.'
+        ? 'That email and password don’t match.'
         : /not confirmed/i.test(error.message)
           ? 'Confirm your email first: tap the link we sent you.'
           : /fetch|network/i.test(error.message)
