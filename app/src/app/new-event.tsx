@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Calendar } from '@/components/calendar';
+import { DateField } from '@/components/date-field';
 import { GameOptions } from '@/components/game-options';
 import { HolesSetup } from '@/components/holes-setup';
 import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/components/round-setup';
@@ -25,36 +25,6 @@ const TYPES: { value: EventType; label: string; icon: string; blurb: string }[] 
   { value: 'cup', label: 'Ryder Cup', icon: '🏆', blurb: 'Two teams play matches for points. Win 1, halve ½.' },
   { value: 'season', label: 'Season', icon: '📅', blurb: 'Regular rounds on a repeating schedule, with season standings.' },
 ];
-
-/** A date you tap to change, with a calendar in a sheet. */
-function DateField({ label, value, onChange, min }: { label: string; value: string; onChange: (d: string) => void; min?: string }) {
-  const c = useColors();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Pressable
-        onPress={() => setOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={`${label}: ${formatDate(value)}`}
-        style={({ pressed }) => ({ flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: space.md, backgroundColor: c.card, opacity: pressed ? 0.6 : 1 })}>
-        <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>{label.toUpperCase()}</Text>
-        <Text style={{ color: c.text, fontSize: 16, fontWeight: '600', marginTop: 2 }}>{formatDate(value, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</Text>
-      </Pressable>
-      <Sheet visible={open} onClose={() => setOpen(false)} title={label}>
-        <Calendar
-          selected={value}
-          initial={value}
-          onSelect={(d) => {
-            if (min && d < min) return;
-            onChange(d);
-            setOpen(false);
-          }}
-        />
-        {min ? <Text style={{ color: c.muted, fontSize: 12, marginTop: space.sm }}>Can’t be before {formatDate(min)}.</Text> : null}
-      </Sheet>
-    </>
-  );
-}
 
 export default function NewEvent() {
   const c = useColors();

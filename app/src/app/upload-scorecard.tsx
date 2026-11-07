@@ -5,7 +5,9 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { DateField } from '@/components/date-field';
 import { Body, Button, Card, Field, H2, Label } from '@/components/ui';
+import { today } from '@/lib/dates';
 import { holesOnCard, readRoundPhoto, setPendingScan, type ScannedRound } from '@/lib/round-scan';
 import { pickScorecard } from '@/lib/scan';
 import { track } from '@/lib/usage';
@@ -47,7 +49,10 @@ export default function UploadScorecard() {
       const photo = await pickScorecard(source);
       if (!photo) return;
       setPhase('reading');
-      setCard(await readRoundPhoto(photo));
+      const read = await readRoundPhoto(photo);
+      // The date written on the card, if there is one (and it isn't in the future); otherwise today.
+      const onCard = read.date && /^\d{4}-\d{2}-\d{2}$/.test(read.date) && read.date <= today() ? read.date : today();
+      setCard({ ...read, date: onCard });
       setPhase('review');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -102,7 +107,9 @@ export default function UploadScorecard() {
         {card.courseName ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Course on the card: {card.courseName}</Label> : null}
         {card.notes ? <Label style={{ textTransform: 'none', letterSpacing: 0 }}>{card.notes}</Label> : null}
       </Card>
-      <Field label="Date played (YYYY-MM-DD)" value={card.date ?? ''} onChangeText={(t) => setCard({ ...card, date: t.trim() || null })} placeholder="Today" autoCapitalize="none" />
+      <View style={{ flexDirection: 'row' }}>
+        <DateField label="Date played" value={card.date ?? today()} max={today()} onChange={(d) => setCard({ ...card, date: d })} />
+      </View>
 
       {card.rows.map((r, i) => {
         const total = (list: number[]) => list.reduce((s, h) => s + (r.scores[h - 1] ?? 0), 0);
