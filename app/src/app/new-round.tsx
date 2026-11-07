@@ -49,10 +49,12 @@ export default function NewRound() {
   const addRound = useStore((s) => s.addRound);
   const courses = useCourses();
 
-  const [step, setStep] = useState<Step>('course');
+  // Uploaded card: course, players and tees were set on the score-check screen, so start at Teams.
+  const fromCard = !!(scan?.courseId && scan.roster?.length);
+  const [step, setStep] = useState<Step>(fromCard ? 'teams' : 'course');
   const [query, setQuery] = useState(() => (scan?.courseName ? shortCourseName(scan.courseName) : ''));
-  const [course, setCourse] = useState<Course | null>(null);
-  const [roster, setRoster] = useState<{ id: string; teeId: string }[]>([]);
+  const [course, setCourse] = useState<Course | null>(() => (fromCard ? (getCourse(scan!.courseId!) ?? null) : null));
+  const [roster, setRoster] = useState<{ id: string; teeId: string }[]>(() => (fromCard ? scan!.roster! : []));
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [draft, setDraft] = useState<GameDraft | null>(null);
   // Teams step: start with an empty Team A and Team B (a Ryder Cup event fills them in).
@@ -260,8 +262,7 @@ export default function NewRound() {
   const stepBar = (
     <StepPills
       steps={[
-        { value: 'course', label: 'Course' },
-        { value: 'players', label: 'Players' },
+        ...(fromCard ? [] : [{ value: 'course' as const, label: 'Course' }, { value: 'players' as const, label: 'Players' }]),
         { value: 'teams', label: 'Teams' },
         { value: 'game', label: 'Game' },
       ]}

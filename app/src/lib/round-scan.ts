@@ -16,6 +16,13 @@ export interface ScannedRow {
   unsure: number[];
   /** The saved player (me or a friend) this row was confirmed as; null = "not them". */
   playerId?: string | null;
+  /** No match: an existing friend, or someone new (needs a handicap index). */
+  who?: 'friend' | 'new';
+  /** Someone new: handicap index as typed, and which tees (men's or women's) they play. */
+  newIndex?: string;
+  newGender?: 'M' | 'F';
+  /** A different tee from the group's (tee id). */
+  teeId?: string;
 }
 
 export interface ScannedRound {
@@ -24,6 +31,12 @@ export interface ScannedRound {
   date: string | null;
   rows: ScannedRow[];
   notes: string;
+  /** Chosen on the score-check screen. */
+  courseId?: string;
+  /** Tee name everyone played (each player gets their men's/women's version of it). */
+  teeName?: string;
+  /** Who played, from which tee: filled in when moving on to the round setup. */
+  roster?: { id: string; teeId: string }[];
 }
 
 // The card being uploaded, between the review screen and New Round (not saved to the phone).
