@@ -8,9 +8,11 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { DateField } from '@/components/date-field';
 import { Body, Button, Card, Field, H2, Label } from '@/components/ui';
 import { today } from '@/lib/dates';
-import { holesOnCard, readRoundPhoto, setPendingScan, type ScannedRound } from '@/lib/round-scan';
+import { holesOnCard, readRoundPhoto, setPendingScan, suggestPlayer, type ScannedRound } from '@/lib/round-scan';
+import { useMe } from '@/lib/me';
 import { pickScorecard } from '@/lib/scan';
 import { track } from '@/lib/usage';
+import { useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -42,6 +44,9 @@ export default function UploadScorecard() {
   const [phase, setPhase] = useState<'pick' | 'reading' | 'review'>('pick');
   const [error, setError] = useState<string | null>(null);
   const [card, setCard] = useState<ScannedRound | null>(null);
+  const { isMe } = useMe();
+  // Me and my friends (and people I've played with), to match names on the card.
+  const people = useStore((s) => s.players);
 
   const read = async (source: 'camera' | 'library') => {
     setError(null);
@@ -113,14 +118,38 @@ export default function UploadScorecard() {
 
       {card.rows.map((r, i) => {
         const total = (list: number[]) => list.reduce((s, h) => s + (r.scores[h - 1] ?? 0), 0);
+        const taken = card.rows.filter((x, j) => j !== i && x.playerId).map((x) => x.playerId!);
+        const linked = r.playerId ? people.find((p) => p.id === r.playerId) : undefined;
+        const guess = r.playerId === undefined ? suggestPlayer(r.name, people, taken) : null;
+        const who = (p: { id: string; name: string }) => `${p.name}${isMe(p.id) ? ' (you)' : ''}`;
         return (
           <Card key={i} style={{ gap: space.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm }}>
-              <Field label={`Row ${i + 1} name`} value={r.name} onChangeText={(t) => setRow(i, { name: t })} />
+              <Field label={`Row ${i + 1} name`} value={r.name} onChangeText={(t) => setRow(i, { name: t, playerId: undefined })} />
               <Pressable onPress={() => setCard({ ...card, rows: card.rows.filter((_, j) => j !== i) })} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove row ${i + 1}`} style={{ paddingBottom: 12 }}>
                 <Text style={{ color: c.danger, fontWeight: '600' }}>Remove</Text>
               </Pressable>
             </View>
+            {/* Same name as me or a friend: ask if it's them, so they're added to the round for you. */}
+            {guess && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.sm }}>
+                <Text style={{ flex: 1, color: c.text, fontWeight: '600' }}>Is this {who(guess)}?</Text>
+                <Pressable onPress={() => setRow(i, { playerId: guess.id })} accessibilityRole="button" accessibilityLabel={`Yes, row ${i + 1} is ${guess.name}`} style={{ backgroundColor: c.primary, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 14 }}>
+                  <Text style={{ color: c.onPrimary, fontWeight: '700' }}>Yes</Text>
+                </Pressable>
+                <Pressable onPress={() => setRow(i, { playerId: null })} accessibilityRole="button" accessibilityLabel={`No, row ${i + 1} is not ${guess.name}`} style={{ borderWidth: 1, borderColor: c.border, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 14, backgroundColor: c.card }}>
+                  <Text style={{ color: c.text, fontWeight: '700' }}>No</Text>
+                </Pressable>
+              </View>
+            )}
+            {linked && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <Text style={{ flex: 1, color: c.primary, fontWeight: '700' }}>✓ {who(linked)}</Text>
+                <Pressable onPress={() => setRow(i, { playerId: null })} hitSlop={8} accessibilityRole="button">
+                  <Text style={{ color: c.muted, fontWeight: '600' }}>Not them</Text>
+                </Pressable>
+              </View>
+            )}
             {nines.map((nine) => (
               <View key={nine[0]} style={{ gap: 2 }}>
                 <View style={{ flexDirection: 'row', gap: 3 }}>

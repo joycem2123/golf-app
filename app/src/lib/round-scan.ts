@@ -14,6 +14,8 @@ export interface ScannedRow {
   scores: (number | null)[];
   /** Holes that were hard to read (1-18). */
   unsure: number[];
+  /** The saved player (me or a friend) this row was confirmed as; null = "not them". */
+  playerId?: string | null;
 }
 
 export interface ScannedRound {
@@ -65,7 +67,7 @@ export function holesFromCard(s: ScannedRound): { holes: 9 | 18; start: number }
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9& ]/g, '').trim();
 
 /** How well a scorecard name matches a player's name (higher is better, 0 = no match). */
-function nameScore(written: string, label: string): number {
+export function nameScore(written: string, label: string): number {
   const w = norm(written);
   const l = norm(label);
   if (!w || !l) return 0;
@@ -80,12 +82,29 @@ function nameScore(written: string, label: string): number {
   return 0;
 }
 
+/** The saved person (me or a friend) a card name most likely is, skipping anyone already taken by another row. */
+export function suggestPlayer<P extends { id: string; name: string }>(written: string, people: P[], taken: string[] = []): P | null {
+  let best: P | null = null;
+  let bestScore = 0;
+  for (const p of people) {
+    if (taken.includes(p.id)) continue;
+    const s = nameScore(written, p.name);
+    if (s > bestScore) {
+      best = p;
+      bestScore = s;
+    }
+  }
+  return bestScore >= 50 ? best : null;
+}
+
 /** Best guess at which card row belongs to each player/team (each row used once; null = no guess). */
 export function guessRows(keys: { key: string; label: string }[], rows: ScannedRow[]): Record<string, number | null> {
+  // Rows already confirmed as a player belong to that player.
+  const confirmed = new Map(rows.map((r, i) => [r.playerId, i] as const).filter(([id]) => !!id));
   const pairs = keys.flatMap((k) => rows.map((r, i) => ({ k: k.key, i, s: nameScore(r.name, k.label) }))).filter((p) => p.s > 0);
   pairs.sort((a, b) => b.s - a.s);
-  const out: Record<string, number | null> = Object.fromEntries(keys.map((k) => [k.key, null]));
-  const used = new Set<number>();
+  const out: Record<string, number | null> = Object.fromEntries(keys.map((k) => [k.key, confirmed.get(k.key) ?? null]));
+  const used = new Set<number>(Object.values(out).filter((i): i is number => i !== null));
   for (const p of pairs) {
     if (out[p.k] !== null || used.has(p.i)) continue;
     out[p.k] = p.i;

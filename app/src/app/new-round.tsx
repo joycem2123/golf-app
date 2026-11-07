@@ -297,7 +297,11 @@ export default function NewRound() {
               onPress={() => {
                 setCourse(co);
                 // Start with me in the group (if I'm part of this event, or it's a regular round).
-                if (planned?.draft) {
+                // Uploaded card: start with the people confirmed on the score-check screen.
+                const fromCard = scan ? [...new Set(scan.rows.map((r) => r.playerId).filter((x): x is string => !!x))].filter((pid) => saved.some((p) => p.id === pid)) : [];
+                if (fromCard.length) {
+                  setRoster(fromCard.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
+                } else if (planned?.draft) {
                   plannedDraftSet.current = false;
                   setRoster(plannedIds.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
                 } else setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);
@@ -321,8 +325,14 @@ export default function NewRound() {
           {scan && (
             <Card style={{ gap: 4 }}>
               <Label>On the scorecard</Label>
-              <Body>{scan.rows.map((r) => r.name).join(', ')}</Body>
-              <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Add these players (or their teams) to the round. You’ll match them to the card’s rows on the last step.</Label>
+              <Body>{scan.rows.map((r) => (r.playerId ? `${r.name} ✓` : r.name)).join(', ')}</Body>
+              <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
+                {scan.rows.every((r) => r.playerId)
+                  ? 'Everyone on the card is already added (✓). Pick their tees, then carry on.'
+                  : scan.rows.some((r) => r.playerId)
+                    ? 'Players marked ✓ are already added. Add the others, then pick tees.'
+                    : 'Add these players (or their teams) to the round. You’ll match them to the card’s rows on the last step.'}
+              </Label>
             </Card>
           )}
           <PlayerPicker
