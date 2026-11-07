@@ -121,25 +121,28 @@ export default function Home() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
           <Tile primary title="New Round" sub="Pick a course, players and games" icon={glyph('+', '#fff')} onPress={() => router.push('/new-round')} />
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
-          <Tile title="Join with Code" sub="Follow live or keep score" icon={glyph('#', c.primary)} onPress={() => router.push('/join')} />
-          <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
-          {/* A slimmer, gold-tinted strip so it doesn't look like a fifth box. */}
+          {/* Upload a scorecard: the other way to start a round, so it sits right under New Round, in deep green and gold. */}
           <Pressable
             onPress={() => router.push('/upload-scorecard')}
             accessibilityRole="button"
-            accessibilityLabel="Upload Scorecard: turn a photo of a finished card into a round"
+            accessibilityLabel="Upload a scorecard: turn a photo of a finished card into a round"
             style={({ pressed }) => ({
               flexBasis: '100%', flexDirection: 'row', alignItems: 'center', gap: space.md,
-              backgroundColor: '#B4895418', borderWidth: 1, borderColor: '#B4895466', borderRadius: radius.lg,
-              paddingVertical: space.sm + 2, paddingHorizontal: space.lg, opacity: pressed ? 0.7 : 1,
+              backgroundColor: c.brand, borderRadius: radius.lg, borderWidth: 1.5, borderColor: c.brandGold,
+              paddingVertical: space.md, paddingHorizontal: space.lg, opacity: pressed ? 0.8 : 1,
+              shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
             })}>
-            <Text style={{ fontSize: 20 }}>📷</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }}>Upload a scorecard</Text>
-              <Text style={{ color: c.muted, fontSize: 12 }}>Played without the app? Snap the card.</Text>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.brandGold, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 19 }}>📷</Text>
             </View>
-            <Text style={{ color: c.brandGold, fontSize: 22, fontWeight: '700' }}>›</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 17 }}>Upload a Scorecard</Text>
+              <Text style={{ color: '#ffffffbb', fontSize: 12 }}>Played without the app? Snap the card for instant results.</Text>
+            </View>
+            <Text style={{ color: c.brandGold, fontSize: 26, fontWeight: '700' }}>›</Text>
           </Pressable>
+          <Tile title="Join with Code" sub="Follow live or keep score" icon={glyph('#', c.primary)} onPress={() => router.push('/join')} />
+          <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
         </View>
 
         <GameSections skipRoundId={live?.id} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} firstOpenRef={firstOpenRef} />
