@@ -292,6 +292,27 @@ export function watchMine(uid: string | null) {
 let flushing = false;
 
 /** Send queued scores and game changes. Safe to call any time; does nothing offline. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const claimedRounds = new Set<string>();
+
+/**
+ * Tell the server which player in this round is me, when that player's id isn't my account id
+ * (playing without an account, or added before I signed up). Without it, my own match would be locked to me.
+ */
+export async function claimMe(roundId: string) {
+  const st = useStore.getState();
+  const r = st.rounds.find((x) => x.id === roundId);
+  if (!r?.remote || !st.me) return;
+  const mine = r.players.map((p) => p.id).filter((id) => !UUID_RE.test(id) && (id === st.myPlayerId || st.meAliases.includes(id)));
+  const tag = `${roundId}:${mine.join(',')}`;
+  if (claimedRounds.has(tag)) return;
+  if (mine.length) {
+    const { error } = await supabase.from('round_identities').upsert(mine.map((player_id) => ({ round_id: roundId, player_id })), { onConflict: 'round_id,player_id', ignoreDuplicates: true });
+    if (error && /fetch|network|timeout/i.test(error.message)) return; // try again next time
+  }
+  claimedRounds.add(tag);
+}
+
 export async function flush() {
   if (flushing) return;
   flushing = true;
@@ -300,6 +321,7 @@ export async function flush() {
     if (!data.session) return;
     const st = useStore.getState();
     const done = [];
+    for (const rid of new Set(st.outbox.map((i) => i.roundId))) await claimMe(rid).catch(() => undefined);
     for (const item of st.outbox) {
       const { error } = await supabase.rpc('upsert_score', {
         p_round: item.roundId,
@@ -309,7 +331,7 @@ export async function flush() {
         p_entered_at: item.enteredAt,
       });
       if (error) {
-        // Network trouble: try again later. Permission errors: drop it.
+        // Network trouble: try again later. Permission errors (including "not your match"): drop it.
         if (/fetch|network|timeout/i.test(error.message)) break;
       }
       done.push(item);

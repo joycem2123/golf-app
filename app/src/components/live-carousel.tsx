@@ -2,7 +2,6 @@
  * Home: every match in progress, one card each, swipe left/right (dots show where you are).
  * My matches first, then the other matches in rounds I'm part of. Tap to open that match.
  */
-import type { GameConfig } from '@golf/engine';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
@@ -13,23 +12,10 @@ import type { TipTarget } from '@/components/tip';
 import { gameName, matchLabel } from '@/lib/games';
 import { headline } from '@/lib/headline';
 import { useMe } from '@/lib/me';
+import { playersIn } from '@/lib/edit-rights';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { RoundRecord } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
-
-/** Player ids in a game (both sides). */
-function playersIn(g: GameConfig): string[] {
-  switch (g.type) {
-    case 'matchPlay':
-    case 'nassau': return [...g.sideA.members, ...g.sideB.members];
-    case 'vegas': return [...g.teamA.members, ...g.teamB.members];
-    case 'scramble':
-    case 'shamble': return g.teams.flatMap((t) => t.members);
-    case 'wolf': return g.order;
-    case 'stableford': return g.teams ? g.teams.flatMap((t) => t.members) : (g.playerIds ?? []);
-    default: return (g as { playerIds?: string[] }).playerIds ?? [];
-  }
-}
 
 type Item = { r: RoundRecord; gi: number; mine: boolean; at: number };
 

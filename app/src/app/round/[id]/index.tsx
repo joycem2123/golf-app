@@ -27,6 +27,8 @@ import { TeamScoreboard } from '@/components/team-scoreboard';
 import { cardSides, liveTeamScore } from '@/lib/results';
 import { headline } from '@/lib/headline';
 import { AddToEvent } from '@/components/add-to-event';
+import { EditRights, canEditGame, canEditKey, useAccountId, useCanEdit, useEditRequests } from '@/lib/edit-rights';
+import { EditRequestsCard, LockedMatch } from '@/components/edit-lock';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -58,7 +60,9 @@ function ScoreRow({
   const setStat = (patch: object) => setStats(r.id, k.key, hole, { ...(stats ?? {}), ...patch });
   const fairways: [FairwayResult, string][] = [['left', '←'], ['hit', 'Hit'], ['right', '→']];
   const { isMe } = useMe();
-  const readOnly = r.remote?.role === 'viewer';
+  // Followers, and anyone not allowed to score this player's match, just see the score.
+  const allowed = useCanEdit(k.key);
+  const readOnly = r.remote?.role === 'viewer' || !allowed;
 
   const Wrapper = teamColor ? View : Card;
   return (
@@ -312,6 +316,9 @@ export default function Scorecard() {
   const deleteRound = useStore((s) => s.deleteRound);
 
   useAutoIdentity(r && r.remote && r.remote.role !== 'owner' ? r.players : []);
+  const uid = useAccountId();
+  const { requests, claimed, reload } = useEditRequests(r);
+  const { isMe: isMyId } = useMe();
   if (!r) return <Body>Round not found.</Body>;
   const viewer = r.remote?.role === 'viewer';
 
@@ -346,6 +353,10 @@ export default function Scorecard() {
   const teams = teamGroups(r, c, gi);
   const inTeams = new Set(teams?.flatMap((t) => t.keys) ?? []);
   const solo = keys.filter((k) => !inTeams.has(k.key));
+  // Only players in a match (or anyone, for an all-guest match, or someone they said yes to) can enter its scores.
+  const rights = { uid, isMe: isMyId, requests, claimed };
+  const canEdit = (key: string) => !viewer && canEditKey(r, key, rights);
+  const locked = !viewer && !!uid && !canEditGame(r, gi, rights);
 
   const finish = () => {
     const go = () => {
@@ -445,6 +456,7 @@ export default function Scorecard() {
           })}
         </ScrollView>
       )}
+      <EditRights.Provider value={canEdit}>
       <ScrollView contentContainerStyle={{ padding: view === 'hole' && !viewer ? space.md : space.lg, gap: view === 'hole' && !viewer ? 8 : space.md, paddingBottom: 60 }}>
         {viewer ? (
           // Following along: the full scorecard only, nothing editable.
@@ -467,6 +479,8 @@ export default function Scorecard() {
           )
         )}
 
+
+        {!viewer && uid ? <EditRequestsCard r={r} rights={rights} reload={reload} /> : null}
 
         {r.notices.length > 0 && (
           <Card style={{ borderColor: c.accent, borderWidth: 2 }}>
@@ -491,6 +505,8 @@ export default function Scorecard() {
           </>
         ) : (
           <>
+            {locked && uid ? <LockedMatch r={r} gi={gi} uid={uid} requests={requests} reload={reload} /> : null}
+
             {/* Hole header (the match buttons above already show each match's status) */}
             <View style={[styles.row, { justifyContent: 'space-between' }]}>
               <Button small kind="secondary" title="‹ Prev" disabled={prevHole === null} onPress={() => prevHole && goHole(prevHole)} />
@@ -517,7 +533,7 @@ export default function Scorecard() {
 
             {r.games.map((g, i) => {
               const res = results[i];
-              if (r.remote?.role === 'viewer') return null;
+              if (r.remote?.role === 'viewer' || !canEditGame(r, i, rights)) return null;
               if (g.type === 'wolf' && res && isResult(res) && res.type === 'wolf') return <WolfPanel key={i} r={r} index={i} result={res} hole={hole} />;
               return null;
             })}
@@ -531,7 +547,7 @@ export default function Scorecard() {
             })}
 
 
-            {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' && (!multi || i === gi) ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
+            {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' && canEditGame(r, i, rights) && (!multi || i === gi) ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
 
             {/* Team rounds: every match's card (with its teams) below the hole, as on the full scorecard. */}
             {teamTop && matchCards}
@@ -565,14 +581,15 @@ export default function Scorecard() {
           }}
         />
       </ScrollView>
+      </EditRights.Provider>
       {/* Always on screen while scoring, so there's no scrolling between entering scores and moving on. */}
       {view === 'hole' && !viewer && (
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border }}>
           {nextHole !== null ? (
             <Button
-              title={done(hole) ? `Next hole: ${nextHole} ›` : `Enter every score for hole ${hole}`}
+              title={done(hole) || locked ? `Next hole: ${nextHole} ›` : `Enter every score for hole ${hole}`}
               kind={done(hole) ? 'primary' : 'secondary'}
-              disabled={!done(hole)}
+              disabled={!done(hole) && !locked}
               onPress={() => goHole(nextHole)}
             />
           ) : (
