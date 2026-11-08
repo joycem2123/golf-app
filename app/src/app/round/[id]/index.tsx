@@ -295,6 +295,7 @@ export default function Scorecard() {
   const me = useStore((s) => s.me);
   // "Edit scores" on an uploaded round opens the full scorecard, where any hole can be changed.
   const [view, setView] = useState<'hole' | 'card'>(startView === 'card' ? 'card' : 'hole');
+  // Joined to follow the leaderboard: full scorecard only, never editable.
   const [focus, setFocus] = useState(0);
   // The hole each match opened on, until someone moves it (so entering the last score doesn't jump ahead).
   const [opened, setOpened] = useState<Record<string, number>>({});
@@ -302,6 +303,7 @@ export default function Scorecard() {
   const deleteRound = useStore((s) => s.deleteRound);
 
   if (!r) return <Body>Round not found.</Body>;
+  const viewer = r.remote?.role === 'viewer';
 
   const course = courseFor(r);
   const results = evaluate(r);
@@ -380,11 +382,21 @@ export default function Scorecard() {
         </ScrollView>
       )}
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
-        <Segmented
-          options={[{ value: 'hole', label: 'Hole by hole' }, { value: 'card', label: 'Full scorecard' }]}
-          value={view}
-          onChange={setView}
-        />
+        {viewer ? (
+          // Following along: the full scorecard only, nothing editable.
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: c.primarySoft, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md }}>
+            <Text style={{ fontSize: 16 }}>👀</Text>
+            <Text style={{ flex: 1, color: c.text, fontSize: 14 }}>
+              <Text style={{ fontWeight: '700' }}>Following live.</Text> Scores update as the group plays. View only.
+            </Text>
+          </View>
+        ) : (
+          <Segmented
+            options={[{ value: 'hole', label: 'Hole by hole' }, { value: 'card', label: 'Full scorecard' }]}
+            value={view}
+            onChange={setView}
+          />
+        )}
 
         {r.remote && r.remote.role !== 'owner' && <IdentityCard scopeKey={r.id} candidates={r.players} />}
 
@@ -400,11 +412,11 @@ export default function Scorecard() {
           </Card>
         )}
 
-        {view === 'card' ? (
+        {view === 'card' || viewer ? (
           <>
-            <ScorecardGrid r={r} results={results} focus={gi} onPickHole={(n) => { goHole(n); setView('hole'); }} />
+            <ScorecardGrid r={r} results={results} focus={gi} onPickHole={viewer ? undefined : (n) => { goHole(n); setView('hole'); }} />
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
-              ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot. Tap a score to edit that hole.
+              ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot.{viewer ? '' : ' Tap a score to edit that hole.'}
             </Label>
             <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i] }))} players={r.players} />
           </>

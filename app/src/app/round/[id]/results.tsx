@@ -343,14 +343,17 @@ export default function Results() {
         )}
 
         <Button title="Done" kind="secondary" onPress={() => router.dismissTo('/')} />
-        <Button
-          title={r.fromPhoto ? 'Edit scores' : 'Reopen scorecard'}
-          kind="secondary"
-          onPress={() => {
-            reopen(r.id);
-            router.replace(r.fromPhoto ? `/round/${r.id}?view=card` : `/round/${r.id}`);
-          }}
-        />
+        {/* People following along can't change the scores. */}
+        {r.remote?.role !== 'viewer' && (
+          <Button
+            title={r.fromPhoto ? 'Edit scores' : 'Reopen scorecard'}
+            kind="secondary"
+            onPress={() => {
+              reopen(r.id);
+              router.replace(r.fromPhoto ? `/round/${r.id}?view=card` : `/round/${r.id}`);
+            }}
+          />
+        )}
       </ScrollView>
       {celebrate && <Confetti />}
       <Tip

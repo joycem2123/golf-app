@@ -50,7 +50,8 @@ export function ScorecardGrid({
 }: {
   r: RoundRecord;
   results: (GameResult | { error: string })[];
-  onPickHole: (hole: number) => void;
+  /** Tap a score to edit that hole (left out for people following along, who can't edit). */
+  onPickHole?: (hole: number) => void;
   /** Which game (match) the card is about. */
   focus?: number;
 }) {
@@ -120,7 +121,7 @@ export function ScorecardGrid({
       nameText(label(k)),
       nineCells(
         (h) => (
-          <Pressable onPress={() => onPickHole(h)}>
+          <Pressable disabled={!onPickHole} onPress={() => onPickHole?.(h)}>
             <Mark gross={grossAt(r, k, h)} par={parOf(k, h)} dot={strokes[k]?.[h - 1] ?? 0} />
           </Pressable>
         ),
