@@ -55,6 +55,42 @@ export default function EventScreen() {
   // Anyone who can edit the event can add a player while it's under way.
   const canAdd = e.remote?.role !== 'viewer' && e.status !== 'complete';
 
+  // Each player's record, with their team (Ryder Cup: its team names and colours; other events: Team A, B…).
+  const teamTag = (pid: string): { label: string; color: string } | null => {
+    if (e.teams) {
+      if (e.teams.A.playerIds.includes(pid)) return { label: e.teams.A.name.toUpperCase(), color: c.teamA };
+      if (e.teams.B.playerIds.includes(pid)) return { label: e.teams.B.name.toUpperCase(), color: c.teamB };
+      return null;
+    }
+    const L = e.teamOf?.[pid];
+    return L ? { label: `TEAM ${L}`, color: teamColor(L).color } : null;
+  };
+  const standingsCard = (
+      <Card>
+        <H2>Standings</H2>
+        <View style={[styles.row, { borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: 4 }]}>
+          <Label style={{ flex: 1 }}>Player</Label>
+          <Label style={{ width: 70, textAlign: 'center' }}>W-L-H</Label>
+          <Label style={{ width: 44, textAlign: 'right' }}>Pts</Label>
+        </View>
+        {eventStandings(e, rounds).map((row) => (
+          <View key={row.playerId} style={[styles.row, { paddingVertical: 4 }]}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Body style={{ flexShrink: 1 }}>{row.position}. {name(row.playerId)}</Body>
+              {teamTag(row.playerId) ? (
+                <View style={{ backgroundColor: teamTag(row.playerId)!.color, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, flexShrink: 1 }}>
+                  <Text numberOfLines={1} style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>{teamTag(row.playerId)!.label}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Body muted style={{ width: 70, textAlign: 'center' }}>{row.wins}-{row.losses}-{row.halves}</Body>
+            <Text style={{ width: 44, textAlign: 'right', fontFamily: fonts.serif, fontWeight: '700', fontSize: 17, color: c.text }}>{formatPoints(row.points)}</Text>
+          </View>
+        ))}
+        <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Win 1 · halve ½ · Nassau matches count their points · every match counts, including side matches.</Label>
+      </Card>
+  );
+
   return (
     <>
       <Stack.Screen options={{ title: e.name }} />
@@ -104,6 +140,7 @@ export default function EventScreen() {
                 </View>
 
                 <EventStory e={e} rounds={rounds} />
+                {standingsCard}
 
                 <Card>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
@@ -155,29 +192,7 @@ export default function EventScreen() {
               );
             })()}
             <EventStory e={e} rounds={rounds} />
-            <Card>
-              <H2>Standings</H2>
-              <View style={[styles.row, { borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: 4 }]}>
-                <Label style={{ flex: 1 }}>Player</Label>
-                <Label style={{ width: 70, textAlign: 'center' }}>W-L-H</Label>
-                <Label style={{ width: 44, textAlign: 'right' }}>Pts</Label>
-              </View>
-              {eventStandings(e, rounds).map((row) => (
-                <View key={row.playerId} style={[styles.row, { paddingVertical: 4 }]}>
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Body style={{ flexShrink: 1 }}>{row.position}. {name(row.playerId)}</Body>
-                    {e.teamOf?.[row.playerId] ? (
-                      <View style={{ backgroundColor: teamColor(e.teamOf[row.playerId]).color, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>TEAM {e.teamOf[row.playerId]}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Body muted style={{ width: 70, textAlign: 'center' }}>{row.wins}-{row.losses}-{row.halves}</Body>
-                  <Text style={{ width: 44, textAlign: 'right', fontFamily: fonts.serif, fontWeight: '700', fontSize: 17, color: c.text }}>{formatPoints(row.points)}</Text>
-                </View>
-              ))}
-              <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Win 1 · halve ½ · Nassau matches count their points · every match counts, including side matches.</Label>
-            </Card>
+            {standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
             {e.rounds?.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
