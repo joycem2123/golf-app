@@ -23,7 +23,7 @@ function Tag({ text, tone }: { text: string; tone: 'live' | 'upcoming' | 'final'
  * Rounds and events split into "Live & upcoming" (swipe to delete when allowed) and "Completed" (kept for history).
  */
 export function GameSections({
-  skipRoundId,
+  skipRoundIds,
   completedLimit,
   hideEventRounds,
   onDeleteRound,
@@ -31,7 +31,7 @@ export function GameSections({
   firstOpenRef,
 }: {
   /** A round already shown elsewhere on the screen (Home's live card). */
-  skipRoundId?: string;
+  skipRoundIds?: string[];
   completedLimit?: number;
   /** Show rounds that belong to an event only inside that event (Home). */
   hideEventRounds?: boolean;
@@ -48,7 +48,7 @@ export function GameSections({
   const openEvents = events.filter((e) => phaseOf[e.id] !== 'completed');
   const doneEvents = events.filter((e) => phaseOf[e.id] === 'completed');
   const standalone = (r: (typeof rounds)[number]) => !hideEventRounds || !r.eventId || !events.some((e) => e.id === r.eventId);
-  const liveRounds = rounds.filter((r) => r.status === 'active' && r.id !== skipRoundId && standalone(r));
+  const liveRounds = rounds.filter((r) => r.status === 'active' && !(skipRoundIds ?? []).includes(r.id) && standalone(r));
   const doneRounds = rounds.filter((r) => r.status === 'complete' && standalone(r));
   /** An event sorts by its latest round. */
   const lastActivity = (id: string, fallback: number) =>

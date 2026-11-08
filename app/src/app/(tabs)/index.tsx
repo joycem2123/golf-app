@@ -2,23 +2,21 @@ import { useRef } from 'react';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Pressable as GHPressable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GameSections } from '@/components/game-sections';
 import { LegacyClaimCard } from '@/components/legacy-claim';
-import { canDeleteRound, SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
+import { useDeleteWithUndo } from '@/components/swipe-to-delete';
 import { HandicapReminder } from '@/components/handicap-reminder';
 import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
-import { gameName } from '@/lib/games';
-import { headline } from '@/lib/headline';
-import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
+import { matchLabel } from '@/lib/games';
 import { useMe } from '@/lib/me';
 import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 import { Tip, type TipTarget } from '@/components/tip';
+import { LiveCarousel } from '@/components/live-carousel';
 
 function greeting() {
   const h = new Date().getHours();
@@ -53,9 +51,6 @@ export default function Home() {
   const me = useStore((s) => s.me);
   const names = useStore((s) => s.names);
   const active = rounds.filter((r) => r.status === 'active');
-  const live = active[0];
-  const liveResult = live ? evaluate(live)[0] : undefined;
-  const liveHead = live && liveResult && isResult(liveResult) ? headline(liveResult, live.players) : null;
   const { me: myPlayer } = useMe();
   const incoming = useFriendRequests((s) => s.incoming);
   const requestCount = incoming.length;
@@ -69,7 +64,7 @@ export default function Home() {
     <View style={{ flex: 1 }}>
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: space.xl * 3 }}>
       {/* Banner */}
-      <View style={{ backgroundColor: c.brand, paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xl + (live ? 56 : 0) }}>
+      <View style={{ backgroundColor: c.brand, paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xl + (active.length ? 56 : 0) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
           <LogoMark size={46} />
           <Wordmark size={30} color="#FFFFFF" />
@@ -77,31 +72,15 @@ export default function Home() {
         <View style={{ height: 1, backgroundColor: c.brandGold, opacity: 0.6, marginVertical: space.lg }} />
         <Text style={{ color: '#ffffffcc', fontSize: 14, letterSpacing: 0.5 }}>{greeting()}{firstName ? `, ${firstName}` : ''}</Text>
         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 26, fontWeight: '700', marginTop: 2 }}>
-          {live ? 'You have a round in play' : 'Ready for a match?'}
+          {active.length ? (active.length > 1 || active[0].games.filter((g) => matchLabel(g)).length > 1 ? 'Matches in play' : 'You have a round in play') : 'Ready for a match?'}
         </Text>
       </View>
 
       {/* Live round, overlapping the banner */}
-      {live && (
-        <View ref={liveRef} collapsable={false} style={{ marginHorizontal: space.lg, marginTop: -56 }}>
-        <SwipeToDelete label="round" onDelete={() => deleteRound(live.id)} disabled={!canDeleteRound(live)}>
-        <GHPressable onPress={() => router.push(`/round/${live.id}`)}>
-          <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
-            <View style={{ height: 3, backgroundColor: c.accent }} />
-            <View style={{ padding: space.lg, gap: 4 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: c.under, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>● LIVE · {shortCourseName(courseFor(live).name).toUpperCase()}</Text>
-                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }}>{liveHead?.small.toUpperCase()}</Text>
-              </View>
-              <Text style={{ color: c.muted, fontSize: 13 }}>{gameName(live.games[0])}</Text>
-              <Text style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: liveHead?.side === 1 ? c.teamB : c.primary }}>
-                {liveHead ? (liveHead.board ? (liveHead.board[0] ? `${liveHead.board[0].pos === 'T1' ? 'Tied: ' : ''}${liveHead.board[0].name} ${liveHead.board[0].value}${liveHead.board[0].thru !== '–' ? ` · ${liveHead.board[0].thru === 'F' ? 'F' : `thru ${liveHead.board[0].thru}`}` : ''}` : '') : liveHead.leader ? `${liveHead.leader} ${liveHead.big}` : liveHead.big) : ''}
-              </Text>
-              <Text style={{ color: c.primary, fontWeight: '700', marginTop: 4 }}>Resume scoring ›</Text>
-            </View>
-          </View>
-        </GHPressable>
-        </SwipeToDelete>
+      {/* Every match in progress: swipe between them (mine first). */}
+      {active.length > 0 && (
+        <View style={{ marginTop: -56 }}>
+          <LiveCarousel rounds={active} onDelete={deleteRound} firstRef={liveRef} />
         </View>
       )}
 
@@ -145,7 +124,7 @@ export default function Home() {
           <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
         </View>
 
-        <GameSections skipRoundId={live?.id} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} firstOpenRef={firstOpenRef} />
+        <GameSections skipRoundIds={active.map((x) => x.id)} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} firstOpenRef={firstOpenRef} />
 
         {rounds.length === 0 && events.length === 0 && (
           <Card>
@@ -155,13 +134,23 @@ export default function Home() {
         )}
       </View>
     </ScrollView>
-    <Tip
-      id="home-swipe"
-      when={rounds.length + events.length > 0}
-      target={live && canDeleteRound(live) ? liveRef : firstOpenRef}
-      title="Swipe left to delete"
-      lines={['Slide a live or upcoming card to the left to delete it. You’ll have a few seconds to undo.']}
-    />
+    {/* Live matches: swipe between them. Other live/upcoming cards: swipe left to delete. */}
+    {active.length > 0 ? (
+      <Tip
+        id="home-live"
+        target={liveRef}
+        title="Your live matches"
+        lines={['Swipe left or right to see every match in play; yours come first.', 'Tap a match to open it. The red bin deletes the round.']}
+      />
+    ) : (
+      <Tip
+        id="home-swipe"
+        when={rounds.length + events.length > 0}
+        target={firstOpenRef}
+        title="Swipe left to delete"
+        lines={['Slide a live or upcoming card to the left to delete it. You’ll have a few seconds to undo.']}
+      />
+    )}
     {bar}
     </View>
   );

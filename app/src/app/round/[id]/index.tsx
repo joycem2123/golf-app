@@ -292,7 +292,7 @@ function firstOpenHole(r: RoundRecord, keys: string[], order: number[]): number 
 }
 
 export default function Scorecard() {
-  const { id, view: startView } = useLocalSearchParams<{ id: string; view?: string }>();
+  const { id, view: startView, match: startMatch } = useLocalSearchParams<{ id: string; view?: string; match?: string }>();
   const r = useRound(id);
   const c = useColors();
   const setHole = useStore((s) => s.setHole);
@@ -304,7 +304,8 @@ export default function Scorecard() {
   const [view, setView] = useState<'hole' | 'card'>(startView === 'card' ? 'card' : 'hole');
   const insets = useSafeAreaInsets();
   // Joined to follow the leaderboard: full scorecard only, never editable.
-  const [focus, setFocus] = useState(0);
+  // Opened from a match card on Home: start on that match.
+  const [focus, setFocus] = useState(() => Number(startMatch) || 0);
   // The hole each match opened on, until someone moves it (so entering the last score doesn't jump ahead).
   const [opened, setOpened] = useState<Record<string, number>>({});
   const [quitting, setQuitting] = useState(false);
