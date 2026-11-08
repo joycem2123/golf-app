@@ -446,3 +446,19 @@ export async function fetchRoundEvent(roundId: string): Promise<{ event: EventRe
   });
   return { event, rounds };
 }
+
+// ------------------------------------------------------------------ add an existing round to an event
+
+/** After a round is put into an event: make sure everyone in a shared event sees it. */
+export async function syncRoundIntoEvent(roundId: string) {
+  const st = useStore.getState();
+  const r = st.rounds.find((x) => x.id === roundId);
+  const ev = r?.eventId ? st.events.find((e) => e.id === r.eventId) : undefined;
+  if (!r || !ev?.remote || ev.remote.role === 'viewer') return;
+  if (!r.remote) {
+    await autoShare(roundId); // shares it into the event
+    return;
+  }
+  // Already online: point it at the event so the event's members get it.
+  await supabase.from('rounds').update({ event_id: ev.id, data: roundDoc(r) }).eq('id', r.id);
+}

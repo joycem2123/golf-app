@@ -24,6 +24,7 @@ import { useRound, useStore } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { track } from '@/lib/usage';
 import { Tip } from '@/components/tip';
+import { AddToEvent } from '@/components/add-to-event';
 
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BACK = [10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -345,6 +346,7 @@ export default function Results() {
         )}
 
         <Button title="Done" kind="secondary" onPress={() => router.dismissTo('/')} />
+        <AddToEvent r={r} />
         {/* People following along can't change the scores. */}
         {r.remote?.role !== 'viewer' && (
           <Button

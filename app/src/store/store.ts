@@ -239,6 +239,8 @@ interface State {
   addEventPlayers: (eventId: string, ids: string[]) => void;
   /** Add one player mid-event, onto a team if the event has teams (team = 'A'/'B' or a team letter). */
   addEventPlayer: (eventId: string, playerId: string, team?: string) => void;
+  /** Put an existing round (finished or in progress) into an event as its next round. */
+  linkRoundToEvent: (roundId: string, eventId: string) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
   upsertPlayer: (p: SavedPlayer) => void;
@@ -504,6 +506,41 @@ export const useStore = create<State>()(
           }),
           dirtyEvents: dirtyEvent(s, eventId),
         })),
+      linkRoundToEvent: (roundId, eventId) =>
+        set((s) => {
+          const r = s.rounds.find((x) => x.id === roundId);
+          const e = s.events.find((x) => x.id === eventId);
+          if (!r || !e || r.eventId) return {};
+          const number = (e.rounds?.length ?? 0) + 1;
+          const playerIds = [...e.playerIds];
+          const lockedIndexes = { ...e.lockedIndexes };
+          let teams = e.teams;
+          let teamOf = e.teamOf ? { ...e.teamOf } : undefined;
+          for (const p of r.players) {
+            if (!playerIds.includes(p.id)) {
+              playerIds.push(p.id);
+              if (e.lockHandicaps) lockedIndexes[p.id] = p.handicapIndex;
+            }
+            const L = r.teamOf?.[p.id];
+            // Team events: newcomers join the team they played for in this round.
+            if (teams && (L === 'A' || L === 'B') && !teams.A.playerIds.includes(p.id) && !teams.B.playerIds.includes(p.id)) {
+              teams = { ...teams, [L]: { ...teams[L], playerIds: [...teams[L].playerIds, p.id] } };
+            }
+            if (teamOf && L && !teamOf[p.id]) teamOf[p.id] = L;
+          }
+          const date = new Date(r.createdAt);
+          const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          return {
+            rounds: mapRound(s.rounds, roundId, (x) => ({ ...x, eventId, label: x.label ?? `Round ${number}` })),
+            events: s.events.map((x) =>
+              x.id === eventId
+                ? { ...x, playerIds, lockedIndexes, teams, teamOf, rounds: [...(x.rounds ?? []), { id: newId(), number, date: ymd, roundId }] }
+                : x,
+            ),
+            dirtyRounds: dirty(s, roundId),
+            dirtyEvents: dirtyEvent(s, eventId),
+          };
+        }),
       addEventRound: (eventId, round) =>
         set((s) => ({
           events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: [...(e.rounds ?? []), { ...round, number: (e.rounds?.length ?? 0) + 1 }] } : e)),

@@ -26,6 +26,7 @@ import { Tip } from '@/components/tip';
 import { TeamScoreboard } from '@/components/team-scoreboard';
 import { cardSides, liveTeamScore } from '@/lib/results';
 import { headline } from '@/lib/headline';
+import { AddToEvent } from '@/components/add-to-event';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -390,7 +391,7 @@ export default function Scorecard() {
   // Leader in first names ("Ben & Dan"), and the score kept separate so it's never cut off.
   const short = (n: string) => n.split(' & ').map((x) => x.split(' ')[0]).join(' & ');
   const statusWho = !head ? '' : head.board ? (head.board[0]?.name ?? '') : head.leader ? short(head.leader) : '';
-  const statusBig = !head ? '' : head.board ? (head.board[0]?.value ?? head.big) : head.big;
+  const statusBig = !head ? '' : head.board ? (head.board[0]?.value ?? head.big) : statusWho ? head.big.replace(/^Win\b/, statusWho.includes('&') ? 'win' : 'wins') : head.big;
   const matchStatusBar = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: sideColor(head?.side ?? null), borderRadius: radius.md, paddingVertical: 6, paddingHorizontal: 12 }}>
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -537,6 +538,7 @@ export default function Scorecard() {
         )}
 
         <ShareCard remote={r.remote} what="round" onShare={() => shareRound(r.id)} />
+        <AddToEvent r={r} />
         {r.remote?.role !== 'viewer' && <Button title="Finish round" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />}
         {r.remote?.role !== 'viewer' && canDeleteRound(r) && (
           <Button title={r.remote && r.remote.role !== 'owner' ? 'Leave round' : 'Quit round'} kind="ghost" onPress={() => setQuitting(true)} />
