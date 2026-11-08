@@ -2,6 +2,7 @@ import { courseHandicap, searchCourses, validateCourse, type Course, type Player
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GameOptions } from '@/components/game-options';
 import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/components/round-setup';
@@ -33,6 +34,7 @@ function teesFor(course: Course, gender: 'M' | 'F') {
 
 export default function NewRound() {
   const c = useColors();
+  const insets = useSafeAreaInsets();
   const { eventId, matchId, eventRound, addRound: addingRound, scan: scanParam } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string; addRound?: string; scan?: string }>();
   // Uploading a scorecard photo: the scores are already known, so the round goes straight to results.
   const scan = useMemo(() => (scanParam ? getPendingScan() : null), [scanParam]);
@@ -281,8 +283,33 @@ export default function NewRound() {
     setSideMatches([]);
   };
 
+  // The main button for each step, pinned to the bottom of the screen (no scrolling to find it).
+  const gameMessage =
+    step !== 'game' ? null
+    : problem && draft ? problem
+    : !problem && scanProblem ? scanProblem
+    : !problem && !event && toSeason === 'yes' && !season ? 'Choose a season, or pick No.'
+    : null;
+  const footer =
+    step === 'players' && course ? (
+      <Button title="Next: teams" disabled={roster.length === 0} onPress={() => setStep('teams')} />
+    ) : step === 'teams' && course ? (
+      <Button
+        title={teamsDone && !noTeams ? 'Next: choose game' : `Put every player on a team (${players.filter((p) => !letters.includes(teamOf[p.id])).length} left)`}
+        disabled={!teamsSet(rosterIds, (id) => (letters.includes(teamOf[id]) ? teamOf[id] : undefined))}
+        onPress={() => { setNoTeams(false); setStep('game'); }}
+      />
+    ) : step === 'game' && course ? (
+      <Button
+        title={scan ? 'Calculate results' : season ? `Start round · ${season.name}` : 'Start round'}
+        disabled={!!problem || !!scanProblem || (!event && toSeason === 'yes' && !season)}
+        onPress={start}
+      />
+    ) : null;
+
   return (
-    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
+    <View style={{ flex: 1 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {scan && <Stack.Screen options={{ title: 'Set Up the Round' }} />}
       {stepBar}
 
@@ -423,12 +450,22 @@ export default function NewRound() {
             );
           })}
 
-          <Button title="Next: teams" disabled={roster.length === 0} onPress={() => setStep('teams')} />
         </>
       )}
 
       {step === 'teams' && course && (
         <>
+          {!eventTeams && (
+            <Button
+              title="No teams (individual games)"
+              kind="secondary"
+              onPress={() => {
+                setNoTeams(true);
+                setDraft(null);
+                setStep('game');
+              }}
+            />
+          )}
           <TeamsStep
             players={players}
             teamOf={teamOf}
@@ -437,22 +474,6 @@ export default function NewRound() {
             onLetters={(l) => { setLetters(l); setDraft(null); }}
             lockedReason={eventTeams ? `Teams come from ${event!.name}.` : undefined}
           />
-          <Button
-            title={teamsDone && !noTeams ? 'Next: choose game' : `Put every player on a team (${players.filter((p) => !letters.includes(teamOf[p.id])).length} left)`}
-            disabled={!teamsSet(rosterIds, (id) => (letters.includes(teamOf[id]) ? teamOf[id] : undefined))}
-            onPress={() => { setNoTeams(false); setStep('game'); }}
-          />
-          {!eventTeams && (
-            <Button
-              title="No teams (individual games)"
-              kind="ghost"
-              onPress={() => {
-                setNoTeams(true);
-                setDraft(null);
-                setStep('game');
-              }}
-            />
-          )}
         </>
       )}
 
@@ -555,14 +576,6 @@ export default function NewRound() {
             </Card>
           )}
 
-          {problem && draft ? <Body style={{ color: c.danger }}>{problem}</Body> : null}
-          {!problem && scanProblem ? <Body style={{ color: c.danger }}>{scanProblem}</Body> : null}
-          {!problem && !event && toSeason === 'yes' && !season ? <Body style={{ color: c.danger }}>Choose a season, or pick No.</Body> : null}
-          <Button
-            title={scan ? 'Calculate results' : season ? `Start round · ${season.name}` : 'Start round'}
-            disabled={!!problem || !!scanProblem || (!event && toSeason === 'yes' && !season)}
-            onPress={start}
-          />
 
           <Sheet visible={seasonSheet} onClose={() => setSeasonSheet(false)} title="Choose a season">
             <View style={{ gap: space.sm }}>
@@ -593,5 +606,12 @@ export default function NewRound() {
         </>
       )}
     </ScrollView>
+    {footer && (
+      <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, gap: 6, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border }}>
+        {gameMessage ? <Text style={{ color: c.danger, fontSize: 13, textAlign: 'center' }}>{gameMessage}</Text> : null}
+        {footer}
+      </View>
+    )}
+    </View>
   );
 }
