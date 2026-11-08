@@ -11,7 +11,8 @@ import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fetchRoundEvent } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 
-export function TeamScoreboard({ r, results }: { r: RoundRecord; results: ReturnType<typeof evaluate> }) {
+/** pinned: compact, edge to edge, for the top of the screen. */
+export function TeamScoreboard({ r, results, pinned }: { r: RoundRecord; results: ReturnType<typeof evaluate>; pinned?: boolean }) {
   const c = useColors();
   const localEvent = useStore((s) => s.events.find((e) => e.id === r.eventId));
   const localRounds = useStore((s) => s.rounds);
@@ -51,26 +52,26 @@ export function TeamScoreboard({ r, results }: { r: RoundRecord; results: Return
   }
 
   return (
-    <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
-      <Text style={{ textAlign: 'center', color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.5, paddingTop: space.sm }}>TEAM MATCH · THIS ROUND</Text>
-      <View style={{ flexDirection: 'row', padding: space.sm, gap: space.sm }}>
+    <View style={pinned ? { backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border } : { backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
+      <Text style={{ textAlign: 'center', color: c.muted, fontSize: pinned ? 10 : 11, fontWeight: '800', letterSpacing: 1.5, paddingTop: pinned ? 6 : space.sm }}>TEAM MATCH · THIS ROUND</Text>
+      <View style={{ flexDirection: 'row', paddingHorizontal: space.sm, paddingVertical: pinned ? 6 : space.sm, gap: space.sm }}>
         {score.teams.map((t) => {
           const tc = teamColor(t.letter);
           return (
-            <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: tc.color }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1 }}>{teamName(t.letter).toUpperCase()}</Text>
-              <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 34, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
-              {changes && <Text style={{ color: '#ffffffd0', fontSize: 12 }}>Projected {formatPoints(t.projected)}</Text>}
-              <Text numberOfLines={2} style={{ color: '#ffffffc0', fontSize: 11, textAlign: 'center', paddingHorizontal: 4, marginTop: 2 }}>{t.members.map(first).join(', ')}</Text>
+            <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: pinned ? 5 : space.sm, borderRadius: radius.md, backgroundColor: tc.color }}>
+              <Text numberOfLines={1} style={{ color: '#fff', fontSize: pinned ? 11 : 12, fontWeight: '800', letterSpacing: 1 }}>{teamName(t.letter).toUpperCase()}</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: pinned ? 26 : 34, fontWeight: '700', lineHeight: pinned ? 30 : undefined }}>{formatPoints(t.points)}</Text>
+              {changes && <Text style={{ color: '#ffffffd0', fontSize: pinned ? 11 : 12 }}>Projected {formatPoints(t.projected)}</Text>}
+              <Text numberOfLines={pinned ? 1 : 2} style={{ color: '#ffffffc0', fontSize: pinned ? 10 : 11, textAlign: 'center', paddingHorizontal: 4, marginTop: 2 }}>{t.members.map(first).join(', ')}</Text>
             </View>
           );
         })}
       </View>
-      <Text style={{ textAlign: 'center', color: c.text, fontSize: 13, paddingHorizontal: space.md, paddingBottom: space.sm }}>
+      <Text style={{ textAlign: 'center', color: c.text, fontSize: pinned ? 12 : 13, paddingHorizontal: space.md, paddingBottom: pinned ? 6 : space.sm }}>
         {changes ? `Live: ${parts.join(', ')}` : done ? 'All team matches finished' : 'No team matches started yet'}
       </Text>
       {eventLine && (
-        <View style={{ backgroundColor: c.brand, paddingVertical: 8, paddingHorizontal: space.md }}>
+        <View style={{ backgroundColor: c.brand, paddingVertical: pinned ? 6 : 8, paddingHorizontal: space.md }}>
           <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>🏆 {eventLine}</Text>
         </View>
       )}

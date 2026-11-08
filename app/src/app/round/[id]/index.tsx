@@ -23,7 +23,7 @@ import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { track } from '@/lib/usage';
 import { Tip } from '@/components/tip';
 import { TeamScoreboard } from '@/components/team-scoreboard';
-import { cardSides } from '@/lib/results';
+import { cardSides, liveTeamScore } from '@/lib/results';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -353,16 +353,22 @@ export default function Scorecard() {
     ]);
   };
 
+  const matchBanner = (
+    <StatusBanner
+      name={multi ? `${gameName(r.games[gi])} · ${matchLabel(r.games[gi])}` : gameName(r.games[gi])}
+      result={results[gi]}
+      players={r.players}
+      sideColors={teams && teams.length === 2 ? [teams[0].color, teams[1].color] : undefined}
+      sideGames={r.games.map((g, i) => ({ g, i })).filter(({ i }) => i !== gi).map(({ g, i }) => ({ name: matchLabel(g) ?? gameName(g), result: results[i] }))}
+    />
+  );
+  const teamTop = (view === 'card' || viewer) && !!liveTeamScore(r, results);
+
   return (
     <>
       <Stack.Screen options={{ title: shortCourseName(course.name) }} />
-      <StatusBanner
-        name={multi ? `${gameName(r.games[gi])} · ${matchLabel(r.games[gi])}` : gameName(r.games[gi])}
-        result={results[gi]}
-        players={r.players}
-        sideColors={teams && teams.length === 2 ? [teams[0].color, teams[1].color] : undefined}
-        sideGames={r.games.map((g, i) => ({ g, i })).filter(({ i }) => i !== gi).map(({ g, i }) => ({ name: matchLabel(g) ?? gameName(g), result: results[i] }))}
-      />
+      {/* Full scorecard of a team round: the team score is pinned on top, the match status sits in the page. */}
+      {teamTop ? <TeamScoreboard r={r} results={results} pinned /> : matchBanner}
       {multi && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border }} contentContainerStyle={{ paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.sm }}>
           {matchIdx.map((i) => {
@@ -418,7 +424,9 @@ export default function Scorecard() {
 
         {view === 'card' || viewer ? (
           <>
-            <TeamScoreboard r={r} results={results} />
+            {teamTop && (
+              <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>{matchBanner}</View>
+            )}
             <ScorecardGrid r={r} results={results} focus={gi} onPickHole={viewer ? undefined : (n) => { goHole(n); setView('hole'); }} />
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot.{viewer ? '' : ' Tap a score to edit that hole.'}
