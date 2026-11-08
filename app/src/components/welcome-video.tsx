@@ -3,7 +3,8 @@
  * Shown once per phone; either button means it's never shown again.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { Image, Modal, Pressable, Text, View } from 'react-native';
 
 import { openTutorial } from '@/lib/tutorial';
@@ -15,6 +16,13 @@ const KEY = 'tutorial:offered';
 export function WelcomeVideo() {
   const c = useColors();
   const [open, setOpen] = useState(false);
+  // Play after the pop-up has fully closed: iOS can't open the video viewer while this one is still closing.
+  const playNext = useRef(false);
+  const played = () => {
+    if (!playNext.current) return;
+    playNext.current = false;
+    void openTutorial('welcome');
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -36,12 +44,16 @@ export function WelcomeVideo() {
   const close = (play: boolean) => {
     setOpen(false);
     void AsyncStorage.setItem(KEY, new Date().toISOString()).catch(() => undefined);
-    if (play) void openTutorial('welcome');
-    else track('tutorial_skipped');
+    if (play) {
+      playNext.current = true;
+      // iOS tells us when the pop-up has gone (onDismiss); elsewhere, wait for the fade-out.
+      if (Platform.OS !== 'ios') setTimeout(played, 450);
+      else setTimeout(played, 1200); // safety net in case onDismiss doesn't fire
+    } else track('tutorial_skipped');
   };
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={() => close(false)} statusBarTranslucent>
+    <Modal visible={open} transparent animationType="fade" onRequestClose={() => close(false)} onDismiss={played} statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: space.xl }}>
         <View style={{ width: '100%', maxWidth: 360, backgroundColor: c.brand, borderRadius: radius.lg + 6, overflow: 'hidden', borderWidth: 1.5, borderColor: c.brandGold }}>
           {/* Video preview: tap it to play too. */}
