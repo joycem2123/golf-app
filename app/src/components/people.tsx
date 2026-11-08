@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 
 import { formatIndex } from '@/lib/format';
@@ -204,26 +204,20 @@ export function StatTiles({ items }: { items: [string, string | number][] }) {
   );
 }
 
-/** On a round/event someone else set up: "Which player are you?" so it counts in my stats. */
-export function IdentityCard({ scopeKey, candidates }: { scopeKey: string; candidates: { id: string; name: string }[] }) {
-  const c = useColors();
-  const { isMe } = useMe();
-  const dismissed = useStore((s) => s.identityDismissed.includes(scopeKey));
+/**
+ * On a round/event someone else set up: if I'm not already one of the players but exactly one of them
+ * has my name, quietly treat that player as me (so it counts in my stats). No prompt.
+ */
+export function useAutoIdentity(candidates: { id: string; name: string }[]) {
+  const { me, isMe } = useMe();
   const addMeAlias = useStore((s) => s.addMeAlias);
-  const dismiss = useStore((s) => s.dismissIdentity);
-  if (dismissed || candidates.length === 0 || candidates.some((p) => isMe(p.id))) return null;
-  return (
-    <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
-      <H2>Which player are you?</H2>
-      <Body muted>So this counts in your stats and head-to-head records.</Body>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-        {candidates.map((p) => (
-          <Button key={p.id} small kind="secondary" title={p.name} onPress={() => addMeAlias(p.id)} />
-        ))}
-        <Button small kind="ghost" title="I'm not playing" onPress={() => dismiss(scopeKey)} />
-      </View>
-    </Card>
-  );
+  const key = candidates.map((p) => p.id).join(',');
+  useEffect(() => {
+    if (!me || candidates.length === 0 || candidates.some((p) => isMe(p.id))) return;
+    const norm = (n: string) => n.trim().toLowerCase().replace(/\s+/g, ' ');
+    const same = candidates.filter((p) => norm(p.name) === norm(me.name));
+    if (same.length === 1) addMeAlias(same[0].id);
+  }, [key, me?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** Requests other people sent me: Accept makes us friends on both sides. */

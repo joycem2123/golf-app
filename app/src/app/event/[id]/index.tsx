@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { EventRounds } from '@/components/event-rounds';
 import { ScheduleSection } from '@/components/schedule';
-import { IdentityCard } from '@/components/people';
+import { useAutoIdentity } from '@/components/people';
 import { ShareCard } from '@/components/share-card';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { shareEvent } from '@/sync/sync';
@@ -45,6 +45,7 @@ export default function EventScreen() {
   const saved = useStore((s) => s.players);
   const deleteEvent = useStore((s) => s.deleteEvent);
   const c = useColors();
+  useAutoIdentity(e && e.remote && e.remote.role !== 'owner' ? e.playerIds.map((pid) => ({ id: pid, name: saved.find((p) => p.id === pid)?.name ?? '' })) : []);
   if (!e) return <Body>Event not found.</Body>;
 
   const name = (pid: string) => saved.find((p) => p.id === pid)?.name ?? '?';
@@ -68,9 +69,6 @@ export default function EventScreen() {
             )}
             {e.recurrence && <Text style={{ color: c.muted, fontSize: 13 }}>{describeRecurrence(e.recurrence)}</Text>}
           </View>
-        )}
-        {e.remote && e.remote.role !== 'owner' && (
-          <IdentityCard scopeKey={e.id} candidates={e.playerIds.map((pid) => ({ id: pid, name: name(pid) }))} />
         )}
         {e.teams ? (
           (() => {

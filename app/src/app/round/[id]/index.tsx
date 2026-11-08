@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { GameSummaryList } from '@/components/game-summary';
 import { ScorecardGrid } from '@/components/scorecard-grid';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { IdentityCard, MeBadge } from '@/components/people';
+import { MeBadge, useAutoIdentity } from '@/components/people';
 import { canDeleteRound } from '@/components/swipe-to-delete';
 import { supabase } from '@/sync/supabase';
 import { ShareCard } from '@/components/share-card';
@@ -302,6 +302,7 @@ export default function Scorecard() {
   const [quitting, setQuitting] = useState(false);
   const deleteRound = useStore((s) => s.deleteRound);
 
+  useAutoIdentity(r && r.remote && r.remote.role !== 'owner' ? r.players : []);
   if (!r) return <Body>Round not found.</Body>;
   const viewer = r.remote?.role === 'viewer';
 
@@ -398,7 +399,6 @@ export default function Scorecard() {
           />
         )}
 
-        {r.remote && r.remote.role !== 'owner' && <IdentityCard scopeKey={r.id} candidates={r.players} />}
 
         {r.notices.length > 0 && (
           <Card style={{ borderColor: c.accent, borderWidth: 2 }}>
