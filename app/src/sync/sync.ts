@@ -12,6 +12,7 @@ import { evaluate, isResult, recordedMatches } from '@/lib/round';
 import { UNDO_WINDOW_MS, useStore, type EventRecord, type Remote, type RoundRecord } from '@/store/store';
 import { ensureSession } from './auth';
 import { pullSharedCourses } from './courses';
+import { notify } from './nudges';
 import { supabase } from './supabase';
 
 // ------------------------------------------------------------------ documents
@@ -230,6 +231,8 @@ export async function shareWithPlayers() {
         if (!r.remote) await shareRound(r.id);
         const { error } = await supabase.rpc('share_round_with', { rid: r.id, users: ids });
         if (!error || !offline(error.message)) sharedWith.set(`r:${r.id}`, sig);
+        // Let players who were just added know (the server only tells each person once).
+        if (!error) notify({ kind: 'round', id: r.id });
       } catch {
         /* offline: try again later */
       }

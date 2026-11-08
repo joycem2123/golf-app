@@ -3,6 +3,8 @@
  * exists (for both people) once they accept.
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';
+
+import { notify } from './nudges';
 import { create } from 'zustand';
 
 import { useStore, type SavedPlayer } from '@/store/store';
@@ -64,6 +66,7 @@ export async function sendFriendRequest(hit: ProfileHit): Promise<'sent' | 'acce
   const { data, error } = await supabase.rpc('send_friend_request', { target: hit.id });
   if (error) throw new Error(error.message);
   const result = data as 'sent' | 'accepted' | 'friends';
+  if (result === 'sent') notify({ kind: 'friend', to: hit.id });
   useStore.getState().upsertPlayer(toPlayer(hit, result === 'sent'));
   await refreshRequests();
   return result;

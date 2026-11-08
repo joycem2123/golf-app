@@ -7,6 +7,7 @@ import { matchLabel, gameName } from '@/lib/games';
 import { useStore, type RoundRecord } from '@/store/store';
 import { supabase } from '@/sync/supabase';
 import { shareRound } from '@/sync/sync';
+import { notify } from '@/sync/nudges';
 import { radius, space, useColors } from '@/theme';
 
 /** Shown on a match you're not playing in: view only, unless a player in it says yes. */
@@ -23,10 +24,11 @@ export function LockedMatch({ r, gi, uid, requests, reload }: { r: RoundRecord; 
     try {
       if (!r.remote) await shareRound(r.id);
       const row = { round_id: r.id, game_id: gameId(r, gi), requester_name: myName };
-      const { error } = mine
-        ? await supabase.from('edit_requests').delete().eq('id', mine.id).then(() => supabase.from('edit_requests').insert(row))
-        : await supabase.from('edit_requests').insert(row);
+      if (mine) await supabase.from('edit_requests').delete().eq('id', mine.id);
+      const { data, error } = await supabase.from('edit_requests').insert(row).select('id').single();
       if (error) throw new Error(error.message);
+      // A push notification to the players in that match.
+      notify({ kind: 'edit', id: (data as { id: string }).id });
       reload();
     } catch {
       setErr('Couldn’t send the request. Check your connection and try again.');

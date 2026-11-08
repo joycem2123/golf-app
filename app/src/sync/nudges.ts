@@ -49,6 +49,28 @@ export async function registerPush() {
   }
 }
 
+/** Ask the server to send a push notification for something that just happened (it checks it, and sends it once). */
+export function notify(body: { kind: 'edit'; id: string } | { kind: 'friend'; to: string } | { kind: 'round'; id: string }) {
+  void supabase.functions.invoke('notify', { body }).catch(() => undefined);
+}
+
+/** Tapping a notification: open the round it's about, or the friend requests. */
+export function watchNotificationTaps(open: (path: string) => void) {
+  if (Platform.OS === 'web') return () => undefined;
+  const go = async (data: Record<string, unknown> | undefined) => {
+    if (!data) return;
+    if (data.kind === 'friend_request') return open('/friends');
+    if ((data.kind === 'edit_request' || data.kind === 'round_added') && typeof data.roundId === 'string') {
+      const { pullMine } = await import('./sync');
+      await pullMine().catch(() => undefined);
+      open(`/round/${data.roundId}`);
+    }
+  };
+  void Notifications.getLastNotificationResponseAsync().then((r) => r && go(r.notification.request.content.data));
+  const sub = Notifications.addNotificationResponseReceivedListener((r) => void go(r.notification.request.content.data));
+  return () => sub.remove();
+}
+
 /** Requests from friends I haven't answered yet. */
 export async function pullNudges() {
   const { data } = await supabase.auth.getSession();

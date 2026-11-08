@@ -8,7 +8,8 @@ import { useStore } from '@/store/store';
 import { restoreMe } from './auth';
 import { pullFriends, watchFriends } from './friends';
 import { supabase } from './supabase';
-import { pullNudges, registerPush, watchNudges } from './nudges';
+import { pullNudges, registerPush, watchNotificationTaps, watchNudges } from './nudges';
+import { router } from 'expo-router';
 import { flush, pullMine, resetSubscriptions, shareWithPlayers, syncSubscriptions, watchMine } from './sync';
 
 /** Load the signed-in account's own data (or the phone's guest data), then start syncing it. */
@@ -57,6 +58,9 @@ export function SyncProvider() {
       lastOutbox = s.outbox.length;
     });
 
+    // Tapping a push notification opens what it's about (a moment's wait on a cold start, so the screens are ready).
+    const stopTaps = watchNotificationTaps((path) => setTimeout(() => router.push(path as never), 400));
+
     const timer = setInterval(() => void flush(), 10000);
     const app = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -72,6 +76,7 @@ export function SyncProvider() {
       auth.subscription.unsubscribe();
       unsub();
       clearInterval(timer);
+      stopTaps();
       app.remove();
     };
   }, []);
