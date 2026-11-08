@@ -14,7 +14,7 @@ import { headline } from '@/lib/headline';
 import { useMe } from '@/lib/me';
 import { playersIn } from '@/lib/edit-rights';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
-import type { RoundRecord } from '@/store/store';
+import { useStore, type RoundRecord } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
 type Item = { r: RoundRecord; gi: number; mine: boolean; matches: number; at: number };
@@ -22,6 +22,7 @@ type Item = { r: RoundRecord; gi: number; mine: boolean; matches: number; at: nu
 export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundRecord[]; onDelete: (roundId: string) => void; firstRef?: TipTarget }) {
   const c = useColors();
   const { isMe } = useMe();
+  const events = useStore((s) => s.events);
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const cardW = Math.min(width, 640) - space.lg * 2;
@@ -53,7 +54,10 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
           const res = evaluate(r)[gi];
           const head = res && isResult(res) ? headline(res, r.players) : null;
           let course = '';
-          try { course = shortCourseName(courseFor(r).name).toUpperCase(); } catch { /* course missing */ }
+          try { course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
+          // Part of an event: the event's name up top, the course on the line below.
+          const eventName = r.eventId ? events.find((e) => e.id === r.eventId)?.name : undefined;
+          const game = it.matches > 1 ? `${gameName(r.games[gi])} · ${it.matches}\u00a0matches` : gameName(r.games[gi]);
           const label = matchLabel(r.games[gi]);
           const big = head ? (head.board ? (head.board[0] ? `${head.board[0].pos === 'T1' ? 'Tied: ' : ''}${head.board[0].name} ${head.board[0].value}${head.board[0].thru !== '–' ? ` · ${head.board[0].thru === 'F' ? 'F' : `thru ${head.board[0].thru}`}` : ''}` : '') : head.leader ? `${head.leader} ${head.big}` : head.big) : '';
           const deletable = canDeleteRound(r) && r.remote?.role !== 'viewer';
@@ -65,14 +69,14 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
                     <View style={{ height: 3, backgroundColor: c.accent }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', padding: space.lg, gap: space.md }}>
                       <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                          <Text numberOfLines={1} style={{ flexShrink: 1, color: c.under, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>● LIVE · {course}</Text>
-                          <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }}>{head?.small.toUpperCase()}</Text>
-                        </View>
-                        <Text numberOfLines={1} style={{ color: c.muted, fontSize: 13 }}>
-                          {it.matches > 1 ? `${gameName(r.games[gi])} · ${it.matches} matches` : gameName(r.games[gi])}
+                        <Text numberOfLines={1} style={{ color: c.under, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>● LIVE · {(eventName ?? course).toUpperCase()}</Text>
+                        <Text numberOfLines={2} style={{ color: c.muted, fontSize: 13 }}>
+                          {eventName && course ? `${course} · ${game}` : game}
                         </Text>
-                        <Text numberOfLines={2} style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: head?.side === 1 ? c.teamB : c.primary }}>{big}</Text>
+                        <Text numberOfLines={2}>
+                          <Text style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: head?.side === 1 ? c.teamB : c.primary }}>{big}</Text>
+                          {head?.small && !big.includes(head.small) ? <Text style={{ color: c.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>{'   '}{head.small.toUpperCase()}</Text> : null}
+                        </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                           <Text style={{ color: c.primary, fontWeight: '700' }}>{r.remote?.role === 'viewer' ? 'Follow live ›' : 'Resume scoring ›'}</Text>
                           {it.mine && it.matches > 1 && label && (
