@@ -234,6 +234,8 @@ interface State {
   addEventRound: (eventId: string, round: EventRound) => void;
   /** Add players to an event (e.g. a season round with someone new). */
   addEventPlayers: (eventId: string, ids: string[]) => void;
+  /** Add one player mid-event, onto a team if the event has teams (team = 'A'/'B' or a team letter). */
+  addEventPlayer: (eventId: string, playerId: string, team?: string) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
   upsertPlayer: (p: SavedPlayer) => void;
@@ -477,6 +479,22 @@ export const useStore = create<State>()(
       addEventPlayers: (eventId, ids) =>
         set((s) => ({
           events: s.events.map((e) => (e.id === eventId ? { ...e, playerIds: [...e.playerIds, ...ids.filter((id) => !e.playerIds.includes(id))] } : e)),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
+      addEventPlayer: (eventId, playerId, team) =>
+        set((s) => ({
+          events: s.events.map((e) => {
+            if (e.id !== eventId || e.playerIds.includes(playerId)) return e;
+            const p = s.players.find((x) => x.id === playerId);
+            const next: EventRecord = { ...e, playerIds: [...e.playerIds, playerId] };
+            // Locked handicaps: the new player's index is locked in from today.
+            if (e.lockHandicaps) next.lockedIndexes = { ...e.lockedIndexes, [playerId]: p?.handicapIndex ?? 0 };
+            if (team && e.teams && (team === 'A' || team === 'B')) {
+              next.teams = { ...e.teams, [team]: { ...e.teams[team], playerIds: [...e.teams[team].playerIds, playerId] } };
+            }
+            if (team && e.teamOf) next.teamOf = { ...e.teamOf, [playerId]: team };
+            return next;
+          }),
           dirtyEvents: dirtyEvent(s, eventId),
         })),
       addEventRound: (eventId, round) =>

@@ -14,6 +14,7 @@ import { courseFor, shortCourseName } from '@/lib/round';
 import { useEvent, useStore, type EventRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { Tip } from '@/components/tip';
+import { AddEventPlayer } from '@/components/add-event-player';
 
 function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: string) => string }) {
   const c = useColors();
@@ -49,6 +50,8 @@ export default function EventScreen() {
   const name = (pid: string) => saved.find((p) => p.id === pid)?.name ?? '?';
   const eventRounds = rounds.filter((r) => r.eventId === e.id);
   const matches = eventMatches(e, rounds);
+  // Anyone who can edit the event can add a player while it's under way.
+  const canAdd = e.remote?.role !== 'viewer' && e.status !== 'complete';
 
   return (
     <>
@@ -113,6 +116,7 @@ export default function EventScreen() {
                     ))}
                   </View>
                 </Card>
+                {canAdd && <AddEventPlayer e={e} />}
 
                 {e.rounds?.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
@@ -165,6 +169,7 @@ export default function EventScreen() {
               ))}
               <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Win 1 · halve ½ · Nassau matches count their points · every match counts, including side matches.</Label>
             </Card>
+            {canAdd && <AddEventPlayer e={e} />}
             {e.rounds?.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             <Card>
