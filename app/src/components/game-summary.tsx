@@ -100,35 +100,59 @@ export function GameSummaryCard({ name, result, players, sides }: { name: string
   );
 }
 
-/** Match cards, the first `limit` shown; Expand shows the rest, Collapse hides them again. */
+/**
+ * Match cards. With a limit, the first `limit` show and Expand shows the rest.
+ * With collapsed, they all start hidden behind an "All matches" bar.
+ */
 export function GameSummaryList({
   items,
   players,
   limit = 4,
+  collapsed,
 }: {
   items: { key: string | number; name: string; result: GameResult | { error: string } | undefined; sides?: [CardSide, CardSide] }[];
   players: Player[];
   limit?: number;
+  collapsed?: boolean;
 }) {
   const c = useColors();
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? items : items.slice(0, limit);
-  const hidden = items.length - limit;
-  return (
-    <>
-      {shown.map((x) => (
-        <GameSummaryCard key={x.key} name={x.name} result={x.result} players={players} sides={x.sides} />
-      ))}
-      {hidden > 0 && (
+  if (items.length === 0) return null;
+  const cards = (list: typeof items) => list.map((x) => <GameSummaryCard key={x.key} name={x.name} result={x.result} players={players} sides={x.sides} />);
+  const toggle = (label: string) => (
+    <Pressable
+      onPress={() => setExpanded((v) => !v)}
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
+      style={({ pressed }) => ({ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.card, opacity: pressed ? 0.7 : 1 })}>
+      <Text style={{ color: c.primary, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color: c.primary, fontSize: 12 }}>{expanded ? '▲' : '▼'}</Text>
+    </Pressable>
+  );
+
+  if (collapsed) {
+    return (
+      <>
         <Pressable
           onPress={() => setExpanded((v) => !v)}
           accessibilityRole="button"
           accessibilityState={{ expanded }}
-          style={({ pressed }) => ({ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.card, opacity: pressed ? 0.7 : 1 })}>
-          <Text style={{ color: c.primary, fontWeight: '700' }}>{expanded ? 'Collapse' : `Expand (${hidden} more)`}</Text>
-          <Text style={{ color: c.primary, fontSize: 12 }}>{expanded ? '▲' : '▼'}</Text>
+          accessibilityLabel={`All matches, ${items.length}. ${expanded ? 'Collapse' : 'Expand'}`}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.card, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, opacity: pressed ? 0.7 : 1 })}>
+          <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }}>All matches ({items.length})</Text>
+          <Text style={{ color: c.primary, fontWeight: '700' }}>{expanded ? 'Collapse ▲' : 'Expand ▼'}</Text>
         </Pressable>
-      )}
+        {expanded && cards(items)}
+        {expanded && items.length > 2 && toggle('Collapse')}
+      </>
+    );
+  }
+
+  const hidden = items.length - limit;
+  return (
+    <>
+      {cards(expanded ? items : items.slice(0, limit))}
+      {hidden > 0 && toggle(expanded ? 'Collapse' : `Expand (${hidden} more)`)}
     </>
   );
 }

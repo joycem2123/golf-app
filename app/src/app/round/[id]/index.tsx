@@ -369,7 +369,7 @@ export default function Scorecard() {
     <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>{matchBanner(false)}</View>
   ) : null;
   const matchCards = (
-    <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i], sides: sidesByGame[i] }))} players={r.players} />
+    <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i], sides: sidesByGame[i] }))} players={r.players} collapsed />
   );
 
   return (
