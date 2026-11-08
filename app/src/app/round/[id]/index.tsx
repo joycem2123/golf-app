@@ -25,6 +25,7 @@ import { track } from '@/lib/usage';
 import { Tip } from '@/components/tip';
 import { TeamScoreboard } from '@/components/team-scoreboard';
 import { cardSides, liveTeamScore } from '@/lib/results';
+import { headline } from '@/lib/headline';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -60,7 +61,7 @@ function ScoreRow({
 
   const Wrapper = teamColor ? View : Card;
   return (
-    <Wrapper style={teamColor ? { paddingVertical: 5, gap: 4 } : { paddingVertical: 10, paddingHorizontal: 14, gap: 6 }}>
+    <Wrapper style={teamColor ? { paddingVertical: 4, gap: 3 } : { paddingVertical: 10, paddingHorizontal: 14, gap: 6 }}>
       <View style={[styles.row, { justifyContent: 'space-between' }]}>
         <View style={{ flex: 1, minWidth: 0 }}>
           {/* Badges wrap under a long name instead of running into the − / + buttons. */}
@@ -369,6 +370,44 @@ export default function Scorecard() {
   );
   // Team rounds: the team score is pinned on top in both views (hole by hole and full scorecard).
   const teamTop = !!liveTeamScore(r, results);
+  // The match being scored, front and centre: a bold bar in the leading side's colour.
+  const curRes = results[gi];
+  const head = curRes && isResult(curRes) ? headline(curRes, r.players) : null;
+  const gameSides = ((): [string[], string[]] | null => {
+    const g = r.games[gi];
+    if (g.type === 'matchPlay' || g.type === 'nassau') return [g.sideA.members, g.sideB.members];
+    if (g.type === 'vegas') return [g.teamA.members, g.teamB.members];
+    if ((g.type === 'scramble' || g.type === 'shamble') && g.teams.length === 2) return [g.teams[0].members, g.teams[1].members];
+    return null;
+  })();
+  // The leading side's team colour (from the Teams step), else the usual side colours.
+  const sideColor = (sd: 0 | 1 | null) => {
+    if (sd === null) return c.brand;
+    const L = gameSides ? r.teamOf?.[gameSides[sd][0]] : undefined;
+    if (L) return teamColor(L).color;
+    return sd === 0 ? (teams?.[0]?.color ?? c.teamA) : (teams?.[1]?.color ?? c.teamB);
+  };
+  // Leader in first names ("Ben & Dan"), and the score kept separate so it's never cut off.
+  const short = (n: string) => n.split(' & ').map((x) => x.split(' ')[0]).join(' & ');
+  const statusWho = !head ? '' : head.board ? (head.board[0]?.name ?? '') : head.leader ? short(head.leader) : '';
+  const statusBig = !head ? '' : head.board ? (head.board[0]?.value ?? head.big) : head.big;
+  const matchStatusBar = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: sideColor(head?.side ?? null), borderRadius: radius.md, paddingVertical: 6, paddingHorizontal: 12 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ color: '#ffffffcc', fontSize: 10, fontWeight: '800', letterSpacing: 1.2 }}>
+          {(matchLabel(r.games[gi]) ?? gameName(r.games[gi])).toUpperCase()}{head?.small ? ` · ${head.small.toUpperCase()}` : ''}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+          {statusWho ? <Text numberOfLines={1} style={{ flexShrink: 1, color: '#fff', fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{statusWho}</Text> : null}
+          <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 21, fontWeight: '700' }}>{statusBig}</Text>
+        </View>
+      </View>
+      <Pressable onPress={() => setView('card')} accessibilityRole="button" accessibilityLabel="Show the full scorecard" hitSlop={6}
+        style={({ pressed }) => ({ backgroundColor: '#ffffff2e', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>Scorecard ▦</Text>
+      </Pressable>
+    </View>
+  );
   const currentMatchCard = teamTop ? (
     <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>{matchBanner(false)}</View>
   ) : null;
@@ -404,7 +443,7 @@ export default function Scorecard() {
           })}
         </ScrollView>
       )}
-      <ScrollView contentContainerStyle={{ padding: view === 'hole' && !viewer ? space.md : space.lg, gap: view === 'hole' && !viewer ? 10 : space.md, paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ padding: view === 'hole' && !viewer ? space.md : space.lg, gap: view === 'hole' && !viewer ? 8 : space.md, paddingBottom: 60 }}>
         {viewer ? (
           // Following along: the full scorecard only, nothing editable.
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: c.primarySoft, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md }}>
@@ -414,12 +453,16 @@ export default function Scorecard() {
             </Text>
           </View>
         ) : (
+          teamTop && view === 'hole' ? (
+            matchStatusBar
+          ) : (
           <Segmented
             compact={view === 'hole'}
             options={[{ value: 'hole', label: 'Hole by hole' }, { value: 'card', label: 'Full scorecard' }]}
             value={view}
             onChange={setView}
           />
+          )
         )}
 
 
