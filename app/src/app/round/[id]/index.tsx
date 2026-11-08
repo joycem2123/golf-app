@@ -363,7 +363,14 @@ export default function Scorecard() {
       sideGames={others ? r.games.map((g, i) => ({ g, i })).filter(({ i }) => i !== gi).map(({ g, i }) => ({ name: matchLabel(g) ?? gameName(g), result: results[i] })) : []}
     />
   );
-  const teamTop = (view === 'card' || viewer) && !!liveTeamScore(r, results);
+  // Team rounds: the team score is pinned on top in both views (hole by hole and full scorecard).
+  const teamTop = !!liveTeamScore(r, results);
+  const currentMatchCard = teamTop ? (
+    <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>{matchBanner(false)}</View>
+  ) : null;
+  const matchCards = (
+    <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i], sides: sidesByGame[i] }))} players={r.players} />
+  );
 
   return (
     <>
@@ -425,17 +432,16 @@ export default function Scorecard() {
 
         {view === 'card' || viewer ? (
           <>
-            {teamTop && (
-              <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>{matchBanner(false)}</View>
-            )}
+            {currentMatchCard}
             <ScorecardGrid r={r} results={results} focus={gi} onPickHole={viewer ? undefined : (n) => { goHole(n); setView('hole'); }} />
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot.{viewer ? '' : ' Tap a score to edit that hole.'}
             </Label>
-            <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i], sides: sidesByGame[i] }))} players={r.players} />
+            {matchCards}
           </>
         ) : (
           <>
+            {currentMatchCard}
             {/* Hole header */}
             <View style={[styles.row, { justifyContent: 'space-between' }]}>
               <Button small kind="secondary" title="‹ Prev" disabled={prevHole === null} onPress={() => prevHole && goHole(prevHole)} />
@@ -479,6 +485,9 @@ export default function Scorecard() {
             {nextHole !== null && done(hole) && <Button title={`Next hole: ${nextHole} ›`} onPress={() => goHole(nextHole)} />}
 
             {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' && (!multi || i === gi) ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
+
+            {/* Team rounds: every match's card (with its teams) below the hole, as on the full scorecard. */}
+            {teamTop && matchCards}
           </>
         )}
 
