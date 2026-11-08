@@ -15,6 +15,7 @@ import { useEvent, useStore, type EventRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { Tip } from '@/components/tip';
 import { AddEventPlayer } from '@/components/add-event-player';
+import { EventStory } from '@/components/event-story';
 
 function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: string) => string }) {
   const c = useColors();
@@ -102,6 +103,8 @@ export default function EventScreen() {
                   <Text style={{ textAlign: 'center', padding: space.sm, color: c.text, fontWeight: '600' }}>{status}</Text>
                 </View>
 
+                <EventStory e={e} rounds={rounds} />
+
                 <Card>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
                     {(['A', 'B'] as const).map((t) => (
@@ -151,6 +154,7 @@ export default function EventScreen() {
                 </View>
               );
             })()}
+            <EventStory e={e} rounds={rounds} />
             <Card>
               <H2>Standings</H2>
               <View style={[styles.row, { borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: 4 }]}>
@@ -160,7 +164,14 @@ export default function EventScreen() {
               </View>
               {eventStandings(e, rounds).map((row) => (
                 <View key={row.playerId} style={[styles.row, { paddingVertical: 4 }]}>
-                  <Body style={{ flex: 1 }}>{row.position}. {name(row.playerId)}</Body>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Body style={{ flexShrink: 1 }}>{row.position}. {name(row.playerId)}</Body>
+                    {e.teamOf?.[row.playerId] ? (
+                      <View style={{ backgroundColor: teamColor(e.teamOf[row.playerId]).color, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>TEAM {e.teamOf[row.playerId]}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Body muted style={{ width: 70, textAlign: 'center' }}>{row.wins}-{row.losses}-{row.halves}</Body>
                   <Text style={{ width: 44, textAlign: 'right', fontFamily: fonts.serif, fontWeight: '700', fontSize: 17, color: c.text }}>{formatPoints(row.points)}</Text>
                 </View>

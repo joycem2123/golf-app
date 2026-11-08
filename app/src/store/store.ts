@@ -153,6 +153,8 @@ export interface EventRecord {
   teamLetters?: string[];
   /** The rounds of the event, in order. */
   rounds?: EventRound[];
+  /** AI overview of the event, and which completed results it was written from. */
+  story?: { text: string; key: string };
 }
 
 interface State {
@@ -241,6 +243,7 @@ interface State {
   addEventPlayer: (eventId: string, playerId: string, team?: string) => void;
   /** Put an existing round (finished or in progress) into an event as its next round. */
   linkRoundToEvent: (roundId: string, eventId: string) => void;
+  setEventStory: (eventId: string, story: { text: string; key: string }) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
   upsertPlayer: (p: SavedPlayer) => void;
@@ -506,6 +509,8 @@ export const useStore = create<State>()(
           }),
           dirtyEvents: dirtyEvent(s, eventId),
         })),
+      setEventStory: (eventId, story) =>
+        set((s) => ({ events: s.events.map((e) => (e.id === eventId ? { ...e, story } : e)), dirtyEvents: dirtyEvent(s, eventId) })),
       linkRoundToEvent: (roundId, eventId) =>
         set((s) => {
           const r = s.rounds.find((x) => x.id === roundId);
