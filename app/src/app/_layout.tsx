@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useUsageTracking } from '@/lib/usage';
+import { TutorialPlayer } from '@/components/tutorial-player';
 import { SyncProvider } from '@/sync/sync-provider';
 import { fonts, useColors } from '@/theme';
 
@@ -56,6 +57,7 @@ export default function RootLayout() {
       </Stack>
       <SyncProvider />
     </ThemeProvider>
+    <TutorialPlayer />
     </GestureHandlerRootView>
   );
 }

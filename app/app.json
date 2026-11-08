@@ -51,7 +51,8 @@
         {
           "color": "#14352A"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

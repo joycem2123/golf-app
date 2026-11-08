@@ -21,7 +21,7 @@ export function WelcomeVideo() {
   const played = () => {
     if (!playNext.current) return;
     playNext.current = false;
-    void openTutorial('welcome');
+    openTutorial('welcome');
   };
 
   useEffect(() => {
