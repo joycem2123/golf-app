@@ -91,6 +91,30 @@ export function useEditRequests(r: RoundRecord | undefined) {
   return { requests: list, claimed, reload: () => setTick((n) => n + 1) };
 }
 
+/** Requests waiting for an answer across these rounds (for the Home cards), kept up to date. */
+export function usePendingRequests(roundIds: string[]) {
+  const [list, setList] = useState<EditRequest[]>([]);
+  const [tick, setTick] = useState(0);
+  const key = [...roundIds].sort().join(',');
+  useEffect(() => {
+    const ids = key ? key.split(',') : [];
+    if (ids.length === 0) { setList([]); return; }
+    let live = true;
+    const load = async () => {
+      const { data } = await supabase.from('edit_requests').select('id, round_id, game_id, requester, requester_name, status').in('round_id', ids).eq('status', 'pending');
+      if (live && data) setList(data as EditRequest[]);
+    };
+    void load();
+    const ch = supabase
+      .channel(`edit-requests-home:${key.length}:${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'edit_requests' }, () => void load())
+      .subscribe();
+    const t = setInterval(() => void load(), 20000);
+    return () => { live = false; clearInterval(t); void supabase.removeChannel(ch); };
+  }, [key, tick]);
+  return { pending: list, reload: () => setTick((n) => n + 1) };
+}
+
 /** Score boxes read this to know whether they can be changed. */
 export const EditRights = createContext<(key: string) => boolean>(() => true);
 export const useCanEdit = (key: string) => useContext(EditRights)(key);

@@ -12,7 +12,8 @@ import type { TipTarget } from '@/components/tip';
 import { gameName, matchLabel } from '@/lib/games';
 import { headline } from '@/lib/headline';
 import { useMe } from '@/lib/me';
-import { playersIn } from '@/lib/edit-rights';
+import { gameId, playersIn, playsIn, usePendingRequests } from '@/lib/edit-rights';
+import { RequestRow } from '@/components/edit-lock';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type RoundRecord } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -23,6 +24,11 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
   const c = useColors();
   const { isMe } = useMe();
   const events = useStore((s) => s.events);
+  const uid = useStore((s) => s.me);
+  // Requests from others to enter scores in my matches: answered right here on the card.
+  const { pending, reload } = usePendingRequests(uid ? rounds.filter((r) => r.remote).map((r) => r.id) : []);
+  const toAnswer = (r: RoundRecord) =>
+    pending.filter((q) => q.round_id === r.id && q.requester !== uid && r.games.some((_, i) => gameId(r, i) === q.game_id && playsIn(r, i, { uid, isMe })));
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const cardW = Math.min(width, 640) - space.lg * 2;
@@ -61,6 +67,7 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
           const label = matchLabel(r.games[gi]);
           const big = head ? (head.board ? (head.board[0] ? `${head.board[0].pos === 'T1' ? 'Tied: ' : ''}${head.board[0].name} ${head.board[0].value}${head.board[0].thru !== '–' ? ` · ${head.board[0].thru === 'F' ? 'F' : `thru ${head.board[0].thru}`}` : ''}` : '') : head.leader ? `${head.leader} ${head.big}` : head.big) : '';
           const deletable = canDeleteRound(r) && r.remote?.role !== 'viewer';
+          const asks = toAnswer(r);
           return (
             <View key={r.id} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
               <Pressable onPress={() => router.push({ pathname: '/round/[id]', params: { id: r.id, match: String(gi) } })} accessibilityRole="button" accessibilityLabel={`${label ?? gameName(r.games[gi])}: ${big}. Open`}>
@@ -69,7 +76,15 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
                     <View style={{ height: 3, backgroundColor: c.accent }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', padding: space.lg, gap: space.md }}>
                       <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ color: c.under, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>● LIVE · {(eventName ?? course).toUpperCase()}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text numberOfLines={1} style={{ flexShrink: 1, color: c.under, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>● LIVE · {(eventName ?? course).toUpperCase()}</Text>
+                          {asks.length > 0 && (
+                            <View accessibilityLabel={`${asks.length} request${asks.length > 1 ? 's' : ''} to answer`} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                              {Platform.OS === 'ios' ? <SymbolView name="bell.fill" tintColor="#fff" size={11} /> : <Text style={{ fontSize: 10 }}>🔔</Text>}
+                              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{asks.length}</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text numberOfLines={2} style={{ color: c.muted, fontSize: 13 }}>
                           {eventName && course ? `${course} · ${game}` : game}
                         </Text>
@@ -97,6 +112,15 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
                         </Pressable>
                       )}
                     </View>
+                    {asks.length > 0 && (
+                      <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.primarySoft, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.md }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {Platform.OS === 'ios' ? <SymbolView name="bell.badge.fill" tintColor={c.accent} size={16} /> : <Text style={{ fontSize: 14 }}>🔔</Text>}
+                          <Text style={{ color: c.text, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>NEEDS YOUR OK</Text>
+                        </View>
+                        {asks.map((q) => <RequestRow key={q.id} r={r} q={q} onDone={reload} />)}
+                      </View>
+                    )}
                   </View>
                 )}
               </Pressable>

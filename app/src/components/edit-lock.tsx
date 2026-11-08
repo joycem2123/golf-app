@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
 import { gameId, playsIn, type EditRequest, type Rights } from '@/lib/edit-rights';
@@ -84,6 +84,38 @@ export function EditRequestsCard({ r, rights, reload }: { r: RoundRecord; rights
           </View>
         );
       })}
+    </View>
+  );
+}
+
+/** One request, compact, for a Home card: who wants to enter scores in which match, with Allow / Decline. */
+export function RequestRow({ r, q, onDone }: { r: RoundRecord; q: EditRequest; onDone: () => void }) {
+  const c = useColors();
+  const [busy, setBusy] = useState(false);
+  const gi = r.games.findIndex((_, i) => gameId(r, i) === q.game_id);
+  const g = r.games[gi];
+  const which = g ? (matchLabel(g) ?? gameName(g)) : 'your match';
+  const answer = async (approve: boolean) => {
+    setBusy(true);
+    await supabase.rpc('answer_edit_request', { req: q.id, approve });
+    setBusy(false);
+    onDone();
+  };
+  const pill = (title: string, primary: boolean, approve: boolean) => (
+    <Pressable onPress={() => answer(approve)} disabled={busy} accessibilityRole="button" accessibilityLabel={`${title} ${q.requester_name || 'request'}`} hitSlop={4}
+      style={({ pressed }) => ({ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: primary ? c.primary : c.chip, borderWidth: primary ? 0 : 1, borderColor: c.border, opacity: pressed || busy ? 0.6 : 1 })}>
+      <Text style={{ color: primary ? c.onPrimary : c.text, fontWeight: '700', fontSize: 13 }}>{title}</Text>
+    </Pressable>
+  );
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={{ color: c.text, fontSize: 13 }}>
+        <Text style={{ fontWeight: '800' }}>{q.requester_name || 'Someone'}</Text> wants to enter scores in {which}.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {pill('Allow', true, true)}
+        {pill('Decline', false, false)}
+      </View>
     </View>
   );
 }
