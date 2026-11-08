@@ -6,7 +6,7 @@ import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native
 import { captureRef } from 'react-native-view-shot';
 
 import { Confetti } from '@/components/confetti';
-import { GameSummaryCard } from '@/components/game-summary';
+import { GameSummaryList } from '@/components/game-summary';
 import { LogoMark } from '@/components/logo';
 import { MatchStory, SideRow } from '@/components/match-result';
 import { MeBadge } from '@/components/people';
@@ -314,9 +314,7 @@ export default function Results() {
           </Pressable>
         )}
 
-        {others.map(({ g, i }) => (
-          <GameSummaryCard key={i} name={gameTitle(g, r.players)} result={results[i] as GameResult | { error: string }} players={r.players} />
-        ))}
+        <GameSummaryList items={others.map(({ g, i }) => ({ key: i, name: gameTitle(g, r.players), result: results[i] as GameResult | { error: string } }))} players={r.players} />
 
         {r.statsEnabled &&
           rows.filter((x) => !x.k.isTeam).map((x) => {

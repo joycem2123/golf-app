@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { useState } from 'react';
 
-import { GameSummaryCard } from '@/components/game-summary';
+import { GameSummaryList } from '@/components/game-summary';
 import { ScorecardGrid } from '@/components/scorecard-grid';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { IdentityCard, MeBadge } from '@/components/people';
@@ -406,9 +406,7 @@ export default function Scorecard() {
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot. Tap a score to edit that hole.
             </Label>
-            {r.games.map((g, i) => (
-              <GameSummaryCard key={i} name={gameTitle(g, r.players)} result={results[i]} players={r.players} />
-            ))}
+            <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i] }))} players={r.players} />
           </>
         ) : (
           <>

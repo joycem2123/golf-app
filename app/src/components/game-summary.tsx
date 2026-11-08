@@ -1,5 +1,6 @@
 import { half, type GameResult, type Player } from '@golf/engine';
-import { Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 
 import { toPar } from '@/lib/format';
 import { teamIdName } from '@/lib/games';
@@ -80,5 +81,38 @@ export function GameSummaryCard({ name, result, players }: { name: string; resul
         ))}
       <Details result={result} players={players} />
     </Card>
+  );
+}
+
+/** Match cards, the first `limit` shown; Expand shows the rest, Collapse hides them again. */
+export function GameSummaryList({
+  items,
+  players,
+  limit = 4,
+}: {
+  items: { key: string | number; name: string; result: GameResult | { error: string } | undefined }[];
+  players: Player[];
+  limit?: number;
+}) {
+  const c = useColors();
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? items : items.slice(0, limit);
+  const hidden = items.length - limit;
+  return (
+    <>
+      {shown.map((x) => (
+        <GameSummaryCard key={x.key} name={x.name} result={x.result} players={players} />
+      ))}
+      {hidden > 0 && (
+        <Pressable
+          onPress={() => setExpanded((v) => !v)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          style={({ pressed }) => ({ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.card, opacity: pressed ? 0.7 : 1 })}>
+          <Text style={{ color: c.primary, fontWeight: '700' }}>{expanded ? 'Collapse' : `Expand (${hidden} more)`}</Text>
+          <Text style={{ color: c.primary, fontSize: 12 }}>{expanded ? '▲' : '▼'}</Text>
+        </Pressable>
+      )}
+    </>
   );
 }
