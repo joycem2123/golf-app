@@ -53,7 +53,7 @@ export default function More() {
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
           <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
-          <Row title="Show tips again" sub="Bring back the one-time tips on scoring, results and events" onPress={() => void resetTips().then(() => setTipsReset(true))} />
+          <Row title="Show tips again" sub="Bring back the one-time tips and the welcome video" onPress={() => void resetTips().then(() => setTipsReset(true))} />
           <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
         </Card>
         {tipsReset && <Body style={{ color: c.primary, textAlign: 'center' }}>Tips are back. You’ll see each one again the next time you open that screen.</Body>}

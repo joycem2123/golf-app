@@ -30,6 +30,8 @@ export async function resetTips() {
   seen = new Set();
   loading = Promise.resolve(seen);
   await AsyncStorage.removeItem(KEY).catch(() => undefined);
+  // The one-time welcome video pop-up comes back too.
+  await AsyncStorage.removeItem('tutorial:offered').catch(() => undefined);
 }
 
 /** A ref to the part of the screen a tip points at. */
