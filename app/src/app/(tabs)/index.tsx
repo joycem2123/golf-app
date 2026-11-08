@@ -19,6 +19,7 @@ import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 import { Tip, type TipTarget } from '@/components/tip';
+import { WelcomeVideo } from '@/components/welcome-video';
 
 function greeting() {
   const h = new Date().getHours();
@@ -163,6 +164,7 @@ export default function Home() {
       lines={['Slide a live or upcoming card to the left to delete it. You’ll have a few seconds to undo.']}
     />
     {bar}
+    <WelcomeVideo />
     </View>
   );
 }

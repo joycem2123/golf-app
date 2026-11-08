@@ -5,7 +5,8 @@ import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { TabHeader } from '@/components/tab-header';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Body, Button, Card, Toggle } from '@/components/ui';
-import { track, useUsageSharing } from '@/lib/usage';
+import { useUsageSharing } from '@/lib/usage';
+import { openTutorial } from '@/lib/tutorial';
 import { resetTips } from '@/components/tip';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
@@ -30,19 +31,6 @@ function Row({ title, sub, href, onPress }: { title: string; sub: string; href?:
   );
 }
 
-const TUTORIAL = 'https://clutchupgolf.com/tutorial.html';
-
-/** The video tour, in an in-app browser (or Safari if this build doesn't have one). */
-async function openTutorial() {
-  track('tutorial_opened');
-  try {
-    const WebBrowser = await import('expo-web-browser');
-    await WebBrowser.openBrowserAsync(TUTORIAL);
-  } catch {
-    void Linking.openURL(TUTORIAL);
-  }
-}
-
 export default function More() {
   const session = useSession();
   const [asking, setAsking] = useState(false);
@@ -61,7 +49,7 @@ export default function More() {
           ) : (
             <Row title="Create account or sign in" sub="You’re using Clutch Up as a guest" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
           )}
-          <Row title="How Clutch Up works" sub="A one-minute video tour of the app" onPress={() => void openTutorial()} />
+          <Row title="How Clutch Up works" sub="A two-minute video tour of the app" onPress={() => void openTutorial()} />
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
           <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
