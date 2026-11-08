@@ -1,6 +1,6 @@
 /**
- * Home: every match in progress, one card each, swipe left/right (dots show where you are).
- * My matches first, then the other matches in rounds I'm part of. Tap to open that match.
+ * Home: every round in progress, one card each, swipe left/right (dots show where you are).
+ * Rounds I'm playing in first. Tap to open the round on the match I'm playing in.
  */
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -17,7 +17,7 @@ import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { RoundRecord } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
-type Item = { r: RoundRecord; gi: number; mine: boolean; at: number };
+type Item = { r: RoundRecord; gi: number; mine: boolean; matches: number; at: number };
 
 export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundRecord[]; onDelete: (roundId: string) => void; firstRef?: TipTarget }) {
   const c = useColors();
@@ -29,13 +29,12 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
 
   const items: Item[] = [];
   for (const r of rounds) {
-    const matches = r.games.map((g, i) => (matchLabel(g) ? i : -1)).filter((i) => i >= 0);
-    for (const gi of matches.length > 1 ? matches : [0]) {
-      items.push({ r, gi, mine: playersIn(r.games[gi]).some(isMe), at: r.createdAt });
-    }
+    const gi = myMatchIndex(r, isMe);
+    const matches = r.games.filter((g) => matchLabel(g)).length;
+    items.push({ r, gi, mine: !!r.games[gi] && playersIn(r.games[gi]).some(isMe), matches, at: r.createdAt });
   }
-  // My matches first, then the rest; newest rounds first within each.
-  items.sort((a, b) => Number(b.mine) - Number(a.mine) || b.at - a.at || a.gi - b.gi);
+  // Rounds I'm playing in first; newest first within each.
+  items.sort((a, b) => Number(b.mine) - Number(a.mine) || b.at - a.at);
   if (items.length === 0) return null;
 
   return (
@@ -59,7 +58,7 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
           const big = head ? (head.board ? (head.board[0] ? `${head.board[0].pos === 'T1' ? 'Tied: ' : ''}${head.board[0].name} ${head.board[0].value}${head.board[0].thru !== '–' ? ` · ${head.board[0].thru === 'F' ? 'F' : `thru ${head.board[0].thru}`}` : ''}` : '') : head.leader ? `${head.leader} ${head.big}` : head.big) : '';
           const deletable = canDeleteRound(r) && r.remote?.role !== 'viewer';
           return (
-            <View key={`${r.id}-${gi}`} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
+            <View key={r.id} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
               <Pressable onPress={() => router.push({ pathname: '/round/[id]', params: { id: r.id, match: String(gi) } })} accessibilityRole="button" accessibilityLabel={`${label ?? gameName(r.games[gi])}: ${big}. Open`}>
                 {({ pressed }) => (
                   <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', opacity: pressed ? 0.85 : 1, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
@@ -70,16 +69,18 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
                           <Text numberOfLines={1} style={{ flexShrink: 1, color: c.under, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>● LIVE · {course}</Text>
                           <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 }}>{head?.small.toUpperCase()}</Text>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text numberOfLines={1} style={{ flexShrink: 1, color: c.muted, fontSize: 13 }}>{label ? `${label} · ${gameName(r.games[gi])}` : gameName(r.games[gi])}</Text>
-                          {it.mine && (
+                        <Text numberOfLines={1} style={{ color: c.muted, fontSize: 13 }}>
+                          {it.matches > 1 ? `${gameName(r.games[gi])} · ${it.matches} matches` : gameName(r.games[gi])}
+                        </Text>
+                        <Text numberOfLines={2} style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: head?.side === 1 ? c.teamB : c.primary }}>{big}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                          <Text style={{ color: c.primary, fontWeight: '700' }}>{r.remote?.role === 'viewer' ? 'Follow live ›' : 'Resume scoring ›'}</Text>
+                          {it.mine && it.matches > 1 && label && (
                             <View style={{ backgroundColor: c.primarySoft, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                              <Text style={{ color: c.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>YOUR MATCH</Text>
+                              <Text style={{ color: c.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>YOUR MATCH: {label.toUpperCase()}</Text>
                             </View>
                           )}
                         </View>
-                        <Text numberOfLines={2} style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: head?.side === 1 ? c.teamB : c.primary }}>{big}</Text>
-                        <Text style={{ color: c.primary, fontWeight: '700', marginTop: 4 }}>{r.remote?.role === 'viewer' ? 'Follow live ›' : 'Resume scoring ›'}</Text>
                       </View>
                       {deletable && (
                         <Pressable
@@ -100,12 +101,19 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
         })}
       </ScrollView>
       {items.length > 1 && (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: space.sm }} accessibilityLabel={`Match ${index + 1} of ${items.length}. Swipe to see the others.`}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: space.sm }} accessibilityLabel={`Round ${index + 1} of ${items.length}. Swipe to see the others.`}>
           {items.map((it, n) => (
-            <View key={`${it.r.id}-${it.gi}`} style={{ width: n === index ? 18 : 7, height: 7, borderRadius: 4, backgroundColor: n === index ? c.primary : c.border }} />
+            <View key={it.r.id} style={{ width: n === index ? 18 : 7, height: 7, borderRadius: 4, backgroundColor: n === index ? c.primary : c.border }} />
           ))}
         </View>
       )}
     </View>
   );
+}
+
+/** The match I'm playing in (the first one, if several), else the round's first match. */
+export function myMatchIndex(r: RoundRecord, isMe: (id: string) => boolean): number {
+  const matches = r.games.map((g, i) => (matchLabel(g) ? i : -1)).filter((i) => i >= 0);
+  const list = matches.length ? matches : r.games.map((_, i) => i);
+  return list.find((i) => playersIn(r.games[i]).some(isMe)) ?? list[0] ?? 0;
 }

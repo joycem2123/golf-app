@@ -139,8 +139,8 @@ export default function Home() {
       <Tip
         id="home-live"
         target={liveRef}
-        title="Your live matches"
-        lines={['Swipe left or right to see every match in play; yours come first.', 'Tap a match to open it. The red bin deletes the round.']}
+        title="Your live rounds"
+        lines={['Swipe left or right to see every round in play; yours come first.', 'Tap a round to open it on your match. The red bin deletes the round.']}
       />
     ) : (
       <Tip

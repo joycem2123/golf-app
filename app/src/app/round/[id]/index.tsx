@@ -27,6 +27,7 @@ import { TeamScoreboard } from '@/components/team-scoreboard';
 import { cardSides, liveTeamScore } from '@/lib/results';
 import { headline } from '@/lib/headline';
 import { AddToEvent } from '@/components/add-to-event';
+import { myMatchIndex } from '@/components/live-carousel';
 import { EditRights, canEditGame, canEditKey, useAccountId, useCanEdit, useEditRequests } from '@/lib/edit-rights';
 import { EditRequestsCard, LockedMatch } from '@/components/edit-lock';
 
@@ -309,7 +310,9 @@ export default function Scorecard() {
   const insets = useSafeAreaInsets();
   // Joined to follow the leaderboard: full scorecard only, never editable.
   // Opened from a match card on Home: start on that match.
-  const [focus, setFocus] = useState(() => Number(startMatch) || 0);
+  // Otherwise: the match I'm playing in.
+  const { isMe: isMeId } = useMe();
+  const [focus, setFocus] = useState(() => (startMatch !== undefined && startMatch !== '' ? Number(startMatch) || 0 : r ? myMatchIndex(r, isMeId) : 0));
   // The hole each match opened on, until someone moves it (so entering the last score doesn't jump ahead).
   const [opened, setOpened] = useState<Record<string, number>>({});
   const [quitting, setQuitting] = useState(false);
