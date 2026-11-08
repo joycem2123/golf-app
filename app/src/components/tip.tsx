@@ -2,40 +2,26 @@
  * One-time pop-up tips: a small card that slides up the first time you reach a screen.
  * Each tip shows once per phone; "Show tips again" in More brings them back.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState, type ComponentRef, type RefObject } from 'react';
 import { Animated, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useOverlayBusy } from '@/components/tutorial-player';
 import { track } from '@/lib/usage';
+import { useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 
-const KEY = 'tips:seen';
-let seen: Set<string> | null = null;
-let loading: Promise<Set<string>> | null = null;
 let showing: string | null = null; // only one tip on screen at a time
 
-const loadSeen = () =>
-  (loading ??= AsyncStorage.getItem(KEY)
-    .then((v) => (seen = new Set(v ? (JSON.parse(v) as string[]) : [])))
-    .catch(() => (seen = new Set())));
+// Seen tips are saved with each account, so a new account (or a new person on this phone) sees them once.
+const loadSeen = async () => new Set(useStore.getState().tipsSeen ?? []);
+const markSeen = (id: string) => useStore.setState((s) => ({ tipsSeen: [...(s.tipsSeen ?? []).filter((x) => x !== id), id] }));
 
-const markSeen = (id: string) => {
-  seen?.add(id);
-  void AsyncStorage.setItem(KEY, JSON.stringify([...(seen ?? [])])).catch(() => undefined);
-};
-
-/** Bring every tip back (More → Show tips again). */
+/** Bring every tip back, and the welcome video (More → Show tips again). */
 export async function resetTips() {
-  seen = new Set();
-  loading = Promise.resolve(seen);
-  await AsyncStorage.removeItem(KEY).catch(() => undefined);
-  // The one-time welcome video pop-up comes back too.
-  await AsyncStorage.removeItem('tutorial:offered').catch(() => undefined);
+  useStore.setState({ tipsSeen: [], tutorialOffered: false });
 }
 
-/** A ref to the part of the screen a tip points at. */
 export type TipTarget = RefObject<ComponentRef<typeof View> | null>;
 
 type Rect = { x: number; y: number; w: number; h: number };

@@ -170,6 +170,9 @@ interface State {
   meAliases: string[];
   /** Rounds/events where the user said they aren't one of the players. */
   identityDismissed: string[];
+  /** One-time tips this account has dismissed, and whether it was offered the welcome video. */
+  tipsSeen: string[];
+  tutorialOffered: boolean;
   /** This account said the pre-separation data on this phone isn't theirs. */
   legacyDismissed: boolean;
   setLegacyDismissed: (v: boolean) => void;
@@ -295,6 +298,8 @@ export const EMPTY_DATA = {
   myPlayerId: null as string | null,
   meAliases: [] as string[],
   identityDismissed: [] as string[],
+  tipsSeen: [] as string[],
+  tutorialOffered: false,
   legacyDismissed: false,
   myUsername: null as string | null,
   names: {} as Record<string, string>,
@@ -325,6 +330,8 @@ export const useStore = create<State>()(
       myPlayerId: null,
       meAliases: [],
       identityDismissed: [],
+      tipsSeen: [],
+      tutorialOffered: false,
       legacyDismissed: false,
       setLegacyDismissed: (v) => set({ legacyDismissed: v }),
       setMyPlayer: (id) => set({ myPlayerId: id }),
@@ -623,7 +630,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => AsyncStorage),
       version: STORE_VERSION,
       migrate: (state) =>
-        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], myUsername: null, legacyDismissed: false, ...(state as object) }) as unknown as State,
+        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], tipsSeen: [], tutorialOffered: false, myUsername: null, legacyDismissed: false, ...(state as object) }) as unknown as State,
     },
   ),
 );

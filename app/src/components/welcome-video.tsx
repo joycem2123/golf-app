@@ -1,9 +1,8 @@
 /**
  * First time on Home (after sign-in or "Continue as guest"): offer the video tutorial once.
- * Shown once per phone; either button means it's never shown again.
+ * Shown once per account; either button means it's not shown again for that account.
  * Drawn as a layer over the app (not a separate window), so it can't get stuck on top.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -13,12 +12,12 @@ import { track } from '@/lib/usage';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 
-const KEY = 'tutorial:offered';
 
 /** Shown over Home only; `onHome` comes from the root layout. */
 export function WelcomeVideo({ onHome }: { onHome: boolean }) {
   const c = useColors();
   const onboarded = useStore((s) => s.onboarded);
+  const offered = useStore((s) => s.tutorialOffered);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -26,7 +25,7 @@ export function WelcomeVideo({ onHome }: { onHome: boolean }) {
     let cancelled = false;
     let shown = false;
     let t: ReturnType<typeof setTimeout> | undefined;
-    AsyncStorage.getItem(KEY)
+    Promise.resolve(useStore.getState().tutorialOffered)
       .then((v) => {
         if (cancelled || v) return;
         useTutorialPlayer.setState({ welcome: true }); // tips wait while this is up
@@ -44,11 +43,11 @@ export function WelcomeVideo({ onHome }: { onHome: boolean }) {
       // Left Home before the card appeared: let tips carry on. (Once shown, closing it clears the flag.)
       if (!shown) useTutorialPlayer.setState({ welcome: false });
     };
-  }, [onHome, onboarded]);
+  }, [onHome, onboarded, offered]);
 
   const close = (play: boolean) => {
     setOpen(false);
-    void AsyncStorage.setItem(KEY, new Date().toISOString()).catch(() => undefined);
+    useStore.setState({ tutorialOffered: true });
     if (play) openTutorial('welcome');
     else track('tutorial_skipped');
     useTutorialPlayer.setState({ welcome: false });
