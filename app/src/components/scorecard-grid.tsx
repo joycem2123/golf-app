@@ -5,11 +5,11 @@ import { gameKeys, matchLabel } from '@/lib/games';
 import { grossAt, scoreKeys, teeFor, gameHoles } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import type { RoundRecord } from '@/store/store';
-import { fonts, useColors } from '@/theme';
+import { fonts, useColors, teamColor } from '@/theme';
 
 const W = 34; // hole cell width
 const SUM = 42; // out/in/total width
-const NAME = 92;
+const NAME_W = 92;
 const H = 38;
 
 /** Traditional scorecard marks: circle = birdie, double circle = eagle, square = bogey, double square = double+. */
@@ -56,6 +56,7 @@ export function ScorecardGrid({
   focus?: number;
 }) {
   const c = useColors();
+  const NAME = r.teamOf && Object.keys(r.teamOf).length ? NAME_W + 22 : NAME_W;
   const main = results[focus] && !('error' in results[focus]) ? results[focus] : undefined;
   const strokes = main?.strokes ?? {};
   const tee = teeFor(r, r.players[0].id);
@@ -116,9 +117,27 @@ export function ScorecardGrid({
   ];
   const nameText = (t: string, color = c.text) => <Text numberOfLines={1} style={{ color, fontWeight: '600', fontSize: 13 }}>{t}</Text>;
 
+  // Which team each row is on (a coloured bar and the team letter).
+  const teamLetterOf = (k: string) => {
+    const key = keys.find((x) => x.key === k);
+    return r.teamOf?.[key?.members[0] ?? k];
+  };
+  const playerName = (k: string) => {
+    const L = teamLetterOf(k);
+    if (!L) return nameText(label(k));
+    const tc = teamColor(L).color;
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+        <View style={{ width: 4, height: 18, borderRadius: 2, backgroundColor: tc }} />
+        <Text style={{ color: tc, fontWeight: '800', fontSize: 10 }}>{L}</Text>
+        <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontWeight: '600', fontSize: 13 }}>{label(k)}</Text>
+      </View>
+    );
+  };
+
   const playerRow = (k: string) =>
     row(
-      nameText(label(k)),
+      playerName(k),
       nineCells(
         (h) => (
           <Pressable disabled={!onPickHole} onPress={() => onPickHole?.(h)}>

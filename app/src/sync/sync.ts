@@ -422,3 +422,27 @@ export function resetSubscriptions() {
   for (const ch of channels.values()) void supabase.removeChannel(ch);
   channels.clear();
 }
+
+// ------------------------------------------------------------------ event score for someone following one round
+
+/**
+ * Someone following a single round (round code only) can't see the event itself. This fetches a read-only
+ * copy of the event and its rounds so the overall score can be shown. Nothing is saved on the phone.
+ */
+export async function fetchRoundEvent(roundId: string): Promise<{ event: EventRecord; rounds: RoundRecord[] } | null> {
+  const { data, error } = await supabase.rpc('round_event_snapshot', { rid: roundId });
+  if (error || !data?.event) return null;
+  const doc = data.event.data as EventDoc;
+  const { playerInfo: _p, ...e } = doc;
+  const event: EventRecord = { ...e, id: data.event.id, remote: { shareCode: data.event.share_code, role: 'viewer' } };
+  const rounds: RoundRecord[] = (data.rounds as (RoundRow & { scores: ScoreRow[] })[]).map((row) => {
+    const r = roundFromRow(row, 'viewer');
+    for (const s of row.scores ?? []) {
+      if (s.gross == null) continue;
+      const en = toEntry(s);
+      r.ledger[`${en.key}#${en.hole}`] = { ...en, gross: s.gross };
+    }
+    return r;
+  });
+  return { event, rounds };
+}

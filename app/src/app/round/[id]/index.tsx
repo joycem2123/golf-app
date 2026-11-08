@@ -22,6 +22,8 @@ import { flush, shareRound } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { track } from '@/lib/usage';
 import { Tip } from '@/components/tip';
+import { TeamScoreboard } from '@/components/team-scoreboard';
+import { cardSides } from '@/lib/results';
 
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
@@ -332,6 +334,8 @@ export default function Scorecard() {
   const h = firstTee.holes[hole - 1];
   const done = (n: number) => keys.every((k) => grossAt(r, k.key, n) !== null);
   const allDone = allHolesScored(r);
+  const eventTeams = useStore.getState().events.find((e) => e.id === r.eventId)?.teams;
+  const sidesByGame = cardSides(r, results, (L) => (eventTeams && (L === 'A' || L === 'B') ? eventTeams[L].name : `Team ${L}`), (L) => teamColor(L).color);
   const teams = teamGroups(r, c, gi);
   const inTeams = new Set(teams?.flatMap((t) => t.keys) ?? []);
   const solo = keys.filter((k) => !inTeams.has(k.key));
@@ -414,11 +418,12 @@ export default function Scorecard() {
 
         {view === 'card' || viewer ? (
           <>
+            <TeamScoreboard r={r} results={results} />
             <ScorecardGrid r={r} results={results} focus={gi} onPickHole={viewer ? undefined : (n) => { goHole(n); setView('hole'); }} />
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot.{viewer ? '' : ' Tap a score to edit that hole.'}
             </Label>
-            <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i] }))} players={r.players} />
+            <GameSummaryList items={r.games.map((g, i) => ({ key: i, name: gameTitle(g, r.players), result: results[i], sides: sidesByGame[i] }))} players={r.players} />
           </>
         ) : (
           <>

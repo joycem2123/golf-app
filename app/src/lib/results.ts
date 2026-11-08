@@ -117,3 +117,69 @@ export function roundTeamScore(r: RoundRecord, results: (GameResult | { error: s
   const totals = teamTotals(r, matches);
   return totals.length >= 2 && matches.some((m) => m.a.letter !== m.b.letter) ? totals : null;
 }
+
+/** Who's ahead in a match still being played: 'a', 'b', 'square', or null if it hasn't started. */
+function liveLeader(res: GameResult | { error: string } | undefined): 'a' | 'b' | 'square' | null {
+  if (!res || 'error' in res || res.finished) return null;
+  const lead =
+    res.type === 'matchPlay' ? (res.status.thru ? res.status.lead : null)
+    : res.type === 'nassau' ? (res.thru ? res.points.A - res.points.B : null)
+    : res.type === 'vegas' ? (res.thru ? res.totalA : null)
+    : (res.type === 'scramble' || res.type === 'shamble') && res.match ? (res.match.thru ? res.match.lead : null)
+    : null;
+  if (lead === null) return null;
+  return lead > 0 ? 'a' : lead < 0 ? 'b' : 'square';
+}
+
+export interface LiveTeamScore {
+  /** Points already won, per team letter (finished matches only). */
+  teams: (TeamTotal & { leading: number; projected: number })[];
+  /** Matches still being played that are level. */
+  square: number;
+  live: number;
+}
+
+/**
+ * The round's team match as it stands: points from finished matches, plus who's ahead in the ones still
+ * being played (a leading match counts a full point toward the projection, a level one half each).
+ */
+export function liveTeamScore(r: RoundRecord, results: (GameResult | { error: string })[]): LiveTeamScore | null {
+  const matches = matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter);
+  if (matches.length === 0) return null;
+  const totals = teamTotals(r, matches).map((t) => ({ ...t, leading: 0, projected: t.points }));
+  const get = (L: string) => totals.find((t) => t.letter === L);
+  let square = 0;
+  let live = 0;
+  for (const m of matches) {
+    if (m.winner) continue;
+    const lead = liveLeader(results[m.gi]);
+    if (lead === null) continue;
+    live++;
+    const ta = get(m.a.letter);
+    const tb = get(m.b.letter);
+    if (lead === 'a' && ta) { ta.leading++; ta.projected += 1; }
+    else if (lead === 'b' && tb) { tb.leading++; tb.projected += 1; }
+    else { square++; if (ta) ta.projected += 0.5; if (tb) tb.projected += 0.5; }
+  }
+  return totals.length >= 2 ? { teams: totals.sort((x, y) => x.letter.localeCompare(y.letter)), square, live } : null;
+}
+
+/** For match cards: each side's team (name and colour), when the round has teams. */
+export function cardSides(
+  r: RoundRecord,
+  results: (GameResult | { error: string })[],
+  teamName: (letter: string) => string,
+  colorOf: (letter: string) => string,
+): Record<number, [{ team: string; names: string; color: string }, { team: string; names: string; color: string }]> {
+  if (!r.teamOf || Object.keys(r.teamOf).length === 0) return {};
+  const out: Record<number, [{ team: string; names: string; color: string }, { team: string; names: string; color: string }]> = {};
+  const first = (id: string) => (r.players.find((p) => p.id === id)?.name ?? '').split(' ')[0];
+  for (const m of matchOutcomes(r, results)) {
+    if (m.a.letter === m.b.letter) continue;
+    out[m.gi] = [
+      { team: teamName(m.a.letter), names: m.a.members.map(first).join(' & '), color: colorOf(m.a.letter) },
+      { team: teamName(m.b.letter), names: m.b.members.map(first).join(' & '), color: colorOf(m.b.letter) },
+    ];
+  }
+  return out;
+}

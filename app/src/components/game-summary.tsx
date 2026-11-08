@@ -49,7 +49,9 @@ function Details({ result, players }: { result: GameResult; players: Player[] })
   }
 }
 
-export function GameSummaryCard({ name, result, players }: { name: string; result: GameResult | { error: string } | undefined; players: Player[] }) {
+export type CardSide = { team: string; names: string; color: string };
+
+export function GameSummaryCard({ name, result, players, sides }: { name: string; result: GameResult | { error: string } | undefined; players: Player[]; sides?: [CardSide, CardSide] }) {
   const c = useColors();
   if (!result) return null;
   if ('error' in result) {
@@ -71,6 +73,20 @@ export function GameSummaryCard({ name, result, players }: { name: string; resul
         <Text style={{ flex: 1, color: c.text, fontWeight: '700', fontSize: 14 }} numberOfLines={2}>{name}</Text>
         <Label>{result.finished ? 'Final' : result.thru ? `Thru ${result.thru}` : ''}</Label>
       </View>
+      {sides && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+          {sides.map((sd, j) => (
+            <View key={j} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {j === 1 && <Text style={{ color: c.muted, fontSize: 12 }}>vs</Text>}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: sd.color + '1A', borderRadius: 999, paddingVertical: 3, paddingHorizontal: 8 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sd.color }} />
+                <Text style={{ color: sd.color, fontWeight: '800', fontSize: 12 }}>{sd.team}</Text>
+                <Text style={{ color: c.text, fontSize: 12 }}>{sd.names}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
       <H2>{result.summary.replace(/\bteamA\b/g, 'Team A').replace(/\bteamB\b/g, 'Team B')}</H2>
       {showStandings &&
         result.standings.map((s) => (
@@ -90,7 +106,7 @@ export function GameSummaryList({
   players,
   limit = 4,
 }: {
-  items: { key: string | number; name: string; result: GameResult | { error: string } | undefined }[];
+  items: { key: string | number; name: string; result: GameResult | { error: string } | undefined; sides?: [CardSide, CardSide] }[];
   players: Player[];
   limit?: number;
 }) {
@@ -101,7 +117,7 @@ export function GameSummaryList({
   return (
     <>
       {shown.map((x) => (
-        <GameSummaryCard key={x.key} name={x.name} result={x.result} players={players} />
+        <GameSummaryCard key={x.key} name={x.name} result={x.result} players={players} sides={x.sides} />
       ))}
       {hidden > 0 && (
         <Pressable

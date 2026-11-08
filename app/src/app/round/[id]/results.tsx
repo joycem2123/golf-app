@@ -16,7 +16,7 @@ import { toPar } from '@/lib/format';
 import { eventTeamTotals } from '@/lib/events';
 import { gameName, matchLabel, teamIdName, gameTitle } from '@/lib/games';
 import { useMe } from '@/lib/me';
-import { matchOutcomes, teamTotals, type MatchOutcome } from '@/lib/results';
+import { matchOutcomes, teamTotals, type MatchOutcome, cardSides } from '@/lib/results';
 import { storyHoles } from '@/lib/story';
 import { teamGroups, teamHole } from '@/lib/teams';
 import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor, roundHoleCount } from '@/lib/round';
@@ -46,6 +46,8 @@ export default function Results() {
   if (!r) return <Body>Round not found.</Body>;
 
   const results = evaluate(r);
+  const evTeams = useStore.getState().events.find((ev) => ev.id === r.eventId)?.teams;
+  const resultSides = cardSides(r, results, (L) => (evTeams && (L === 'A' || L === 'B') ? evTeams[L].name : `Team ${L}`), (L) => teamColor(L).color);
   const event = events.find((e) => e.id === r.eventId);
   const overall = event?.teamOf || event?.teams ? eventTeamTotals(event!.teamOf ? event! : { ...event!, teamLetters: ['A', 'B'] }, allRounds).totals : null;
   const posting = postingList(r);
@@ -314,7 +316,7 @@ export default function Results() {
           </Pressable>
         )}
 
-        <GameSummaryList items={others.map(({ g, i }) => ({ key: i, name: gameTitle(g, r.players), result: results[i] as GameResult | { error: string } }))} players={r.players} />
+        <GameSummaryList items={others.map(({ g, i }) => ({ key: i, name: gameTitle(g, r.players), result: results[i] as GameResult | { error: string }, sides: resultSides[i] }))} players={r.players} />
 
         {r.statsEnabled &&
           rows.filter((x) => !x.k.isTeam).map((x) => {
