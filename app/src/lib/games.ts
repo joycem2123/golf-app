@@ -319,6 +319,22 @@ export function matchLabel(game: GameConfig): string | null {
   return m ? `Match ${m[1]}` : null;
 }
 
+/** Card title for a game: "Match 1: John vs Matt", "Side match: John vs Matt", or the game's name for group games. */
+export function gameTitle(g: GameConfig, players: { id: string; name: string }[]): string {
+  const first = (id: string) => (players.find((p) => p.id === id)?.name ?? '?').split(' ')[0];
+  const side = (ids: string[]) => ids.map(first).join(' & ');
+  let sides: [string, string] | null = null;
+  if (g.type === 'matchPlay' || g.type === 'nassau') sides = [side(g.sideA.members), side(g.sideB.members)];
+  else if (g.type === 'vegas') sides = [side(g.teamA.members), side(g.teamB.members)];
+  else if ((g.type === 'scramble' || g.type === 'shamble') && g.teams.length === 2) sides = [side(g.teams[0].members), side(g.teams[1].members)];
+  if (!sides) return gameName(g);
+  const vs = `${sides[0]} vs ${sides[1]}`;
+  const label = matchLabel(g);
+  if (label) return `${label}: ${vs}`;
+  if (((g as { id?: string }).id ?? '').startsWith('side-')) return `Side match: ${vs}`;
+  return `${gameName(g)}: ${vs}`;
+}
+
 /** Score rows (player or team keys) that take part in a game. */
 export function gameKeys(g: GameConfig): string[] {
   switch (g.type) {

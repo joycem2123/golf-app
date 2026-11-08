@@ -1,5 +1,5 @@
 import { half, type GameResult, type Player } from '@golf/engine';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { toPar } from '@/lib/format';
 import { teamIdName } from '@/lib/games';
@@ -67,7 +67,7 @@ export function GameSummaryCard({ name, result, players }: { name: string; resul
   return (
     <Card style={result.finished ? { borderColor: c.primary, borderWidth: 1.5 } : undefined}>
       <View style={[styles.row, { justifyContent: 'space-between' }]}>
-        <Label>{name}</Label>
+        <Text style={{ flex: 1, color: c.text, fontWeight: '700', fontSize: 14 }} numberOfLines={2}>{name}</Text>
         <Label>{result.finished ? 'Final' : result.thru ? `Thru ${result.thru}` : ''}</Label>
       </View>
       <H2>{result.summary.replace(/\bteamA\b/g, 'Team A').replace(/\bteamB\b/g, 'Team B')}</H2>

@@ -14,7 +14,7 @@ import { Mark } from '@/components/scorecard-grid';
 import { Body, Button, Card, H2, Label, Segmented } from '@/components/ui';
 import { toPar } from '@/lib/format';
 import { eventTeamTotals } from '@/lib/events';
-import { gameName, matchLabel, teamIdName } from '@/lib/games';
+import { gameName, matchLabel, teamIdName, gameTitle } from '@/lib/games';
 import { useMe } from '@/lib/me';
 import { matchOutcomes, teamTotals, type MatchOutcome } from '@/lib/results';
 import { storyHoles } from '@/lib/story';
@@ -315,7 +315,7 @@ export default function Results() {
         )}
 
         {others.map(({ g, i }) => (
-          <GameSummaryCard key={i} name={gameName(g)} result={results[i] as GameResult | { error: string }} players={r.players} />
+          <GameSummaryCard key={i} name={gameTitle(g, r.players)} result={results[i] as GameResult | { error: string }} players={r.players} />
         ))}
 
         {r.statsEnabled &&

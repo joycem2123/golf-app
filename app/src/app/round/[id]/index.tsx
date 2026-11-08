@@ -14,7 +14,7 @@ import { ShareCard } from '@/components/share-card';
 import { useMe } from '@/lib/me';
 import { StatusBanner } from '@/components/status-banner';
 import { Body, Button, Card, Chip, H2, Label, Segmented, Stepper, styles } from '@/components/ui';
-import { gameKeys, gameName, matchLabel } from '@/lib/games';
+import { gameKeys, gameName, matchLabel, gameTitle } from '@/lib/games';
 import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, shortCourseName, teeFor, type ScoreKey, allHolesScored, gameHoles } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import { useRound, useStore, type RoundRecord } from '@/store/store';
@@ -407,7 +407,7 @@ export default function Scorecard() {
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot. Tap a score to edit that hole.
             </Label>
             {r.games.map((g, i) => (
-              <GameSummaryCard key={i} name={gameName(g)} result={results[i]} players={r.players} />
+              <GameSummaryCard key={i} name={gameTitle(g, r.players)} result={results[i]} players={r.players} />
             ))}
           </>
         ) : (
