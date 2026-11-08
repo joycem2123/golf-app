@@ -80,10 +80,12 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  compact,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
+  compact?: boolean;
 }) {
   const c = useColors();
   return (
@@ -91,8 +93,8 @@ export function Segmented<T extends string>({
       {options.map((o) => {
         const sel = o.value === value;
         return (
-          <Pressable key={o.value} onPress={() => onChange(o.value)} style={[styles.segment, sel && { backgroundColor: c.card }]}>
-            <Text style={{ color: sel ? c.primary : c.muted, fontWeight: sel ? '700' : '500', fontSize: 14, textAlign: 'center' }}>
+          <Pressable key={o.value} onPress={() => onChange(o.value)} style={[styles.segment, compact && { paddingVertical: 4 }, sel && { backgroundColor: c.card }]}>
+            <Text style={{ color: sel ? c.primary : c.muted, fontWeight: sel ? '700' : '500', fontSize: compact ? 13 : 14, textAlign: 'center' }}>
               {o.label}
             </Text>
           </Pressable>
@@ -109,6 +111,7 @@ export function Stepper({
   max = 99,
   step = 1,
   format,
+  small,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -116,19 +119,21 @@ export function Stepper({
   max?: number;
   step?: number;
   format?: (v: number) => string;
+  /** Compact (live scoring stats). */
+  small?: boolean;
 }) {
   const c = useColors();
   const btn = (label: string, next: number) => (
     <Pressable
       onPress={() => onChange(Math.min(max, Math.max(min, Math.round(next * 100) / 100)))}
-      style={({ pressed }) => [styles.stepBtn, { backgroundColor: c.chip, opacity: pressed ? 0.6 : 1 }]}>
-      <Text style={{ color: c.primary, fontSize: 20, fontWeight: '700' }}>{label}</Text>
+      style={({ pressed }) => [styles.stepBtn, small && { width: 28, height: 28, borderRadius: 14 }, { backgroundColor: c.chip, opacity: pressed ? 0.6 : 1 }]}>
+      <Text style={{ color: c.primary, fontSize: small ? 16 : 20, fontWeight: '700' }}>{label}</Text>
     </Pressable>
   );
   return (
     <View style={styles.row}>
       {btn('−', value - step)}
-      <Text style={[styles.stepValue, { color: c.text }]}>{format ? format(value) : value}</Text>
+      <Text style={[styles.stepValue, small && { minWidth: 30, fontSize: 16 }, { color: c.text }]}>{format ? format(value) : value}</Text>
       {btn('+', value + step)}
     </View>
   );

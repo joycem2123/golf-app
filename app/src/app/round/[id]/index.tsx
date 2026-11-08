@@ -60,12 +60,12 @@ function ScoreRow({
 
   const Wrapper = teamColor ? View : Card;
   return (
-    <Wrapper style={teamColor ? { paddingVertical: space.sm, gap: space.sm } : undefined}>
+    <Wrapper style={teamColor ? { paddingVertical: 5, gap: 4 } : { paddingVertical: 10, paddingHorizontal: 14, gap: 6 }}>
       <View style={[styles.row, { justifyContent: 'space-between' }]}>
         <View style={{ flex: 1, minWidth: 0 }}>
           {/* Badges wrap under a long name instead of running into the − / + buttons. */}
           <View style={[styles.row, { flexWrap: 'wrap', rowGap: 4 }]}>
-            <H2>{k.label}</H2>
+            <Text style={{ fontFamily: fonts.serif, fontSize: 17, fontWeight: '700', color: c.text }}>{k.label}</Text>
             {!k.isTeam && isMe(k.key) ? <MeBadge small /> : null}
             {counts && teamColor ? (
               <View style={{ backgroundColor: teamColor, borderRadius: 3, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -73,13 +73,13 @@ function ScoreRow({
               </View>
             ) : null}
           </View>
-          <Text style={{ color: c.muted, fontSize: 13 }}>
+          <Text style={{ color: c.muted, fontSize: 12 }}>
             {strokes > 0 ? `${'●'.repeat(strokes)} gets ${strokes === 1 ? 'a shot' : `${strokes} shots`}` : strokes < 0 ? 'gives a shot' : ' '}
             {gross !== null && strokes !== 0 ? `  ·  net ${gross - strokes}` : ''}
           </Text>
         </View>
         <View style={styles.row}>
-          {!readOnly && <Pressable onPress={() => gross !== null && set(gross - 1)} style={[styles.stepBtn, { backgroundColor: c.chip }]}>
+          {!readOnly && <Pressable onPress={() => gross !== null && set(gross - 1)} style={[styles.stepBtn, { width: 36, height: 36, borderRadius: 18, backgroundColor: c.chip }]}>
             <Text style={{ color: c.primary, fontSize: 22, fontWeight: '700' }}>−</Text>
           </Pressable>}
           <Pressable
@@ -88,45 +88,51 @@ function ScoreRow({
             onPress={() => !readOnly && gross === null && set(par)}
             onLongPress={() => !readOnly && setScore(r.id, k.key, hole, null)}
             style={{
-              width: 54, height: 54, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
+              width: teamColor ? 42 : 46, height: teamColor ? 42 : 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
               backgroundColor: gross === null ? c.chip : c.card, borderWidth: gross === null ? 1 : 1.5, borderColor: gross === null ? c.border : scoreColor(c, gross - par),
             }}>
-            <Text style={{ fontSize: 26, fontFamily: fonts.serif, fontWeight: '700', color: gross === null ? c.muted : scoreColor(c, gross - par) }}>
+            <Text style={{ fontSize: 22, fontFamily: fonts.serif, fontWeight: '700', color: gross === null ? c.muted : scoreColor(c, gross - par) }}>
               {gross ?? '–'}
             </Text>
           </Pressable>
-          {!readOnly && <Pressable onPress={() => set(gross === null ? par : gross + 1)} style={[styles.stepBtn, { backgroundColor: c.chip }]}>
+          {!readOnly && <Pressable onPress={() => set(gross === null ? par : gross + 1)} style={[styles.stepBtn, { width: 36, height: 36, borderRadius: 18, backgroundColor: c.chip }]}>
             <Text style={{ color: c.primary, fontSize: 22, fontWeight: '700' }}>+</Text>
           </Pressable>}
         </View>
       </View>
 
       {r.statsEnabled && !k.isTeam && !readOnly && (
-        <View style={{ gap: space.sm, borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.sm }}>
-          <View style={[styles.row, { justifyContent: 'space-between' }]}>
-            <Label>Putts</Label>
-            <Stepper
-              value={stats?.putts ?? -1}
-              min={-1}
-              max={6}
-              format={(v) => (v < 0 ? '–' : String(v))}
-              onChange={(v) => setStat({ putts: stats?.putts == null ? (v < 0 ? 1 : 2) : Math.max(0, v) })}
-            />
-          </View>
+        // Putts and fairway on one compact line.
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 4 }}>
+          <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 }}>PUTTS</Text>
+          <Stepper
+            small
+            value={stats?.putts ?? -1}
+            min={-1}
+            max={6}
+            format={(v) => (v < 0 ? '–' : String(v))}
+            onChange={(v) => setStat({ putts: stats?.putts == null ? (v < 0 ? 1 : 2) : Math.max(0, v) })}
+          />
           {par >= 4 && (
-            <View style={[styles.row, { justifyContent: 'space-between' }]}>
-              <Label>Fairway</Label>
-              <View style={styles.row}>
-                {fairways.map(([v, label]) => (
-                  <Chip key={v} label={label} selected={stats?.fairway === v} onPress={() => setStat({ fairway: v })} />
-                ))}
+            <>
+              <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginLeft: 4 }}>FWY</Text>
+              <View style={{ flexDirection: 'row', gap: 4 }}>
+                {fairways.map(([v, label]) => {
+                  const sel = stats?.fairway === v;
+                  return (
+                    <Pressable key={v} onPress={() => setStat({ fairway: v })} accessibilityRole="button" accessibilityState={{ selected: sel }} accessibilityLabel={`Fairway ${v}`}
+                      style={{ paddingVertical: 4, paddingHorizontal: 9, borderRadius: 999, borderWidth: 1, borderColor: sel ? c.primary : c.border, backgroundColor: sel ? c.primary : c.card }}>
+                      <Text style={{ color: sel ? c.onPrimary : c.text, fontSize: 13, fontWeight: '600' }}>{label}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-            </View>
+            </>
           )}
           {gross !== null && stats?.putts != null && (
-            <Label style={{ textTransform: 'none' }}>
-              Green in regulation: {greenInRegulation(gross, stats.putts, par) ? 'Yes' : 'No'}
-            </Label>
+            <Text style={{ color: greenInRegulation(gross, stats.putts, par) ? c.primary : c.muted, fontSize: 11, fontWeight: '700' }}>
+              GIR {greenInRegulation(gross, stats.putts, par) ? '✓' : '✗'}
+            </Text>
           )}
         </View>
       )}
@@ -218,17 +224,13 @@ function TeamBox({ r, results, team, index, hole, keys, gi }: {
   const won = winner === index;
   return (
     <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: won ? 2 : 1, borderColor: won ? team.color : c.border, overflow: 'hidden' }}>
-      <View style={{ backgroundColor: team.color, paddingHorizontal: space.lg, paddingVertical: space.sm, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{team.label.toUpperCase()}</Text>
-          <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 17, fontWeight: '700' }}>{team.names}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ color: '#ffffffcc', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>{th.label.toUpperCase() || ' '}</Text>
-          <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 26, fontWeight: '700' }}>{th.score ?? '–'}</Text>
-        </View>
+      {/* One slim line: the team, what counts, and the team's score on this hole (players are listed below). */}
+      <View style={{ backgroundColor: team.color, paddingHorizontal: space.md, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{team.label.toUpperCase()}</Text>
+        <Text numberOfLines={1} style={{ flex: 1, color: '#ffffffcc', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>{th.label.toUpperCase()}</Text>
+        <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{th.score ?? '–'}</Text>
       </View>
-      <View style={{ paddingHorizontal: space.lg, backgroundColor: team.soft }}>
+      <View style={{ paddingHorizontal: space.md, backgroundColor: team.soft }}>
         {team.keys.map((key) => {
           const k = keys.find((x) => x.key === key);
           if (!k) return null;
@@ -238,8 +240,8 @@ function TeamBox({ r, results, team, index, hole, keys, gi }: {
         })}
       </View>
       {winner !== null && (
-        <View style={{ paddingVertical: 6, alignItems: 'center', backgroundColor: won ? team.color : c.chip }}>
-          <Text style={{ color: won ? '#fff' : c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>
+        <View style={{ paddingVertical: 3, alignItems: 'center', backgroundColor: won ? team.color : c.chip }}>
+          <Text style={{ color: won ? '#fff' : c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>
             {winner === 'halved' ? 'HOLE HALVED' : won ? 'WINS THE HOLE' : 'LOSES THE HOLE'}
           </Text>
         </View>
@@ -271,8 +273,8 @@ function SinglesBox({ r, k, hole, gi, side, result, strokes }: { r: RoundRecord;
         <ScoreRow r={r} k={k} hole={hole} strokes={strokes} teamColor={color} />
       </View>
       {o !== null && (
-        <View style={{ paddingVertical: 6, alignItems: 'center', backgroundColor: won ? color : c.chip }}>
-          <Text style={{ color: won ? '#fff' : c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>
+        <View style={{ paddingVertical: 3, alignItems: 'center', backgroundColor: won ? color : c.chip }}>
+          <Text style={{ color: won ? '#fff' : c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>
             {o === 0 ? 'HOLE HALVED' : won ? 'WINS THE HOLE' : 'LOSES THE HOLE'}
           </Text>
         </View>
@@ -402,7 +404,7 @@ export default function Scorecard() {
           })}
         </ScrollView>
       )}
-      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ padding: view === 'hole' && !viewer ? space.md : space.lg, gap: view === 'hole' && !viewer ? 10 : space.md, paddingBottom: 60 }}>
         {viewer ? (
           // Following along: the full scorecard only, nothing editable.
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: c.primarySoft, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md }}>
@@ -413,6 +415,7 @@ export default function Scorecard() {
           </View>
         ) : (
           <Segmented
+            compact={view === 'hole'}
             options={[{ value: 'hole', label: 'Hole by hole' }, { value: 'card', label: 'Full scorecard' }]}
             value={view}
             onChange={setView}
@@ -447,8 +450,8 @@ export default function Scorecard() {
             <View style={[styles.row, { justifyContent: 'space-between' }]}>
               <Button small kind="secondary" title="‹ Prev" disabled={prevHole === null} onPress={() => prevHole && goHole(prevHole)} />
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 32, fontFamily: fonts.serif, fontWeight: '700', color: c.primary }}>Hole {hole}</Text>
-                <Text style={{ color: c.muted, fontWeight: '600', letterSpacing: 0.5 }}>Par {h.par} · Hcp {h.strokeIndex} · {h.yards} yds</Text>
+                <Text style={{ fontSize: 24, fontFamily: fonts.serif, fontWeight: '700', color: c.primary, lineHeight: 27 }}>Hole {hole}</Text>
+                <Text style={{ color: c.muted, fontWeight: '600', letterSpacing: 0.5, fontSize: 13 }}>Par {h.par} · Hcp {h.strokeIndex} · {h.yards} yds</Text>
               </View>
               <Button small kind="secondary" title="Next ›" disabled={nextHole === null} onPress={() => nextHole && goHole(nextHole)} />
             </View>
@@ -458,7 +461,7 @@ export default function Scorecard() {
                 <Pressable key={n} onPress={() => goHole(n)} hitSlop={3}>
                   <View
                     style={{
-                      width: 13, height: 13, borderRadius: 7,
+                      width: 11, height: 11, borderRadius: 6,
                       backgroundColor: n === hole ? c.accent : done(n) ? c.primary : c.card,
                       borderWidth: 1, borderColor: n === hole ? c.accent : done(n) ? c.primary : c.border,
                     }}
