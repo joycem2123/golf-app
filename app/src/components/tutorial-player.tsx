@@ -4,7 +4,7 @@
  */
 import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 
@@ -12,7 +12,9 @@ import { space, useColors } from '@/theme';
 
 export const TUTORIAL_VIDEO = 'https://clutchupgolf.com/tutorial.mp4';
 
-export const useTutorialPlayer = create<{ open: boolean }>(() => ({ open: false }));
+/** open: the player is showing. welcome: the first-time welcome card is showing. Tips wait while either is up. */
+export const useTutorialPlayer = create<{ open: boolean; welcome: boolean }>(() => ({ open: false, welcome: false }));
+export const useOverlayBusy = () => useTutorialPlayer((s) => s.open || s.welcome);
 
 function Player({ onClose }: { onClose: () => void }) {
   const c = useColors();
@@ -47,13 +49,13 @@ function Player({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Mounted once, in the root layout. */
+/** Mounted once, in the root layout, above everything else (a layer, not a separate window). */
 export function TutorialPlayer() {
   const open = useTutorialPlayer((s) => s.open);
-  const close = () => useTutorialPlayer.setState({ open: false });
+  if (!open) return null;
   return (
-    <Modal visible={open} animationType="slide" presentationStyle="fullScreen" onRequestClose={close} statusBarTranslucent>
-      {open && <Player onClose={close} />}
-    </Modal>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000 }]}>
+      <Player onClose={() => useTutorialPlayer.setState({ open: false })} />
+    </View>
   );
 }

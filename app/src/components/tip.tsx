@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ComponentRef, type RefObject } from '
 import { Animated, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useOverlayBusy } from '@/components/tutorial-player';
 import { track } from '@/lib/usage';
 import { radius, space, useColors } from '@/theme';
 
@@ -62,9 +63,10 @@ export function Tip({
   const [rect, setRect] = useState<Rect | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
+  const busy = useOverlayBusy();
 
   useEffect(() => {
-    if (!when) return;
+    if (!when || busy) return;
     let cancelled = false;
     const t = setTimeout(() => {
       void loadSeen().then((s) => {
@@ -98,7 +100,7 @@ export function Tip({
       clearTimeout(t);
       if (showing === id) showing = null;
     };
-  }, [id, when, target, anim, pulse, insets.top, win.height]);
+  }, [id, when, busy, target, anim, pulse, insets.top, win.height]);
 
   if (!visible) return null;
   const close = () => {

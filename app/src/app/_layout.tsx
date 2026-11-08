@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useUsageTracking } from '@/lib/usage';
 import { TutorialPlayer } from '@/components/tutorial-player';
+import { WelcomeVideo } from '@/components/welcome-video';
 import { SyncProvider } from '@/sync/sync-provider';
 import { fonts, useColors } from '@/theme';
 
@@ -16,7 +17,8 @@ export default function RootLayout() {
   // The wordmark font; keep the splash screen up until it's ready (or failed, then fall back).
   const [fontsLoaded, fontError] = useFonts({ Outfit_600SemiBold, Outfit_700Bold });
   const ready = fontsLoaded || !!fontError;
-  useUsageTracking(usePathname());
+  const pathname = usePathname();
+  useUsageTracking(pathname);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -57,6 +59,7 @@ export default function RootLayout() {
       </Stack>
       <SyncProvider />
     </ThemeProvider>
+    <WelcomeVideo onHome={pathname === '/'} />
     <TutorialPlayer />
     </GestureHandlerRootView>
   );
