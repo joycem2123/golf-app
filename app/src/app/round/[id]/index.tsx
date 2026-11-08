@@ -1,6 +1,7 @@
 import { greenInRegulation, type FairwayResult, type NassauConfig, type WolfConfig, type WolfResult } from '@golf/engine';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useState } from 'react';
 
@@ -297,6 +298,7 @@ export default function Scorecard() {
   const me = useStore((s) => s.me);
   // "Edit scores" on an uploaded round opens the full scorecard, where any hole can be changed.
   const [view, setView] = useState<'hole' | 'card'>(startView === 'card' ? 'card' : 'hole');
+  const insets = useSafeAreaInsets();
   // Joined to follow the leaderboard: full scorecard only, never editable.
   const [focus, setFocus] = useState(0);
   // The hole each match opened on, until someone moves it (so entering the last score doesn't jump ahead).
@@ -376,7 +378,7 @@ export default function Scorecard() {
     <>
       <Stack.Screen options={{ title: shortCourseName(course.name) }} />
       {/* Full scorecard of a team round: the team score is pinned on top, the match status sits in the page. */}
-      {teamTop ? <TeamScoreboard r={r} results={results} pinned /> : matchBanner()}
+      {teamTop ? <TeamScoreboard r={r} results={results} pinned={view === 'card' || viewer} mini={view === 'hole' && !viewer} /> : matchBanner()}
       {multi && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border }} contentContainerStyle={{ paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.sm }}>
           {matchIdx.map((i) => {
@@ -441,8 +443,7 @@ export default function Scorecard() {
           </>
         ) : (
           <>
-            {currentMatchCard}
-            {/* Hole header */}
+            {/* Hole header (the match buttons above already show each match's status) */}
             <View style={[styles.row, { justifyContent: 'space-between' }]}>
               <Button small kind="secondary" title="‹ Prev" disabled={prevHole === null} onPress={() => prevHole && goHole(prevHole)} />
               <View style={{ alignItems: 'center' }}>
@@ -465,7 +466,6 @@ export default function Scorecard() {
                 </Pressable>
               ))}
             </View>
-            <Label style={{ textTransform: 'none', textAlign: 'center', letterSpacing: 0 }}>Tap a box to enter par, then − / +. Hold to clear.</Label>
 
             {r.games.map((g, i) => {
               const res = results[i];
@@ -482,7 +482,6 @@ export default function Scorecard() {
               return <SinglesBox key={k.key} r={r} k={k} hole={hole} gi={gi} side={side} result={results[gi]} strokes={mainStrokes[k.key]?.[hole - 1] ?? 0} />;
             })}
 
-            {nextHole !== null && done(hole) && <Button title={`Next hole: ${nextHole} ›`} onPress={() => goHole(nextHole)} />}
 
             {r.games.map((g, i) => (g.type === 'nassau' && r.remote?.role !== 'viewer' && (!multi || i === gi) ? <NassauPress key={i} r={r} index={i} hole={hole} /> : null))}
 
@@ -517,6 +516,21 @@ export default function Scorecard() {
           }}
         />
       </ScrollView>
+      {/* Always on screen while scoring, so there's no scrolling between entering scores and moving on. */}
+      {view === 'hole' && !viewer && (
+        <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border }}>
+          {nextHole !== null ? (
+            <Button
+              title={done(hole) ? `Next hole: ${nextHole} ›` : `Enter every score for hole ${hole}`}
+              kind={done(hole) ? 'primary' : 'secondary'}
+              disabled={!done(hole)}
+              onPress={() => goHole(nextHole)}
+            />
+          ) : (
+            <Button title="Finish round ›" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />
+          )}
+        </View>
+      )}
       <Tip
         id="scoring"
         when={r.remote?.role !== 'viewer'}

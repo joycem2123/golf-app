@@ -11,8 +11,8 @@ import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fetchRoundEvent } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 
-/** pinned: compact, edge to edge, for the top of the screen. */
-export function TeamScoreboard({ r, results, pinned }: { r: RoundRecord; results: ReturnType<typeof evaluate>; pinned?: boolean }) {
+/** pinned: compact, edge to edge, for the top of the screen. mini: one slim row (while entering scores). */
+export function TeamScoreboard({ r, results, pinned, mini }: { r: RoundRecord; results: ReturnType<typeof evaluate>; pinned?: boolean; mini?: boolean }) {
   const c = useColors();
   const localEvent = useStore((s) => s.events.find((e) => e.id === r.eventId));
   const localRounds = useStore((s) => s.rounds);
@@ -49,6 +49,23 @@ export function TeamScoreboard({ r, results, pinned }: { r: RoundRecord; results
   } else if (event?.teamOf && (event.teamLetters?.length ?? 0) >= 2) {
     const { totals } = eventTeamTotals(event, rounds);
     eventLine = `${event.name}: ${[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => `Team ${t.letter} ${formatPoints(t.points)}`).join(' – ')}`;
+  }
+
+  if (mini) {
+    return (
+      <View style={{ backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border }}>
+        <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: space.sm, paddingVertical: 6 }}>
+          {score.teams.map((t) => (
+            <View key={t.letter} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter).color }}>
+              <Text numberOfLines={1} style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.5, flexShrink: 1 }}>{teamName(t.letter).toUpperCase()}</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
+              {changes && <Text style={{ color: '#ffffffd0', fontSize: 11 }}>proj {formatPoints(t.projected)}</Text>}
+            </View>
+          ))}
+        </View>
+        {eventLine && <Text numberOfLines={1} style={{ textAlign: 'center', color: c.muted, fontSize: 11, paddingBottom: 5 }}>🏆 {eventLine}</Text>}
+      </View>
+    );
   }
 
   return (
