@@ -4,7 +4,7 @@
 import { searchCourses, type Course, type Tee } from '@golf/engine';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
 import { Sheet } from '@/components/round-setup';
@@ -15,6 +15,7 @@ import { today } from '@/lib/dates';
 import { holesOnCard, readRoundPhoto, setPendingScan, suggestPlayer, type ScannedRound } from '@/lib/round-scan';
 import { useMe } from '@/lib/me';
 import { pickScorecard } from '@/lib/scan';
+import { ScoreCell } from '@/components/score-cell';
 import { track } from '@/lib/usage';
 import { newId, useStore, type SavedPlayer } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
@@ -30,26 +31,6 @@ function teeForGender(course: Course, name: string | undefined, gender: 'M' | 'F
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BACK = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 
-function ScoreCell({ value, unsure, onChange, label }: { value: number | null; unsure: boolean; onChange: (v: number | null) => void; label: string }) {
-  const c = useColors();
-  return (
-    <TextInput
-      value={value === null ? '' : String(value)}
-      onChangeText={(t) => {
-        const n = parseInt(t.replace(/[^0-9]/g, '').slice(0, 2), 10);
-        onChange(Number.isFinite(n) && n > 0 ? n : null);
-      }}
-      keyboardType="number-pad"
-      selectTextOnFocus
-      accessibilityLabel={label}
-      style={{
-        flex: 1, flexBasis: 0, minWidth: 0, height: 36, textAlign: 'center', fontSize: 15, fontWeight: '700', color: c.text, padding: 0,
-        borderWidth: unsure ? 2 : 1, borderColor: unsure ? c.brandGold : c.border, borderRadius: radius.sm,
-        backgroundColor: unsure ? '#B4895422' : c.card,
-      }}
-    />
-  );
-}
 
 export default function UploadScorecard() {
   const c = useColors();
