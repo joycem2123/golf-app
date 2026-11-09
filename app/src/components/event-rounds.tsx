@@ -6,6 +6,9 @@ import { formatDate, toISODate, today } from '@/lib/dates';
 import { formatPoints } from '@/lib/events';
 import { canStartOn } from '@/lib/event-calendar';
 import { getCourse } from '@/lib/courses';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { SwipeToDelete } from '@/components/swipe-to-delete';
+import { track } from '@/lib/usage';
 import { gameInfo, gameName } from '@/lib/games';
 import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
@@ -50,8 +53,11 @@ export function EventRounds({ e }: { e: EventRecord }) {
       if (r) router.push(status === 'final' ? `/round/${r.id}/results` : `/round/${r.id}`);
       else if (canEdit) router.push({ pathname: '/new-round', params: { eventId: e.id, eventRound: x.id } });
     };
+    // A planned round that hasn't been started: swipe left to delete it from the event.
+    const deletable = !r && canEdit && planned.some((p) => p.id === x.id);
     return (
       <View key={x.id}>
+      <SwipeToDelete disabled={!deletable} label={`Round ${x.number}`} onDelete={() => setDeleting(x)}>
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Round ${x.number}`}>
         {({ pressed }) => (
           <View style={{ flexDirection: 'row', gap: space.md, paddingVertical: space.md, borderTopWidth: 1, borderTopColor: c.border, opacity: pressed ? 0.6 : 1 }}>
@@ -106,9 +112,12 @@ export function EventRounds({ e }: { e: EventRecord }) {
           </View>
         )}
       </Pressable>
+      </SwipeToDelete>
       </View>
     );
   };
+  const [deleting, setDeleting] = useState<EventRound | null>(null);
+  const removeEventRound = useStore((s) => s.removeEventRound);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const section = (key: string, title: string, items: EventRound[], footer?: React.ReactNode) => {
     if (!items.length && !footer) return null;
@@ -145,6 +154,19 @@ export function EventRounds({ e }: { e: EventRecord }) {
       ) : null)}
       {section('done', 'COMPLETED', done)}
       {list.length === 0 && <Text style={{ color: c.muted }}>No rounds yet. Start one when you play.</Text>}
+      <ConfirmDialog
+        visible={!!deleting}
+        title={`Delete Round ${deleting?.number ?? ''}?`}
+        message="It comes off the event, along with anything set up for it. Later rounds move up a number. Rounds already played aren’t affected."
+        cancelLabel="Keep it"
+        confirmLabel="Delete"
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          if (deleting) removeEventRound(e.id, deleting.id);
+          setDeleting(null);
+          track('event_round_deleted', { missed: false });
+        }}
+      />
     </Card>
   );
 }
