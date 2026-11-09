@@ -17,7 +17,7 @@ import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, playSpec,
 import { newId, useEvent, useStore, type RoundRecord, type RoundSetup, type SavedPlayer } from '@/store/store';
 import { SaveFavourite, SetupSaved } from '@/components/setup-saved';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { namesFor, TeamColors } from '@/lib/team-colors';
+import { namesFor, teamName, TeamColors } from '@/lib/team-colors';
 import { autoShare } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { formatDate, today } from '@/lib/dates';
@@ -124,6 +124,14 @@ export default function NewRound() {
   };
 
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
+  // Matches where both sides are on the same team (they can't count toward the team score).
+  const sideTeamOf = (ids: string[], given?: string) => given ?? (ids.length && ids.every((x) => teamOf[x] === teamOf[ids[0]]) ? teamOf[ids[0]] : undefined);
+  const sameTeamMatches = !draft || noTeams || !isMatchFormat(draft.kind) || !Object.keys(teamOf).length
+    ? []
+    : draft.matches
+        .map((m, i) => ({ i, ta: sideTeamOf(m.a, m.ta), tb: sideTeamOf(m.b, m.tb), m }))
+        .filter((x) => x.ta && x.ta === x.tb && x.m.a.length && x.m.b.length)
+        .map((x) => ({ i: x.i, team: teamName(x.ta!, teamNames), names: [...x.m.a, ...x.m.b].map((id) => name(id).split(' ')[0]).join(' and ') }));
   const problem = draft ? draftProblem(draft, players) : 'Choose a game';
 
   // Starting a scheduled match: pre-fill course, players, sides and format.
@@ -286,6 +294,19 @@ export default function NewRound() {
     if (draft && !problem) start();
   }, [autoStart, course, draft, problem]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The round's teams: the Teams step, with each match side on the team its matchup was made for
+  // (a planned round's matchups can put someone on a different team for that day).
+  const roundTeamOf = () => {
+    const out = { ...teamOf };
+    if (draft && isMatchFormat(draft.kind)) {
+      for (const m of draft.matches) {
+        if (m.ta) for (const id of m.a) out[id] = m.ta;
+        if (m.tb) for (const id of m.b) out[id] = m.tb;
+      }
+    }
+    return out;
+  };
+
   const start = () => {
     if (!course || !draft || problem || scanProblem || (!event && toSeason === 'yes' && !season)) return;
     const id = newId();
@@ -305,7 +326,7 @@ export default function NewRound() {
       notices: [],
       eventId: event?.id ?? season?.id,
       label: planned ? `Round ${planned.number}` : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : season ? `Round ${(season.rounds?.length ?? 0) + 1}` : scheduled?.label,
-      teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
+      teamOf: !noTeams && Object.keys(teamOf).length ? roundTeamOf() : undefined,
       teamColors: !noTeams && Object.keys(teamOf).length && Object.keys(teamColors).length ? teamColors : undefined,
       teamNames: !noTeams && Object.keys(teamOf).length && Object.values(teamNames).some((v) => v.trim()) ? teamNames : undefined,
     };
@@ -638,6 +659,18 @@ export default function NewRound() {
         <>
           <GamePicker value={draft?.kind ?? null} playerIds={rosterIds} teamOf={noTeams ? undefined : teamOf} onPick={pickGame} />
 
+          {sameTeamMatches.length > 0 && (
+            // Two players on the same team can't earn a team point: say so before the round starts.
+            <View style={{ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 2, borderColor: c.danger, padding: space.md, gap: 4 }}>
+              <Text style={{ color: c.danger, fontWeight: '800', fontSize: 13, letterSpacing: 0.5 }}>⚠️ SAME-TEAM MATCH{sameTeamMatches.length > 1 ? 'ES' : ''}</Text>
+              {sameTeamMatches.map((m) => (
+                <Text key={m.i} style={{ color: c.text, fontSize: 14 }}>
+                  Match {m.i + 1}: {m.names} are both on {m.team}, so it won’t count toward the team score.
+                </Text>
+              ))}
+              <Text style={{ color: c.muted, fontSize: 13 }}>Swap players in the matchups below, or change the teams on the Teams step.</Text>
+            </View>
+          )}
           {draft && (
             <>
               <GameRulesButton kind={draft.kind} />
