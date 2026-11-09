@@ -3,6 +3,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { DateField } from '@/components/date-field';
 import { SetupSaved } from '@/components/setup-saved';
 import { GameOptions } from '@/components/game-options';
@@ -29,6 +31,7 @@ const TYPES: { value: EventType; label: string; icon: string; blurb: string }[] 
 
 export default function NewEvent() {
   const c = useColors();
+  const insets = useSafeAreaInsets();
   const saved = useStore((s) => s.players);
   const addEvent = useStore((s) => s.addEvent);
   const { me, isMe } = useMe();
@@ -241,16 +244,41 @@ export default function NewEvent() {
     />
   );
 
-  const next = (to: Step, title: string, problem: string | null) => (
-    <>
-      {problem ? <Body style={{ color: c.danger, textAlign: 'center' }}>{problem}</Body> : null}
-      <Button title={title} disabled={!!problem} onPress={() => setStep(to)} />
-    </>
-  );
   const plan = plans[current];
 
+  // The main button for each step, pinned to the bottom of the screen (no scrolling to find it), as in New Round.
+  const nextBtn = (to: Step, title: string, problem: string | null) => <Button title={title} disabled={!!problem} onPress={() => setStep(to)} />;
+  const footerMessage =
+    step === 'details' ? (name ? detailsProblem : null)
+    : step === 'players' ? playersProblem
+    : step === 'rounds' ? (plans.length ? roundsProblem : null)
+    : step === 'matchups' ? (matchupProblems[current] ?? (current === plans.length - 1 && matchupProblems.some((x) => x)
+      ? `Finish the matchups for ${matchupProblems.map((x, i) => (x ? `Round ${i + 1}` : null)).filter(Boolean).join(', ')} first.` : null))
+    : null;
+  const footer =
+    step === 'details' ? nextBtn('players', 'Next: players', name ? detailsProblem : null)
+    : step === 'players' ? nextBtn('teams', 'Next: teams', playersProblem)
+    : step === 'teams' ? (
+      <Button
+        title={teamsDone && !noTeams ? 'Next: rounds' : `Put every player on a team (${ids.filter((id) => !assigned(id)).length} left)`}
+        disabled={!(teamsSet(ids, assigned) && (!isCup || letters.every((L) => ids.some((id) => teamOf[id] === L))))}
+        onPress={() => { setNoTeams(false); setStep('rounds'); }}
+      />
+    )
+    : step === 'rounds' ? (plans.length === 0
+      ? <Button title={fromRound ? 'Create season and go back to my round' : 'Create event'} onPress={create} />
+      : nextBtn('matchups', 'Next: matchups', roundsProblem))
+    : step === 'matchups' && plan ? (current < plans.length - 1 ? (
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <View style={{ flex: 1 }}><Button title={`Next: Round ${current + 2}`} disabled={!!matchupProblems[current]} onPress={() => setCurrent(current + 1)} /></View>
+        {matchupProblems.every((x) => !x) && <View style={{ flex: 1 }}><Button title="Create event" kind="secondary" onPress={create} /></View>}
+      </View>
+    ) : <Button title="Create event" onPress={create} />)
+    : null;
+
   return (
-    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
+    <View style={{ flex: 1 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {stepBar}
 
       {step === 'details' && (
@@ -354,7 +382,6 @@ export default function NewEvent() {
           <Card>
             <Toggle label="Lock handicaps at the start" hint="Everyone plays the whole event off today's index, even if it changes on Golf Canada." value={lock} onChange={setLock} />
           </Card>
-          {next('players', 'Next: players', name ? detailsProblem : null)}
         </>
       )}
 
@@ -373,12 +400,12 @@ export default function NewEvent() {
             indexFor={(p) => p.handicapIndex}
             onFindNew={(q) => router.push({ pathname: '/add-friend', params: { pick: 'new-event', q } })}
           />
-          {next('teams', 'Next: teams', playersProblem)}
         </>
       )}
 
       {step === 'teams' && (
         <>
+          {!isCup && <Button title="No teams (individual standings)" kind="secondary" onPress={() => { setNoTeams(true); setStep('rounds'); }} />}
           <TeamsStep
             players={players}
             teamOf={teamOf}
@@ -403,12 +430,6 @@ export default function NewEvent() {
               </OptionRow>
             </Card>
           )}
-          <Button
-            title={teamsDone && !noTeams ? 'Next: rounds' : `Put every player on a team (${ids.filter((id) => !assigned(id)).length} left)`}
-            disabled={!(teamsSet(ids, assigned) && (!isCup || letters.every((L) => ids.some((id) => teamOf[id] === L))))}
-            onPress={() => { setNoTeams(false); setStep('rounds'); }}
-          />
-          {!isCup && <Button title="No teams (individual standings)" kind="ghost" onPress={() => { setNoTeams(true); setStep('rounds'); }} />}
         </>
       )}
 
@@ -466,11 +487,6 @@ export default function NewEvent() {
               />
             </Card>
           ))}
-          {plans.length === 0 ? (
-            <Button title={fromRound ? 'Create season and go back to my round' : 'Create event'} onPress={create} />
-          ) : (
-            next('matchups', 'Next: matchups', roundsProblem)
-          )}
         </>
       )}
 
@@ -523,31 +539,22 @@ export default function NewEvent() {
             onChange={(d) => setPlans((ps) => ps.map((x) => (x.id === plan.id ? { ...x, draft: d } : x)))}
           />
 
-          {matchupProblems[current] ? <Body style={{ color: c.danger, textAlign: 'center' }}>{matchupProblems[current]}</Body> : null}
-          {current < plans.length - 1 ? (
-            <>
-              <Button title={`Next: Round ${current + 2}`} disabled={!!matchupProblems[current]} onPress={() => setCurrent(current + 1)} />
-              {plans.length > 2 && plans.slice(1).some((p) => !p.tbd) && (
-                <Button
-                  title="Decide all later rounds later (TBD)"
-                  kind="ghost"
-                  onPress={() => setPlans((ps) => ps.map((x, i) => (i > 0 ? { ...x, tbd: true } : x)))}
-                />
-              )}
-              {matchupProblems.every((x) => !x) && <Button title="Create event" kind="secondary" onPress={create} />}
-            </>
-          ) : (
-            <>
-              {matchupProblems.some((x) => x) && (
-                <Body muted style={{ textAlign: 'center' }}>
-                  Finish the matchups for {matchupProblems.map((x, i) => (x ? `Round ${i + 1}` : null)).filter(Boolean).join(', ')} first.
-                </Body>
-              )}
-              <Button title="Create event" onPress={create} />
-            </>
+          {current < plans.length - 1 && plans.length > 2 && plans.slice(1).some((p) => !p.tbd) && (
+            <Button
+              title="Decide all later rounds later (TBD)"
+              kind="ghost"
+              onPress={() => setPlans((ps) => ps.map((x, i) => (i > 0 ? { ...x, tbd: true } : x)))}
+            />
           )}
         </>
       )}
     </ScrollView>
+    {footer && (
+      <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, gap: 6, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border }}>
+        {footerMessage ? <Text style={{ color: c.danger, fontSize: 13, textAlign: 'center' }}>{footerMessage}</Text> : null}
+        {footer}
+      </View>
+    )}
+    </View>
   );
 }
