@@ -6,13 +6,14 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { formatPoints } from '@/lib/events';
 import { gameName, gameTitle } from '@/lib/games';
 import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { radius, space, teamColor, useColors } from '@/theme';
 import { EventCard } from './cards';
+import { TeamScoreLine } from './team-score-line';
+import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
 
 function Toggle({ open, label, onPress }: { open: boolean; label: string; onPress: () => void }) {
   const c = useColors();
@@ -51,12 +52,13 @@ export function EventDrill({ e, rounds }: { e: EventRecord; rounds: RoundRecord[
 }
 
 /** A round in an event: tap for its results (or live scoring), open it out for its matches. */
-function RoundDrill({ r, e }: { r: RoundRecord; e: EventRecord }) {
+export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const results = evaluate(r);
   const matches = matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-'));
   const score = roundTeamScore(r, results);
+  const summary = !score && results[0] && isResult(results[0]) ? results[0].summary : null;
   const live = r.status === 'active';
   let course = '';
   try { course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
@@ -72,13 +74,13 @@ function RoundDrill({ r, e }: { r: RoundRecord; e: EventRecord }) {
               <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 1 }}>{live ? 'LIVE' : 'FINAL'}</Text>
             </View>
           </View>
-          <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{[date, course, gameName(r.games[0])].filter(Boolean).join(' · ')}</Text>
+          <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{[date, course, gameName(r.games[0]), e ? null : r.players.map((p) => p.name.split(' ')[0]).join(', ')].filter(Boolean).join(' · ')}</Text>
           {score ? (
-            <Text style={{ fontSize: 13, fontWeight: '700' }}>
-              {score.map((t, i) => (
-                <Text key={t.letter} style={{ color: teamColor(t.letter).color }}>{i ? '  –  ' : ''}{e.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`} {formatPoints(t.points)}</Text>
-              ))}
-            </Text>
+            <View style={{ marginTop: 4 }}>
+              <TeamScoreLine done={!live} teams={score.map((t) => ({ letter: t.letter, name: e?.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`, points: t.points }))} />
+            </View>
+          ) : summary ? (
+            <Text numberOfLines={2} style={{ color: c.text, fontSize: 13 }}>{summary}</Text>
           ) : null}
           <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>{live ? 'Live scoring ›' : 'Round results ›'}</Text>
         </Pressable>
@@ -88,13 +90,16 @@ function RoundDrill({ r, e }: { r: RoundRecord; e: EventRecord }) {
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg }}>
           {matches.map((m, i) => {
             const res = results[m.gi];
+            // The winner's team colour (or the app's green when there are no teams).
+            const side = m.winner === 'a' ? m.a : m.winner === 'b' ? m.b : null;
+            const winColor = m.winner === 'halved' ? c.accent : side ? (side.letter ? teamColor(side.letter).color : c.primary) : undefined;
             const status = m.winner === 'halved' ? 'Halved' : m.winner ? `${(m.winner === 'a' ? m.a : m.b).names.split(' & ').map((n) => n.split(' ')[0]).join(' & ')} ${m.detail}` : res && isResult(res) && res.thru ? m.detail : 'Not started';
             return (
               <Pressable key={m.gi} onPress={() => router.push(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`}
                 style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 10, paddingHorizontal: space.md, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, backgroundColor: pressed ? c.chip : 'transparent' })}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ color: c.text, fontSize: 14, fontWeight: '600' }}>{gameTitle(r.games[m.gi], r.players)}</Text>
-                  <Text numberOfLines={1} style={{ color: m.winner ? c.primary : c.muted, fontSize: 13, fontWeight: m.winner ? '700' : '400' }}>{status}</Text>
+                  <Text numberOfLines={1} style={{ color: winColor ?? c.muted, fontSize: 13, fontWeight: m.winner ? '700' : '400' }}>{status}</Text>
                 </View>
                 <Text style={{ color: c.primary, fontWeight: '800', fontSize: 16 }}>›</Text>
               </Pressable>
@@ -104,4 +109,29 @@ function RoundDrill({ r, e }: { r: RoundRecord; e: EventRecord }) {
       )}
     </View>
   );
+}
+
+/** Rounds played outside an event: live first, then completed, each opening out into its matches. */
+export function SoloRounds({ rounds, onDelete }: { rounds: RoundRecord[]; onDelete: (id: string) => void }) {
+  const live = rounds.filter((r) => r.status === 'active').sort((a, b) => b.createdAt - a.createdAt);
+  const done = rounds.filter((r) => r.status === 'complete').sort((a, b) => (b.completedAt ?? b.createdAt) - (a.completedAt ?? a.createdAt));
+  const item = (r: RoundRecord) =>
+    canDeleteRound(r) && r.remote?.role !== 'viewer' ? (
+      <SwipeToDelete key={r.id} label="round" onDelete={() => onDelete(r.id)}><RoundDrill r={r} /></SwipeToDelete>
+    ) : (
+      <RoundDrill key={r.id} r={r} />
+    );
+  return (
+    <View style={{ gap: space.sm }}>
+      {live.length > 0 && <SectionLabel text="Live" />}
+      {live.map(item)}
+      {done.length > 0 && <SectionLabel text="Completed" />}
+      {done.map(item)}
+    </View>
+  );
+}
+
+function SectionLabel({ text }: { text: string }) {
+  const c = useColors();
+  return <Text style={{ color: c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 4 }}>{text}</Text>;
 }

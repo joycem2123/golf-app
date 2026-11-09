@@ -2,10 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { RoundCard } from '@/components/cards';
-import { GameSections } from '@/components/game-sections';
 import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
-import { EventDrill } from '@/components/score-drill';
+import { EventDrill, SoloRounds } from '@/components/score-drill';
 import { canDeleteEvent, eventPhase } from '@/lib/events';
 import { HeadToHeadView } from '@/components/head-to-head-view';
 import { TabHeader } from '@/components/tab-header';
@@ -159,7 +157,7 @@ export default function Scores() {
               <EventsList onDeleteEvent={deleteEvent} />
             ) : (
               <>
-                <GameSections roundsOnly onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} />
+                <SoloRounds rounds={solo} onDelete={deleteRound} />
                 {solo.length === 0 && <Body muted>No rounds outside events yet. Start one from Home.</Body>}
               </>
             )}

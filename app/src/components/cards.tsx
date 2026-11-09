@@ -3,9 +3,11 @@ import { Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
 import { Body, Card, H2, Label, styles } from '@/components/ui';
-import { cupScore, eventPhase, eventStandings, formatPoints } from '@/lib/events';
+import { cupScore, eventPhase, eventStandings, eventTeamTotals, formatPoints } from '@/lib/events';
+import { roundTeamScore } from '@/lib/results';
 import { gameName, matchLabel } from '@/lib/games';
 import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@/lib/round';
+import { TeamScoreLine } from './team-score-line';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, useColors } from '@/theme';
 
@@ -13,21 +15,25 @@ export function EventCard({ e, rounds, hint }: { e: EventRecord; rounds: RoundRe
   const c = useColors();
   const players = useStore((s) => s.players);
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
+  // The team score where there are teams (coloured by who's ahead); otherwise the leader, in plain text.
+  const done = eventPhase(e, rounds) === 'completed';
   let line: React.ReactNode;
   if (e.teams) {
     const s = cupScore(e, rounds).standings;
     line = (
-      <Text style={{ fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>
-        <Text style={{ color: c.teamA }}>{e.teams.A.name} {formatPoints(s.teamA)}</Text>
-        <Text style={{ color: c.muted }}>  –  </Text>
-        <Text style={{ color: c.teamB }}>{formatPoints(s.teamB)} {e.teams.B.name}</Text>
-      </Text>
+      <TeamScoreLine
+        done={done || !!s.winner}
+        teams={[{ letter: 'A', name: e.teams.A.name, points: s.teamA }, { letter: 'B', name: e.teams.B.name, points: s.teamB }]}
+        color={(L) => (L === 'A' ? c.teamA : c.teamB)}
+      />
     );
+  } else if (e.teamOf && (e.teamLetters?.length ?? 0) >= 2) {
+    const { totals } = eventTeamTotals(e, rounds);
+    line = <TeamScoreLine done={done} teams={[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => ({ letter: t.letter, name: `Team ${t.letter}`, points: t.points }))} />;
   } else {
     const top = eventStandings(e, rounds)[0];
-    const done = eventPhase(e, rounds) === 'completed';
     const pts = top ? `${formatPoints(top.points)} pt${top.points === 1 ? '' : 's'}` : '';
-    line = <Body bold>{top && top.played ? `${name(top.playerId)} ${done ? 'won' : 'leads'} with ${pts}` : `${e.playerIds.length} players`}</Body>;
+    line = <Body muted>{top && top.played ? `${name(top.playerId)} ${done ? 'won' : 'leads'} with ${pts}` : `${e.playerIds.length} players`}</Body>;
   }
   return (
     <Pressable onPress={() => router.push(`/event/${e.id}`)}>
@@ -50,6 +56,9 @@ export function RoundCard({ r }: { r: RoundRecord }) {
   const thru = holesComplete(r);
   const date = new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const target = r.status === 'active' ? `/round/${r.id}` : `/round/${r.id}/results`;
+  const team = roundTeamScore(r, results);
+  const evTeams = useStore((st) => st.events.find((e) => e.id === r.eventId)?.teams);
+  const teamName = (L: string) => (evTeams && (L === 'A' || L === 'B') ? evTeams[L].name : `Team ${L}`);
   return (
     <Pressable onPress={() => router.push(target as never)}>
       {({ pressed }) => (
@@ -60,8 +69,11 @@ export function RoundCard({ r }: { r: RoundRecord }) {
           </View>
           <H2>{gameName(r.games[0])}</H2>
           <Body muted>{r.players.map((p) => p.name).join(', ')}</Body>
-          {main && isResult(main) ? (
-            <Body bold style={{ color: main.finished ? c.primary : c.text }}>{main.summary}</Body>
+          {/* Team rounds: the team score, coloured by who's ahead. Otherwise the game's summary. */}
+          {team ? (
+            <TeamScoreLine done={r.status === 'complete'} teams={team.map((t) => ({ letter: t.letter, name: teamName(t.letter), points: t.points }))} />
+          ) : main && isResult(main) ? (
+            <Body muted>{main.summary}</Body>
           ) : null}
           {(() => {
             const matches = r.games.filter((g) => matchLabel(g)).length;
