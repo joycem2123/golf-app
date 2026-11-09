@@ -158,16 +158,19 @@ export default function NewEvent() {
           ? 'No rounds fall between these dates'
           : null;
   const playersProblem = ids.length < 2 ? 'Add at least 2 players' : null;
-  const roundsProblem = plans.some((p) => !p.draft) ? 'Choose a format for every round' : null;
+  // The game can be decided later (when the round is set up), so it isn't required here.
+  const roundsProblem = null as string | null;
+  // Rounds with a game chosen: only those have matchups to set now.
+  const withGame = plans.map((p, i) => (p.draft ? i : -1)).filter((i) => i >= 0);
   // Round 1's matchups must be set; later rounds can be decided as the event is played.
-  const matchupProblems = plans.map((p, i) => (!p.draft ? 'Choose a format' : i > 0 && p.tbd ? null : draftProblem(p.draft, players)));
+  const matchupProblems = plans.map((p, i) => (!p.draft ? null : i > withGame[0] && p.tbd ? null : draftProblem(p.draft, players)));
 
   const canGo = (s: Step) =>
     s === 'details' ||
     (s === 'players' && !detailsProblem) ||
     (s === 'teams' && !detailsProblem && !playersProblem) ||
     (s === 'rounds' && !detailsProblem && !playersProblem && teamsDone) ||
-    (s === 'matchups' && !detailsProblem && !playersProblem && teamsDone && !roundsProblem);
+    (s === 'matchups' && !detailsProblem && !playersProblem && teamsDone && withGame.length > 0);
 
   const create = () => {
     // Never fail silently: say what's still missing, or what went wrong.
@@ -259,6 +262,7 @@ export default function NewEvent() {
   );
 
   const plan = plans[current];
+  const nextWithGame = withGame.find((i) => i > current);
 
   // The main button for each step, pinned to the bottom of the screen (no scrolling to find it), as in New Round.
   const nextBtn = (to: Step, title: string, problem: string | null) => <Button title={title} disabled={!!problem} onPress={() => setStep(to)} />;
@@ -279,12 +283,12 @@ export default function NewEvent() {
         onPress={() => { setNoTeams(false); setStep('rounds'); }}
       />
     )
-    : step === 'rounds' ? (plans.length === 0
+    : step === 'rounds' ? (withGame.length === 0
       ? <Button title={fromRound ? 'Create season and go back to my round' : 'Create event'} onPress={create} />
-      : nextBtn('matchups', 'Next: matchups', roundsProblem))
-    : step === 'matchups' && plan ? (current < plans.length - 1 ? (
+      : <Button title="Next: matchups" onPress={() => { setCurrent(withGame[0]); setStep('matchups'); }} />)
+    : step === 'matchups' && plan ? (nextWithGame !== undefined ? (
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <View style={{ flex: 1 }}><Button title={`Next: Round ${current + 2}`} disabled={!!matchupProblems[current]} onPress={() => setCurrent(current + 1)} /></View>
+        <View style={{ flex: 1 }}><Button title={`Next: Round ${nextWithGame + 1}`} disabled={!!matchupProblems[current]} onPress={() => setCurrent(nextWithGame)} /></View>
         {matchupProblems.every((x) => !x) && <View style={{ flex: 1 }}><Button title="Create event" kind="secondary" onPress={create} /></View>}
       </View>
     ) : <Button title="Create event" onPress={create} />)
@@ -483,7 +487,7 @@ export default function NewEvent() {
                 }}
               />
             )}
-            <Text style={{ color: c.muted, fontSize: 13 }}>{sameGame && plans.length > 1 ? 'Choose the game for every round.' : 'Choose the format for each round.'} You’ll set the matchups next.</Text>
+            <Text style={{ color: c.muted, fontSize: 13 }}>{sameGame && plans.length > 1 ? 'Choose the game for every round.' : 'Choose the format for each round.'} {withGame.length ? 'You’ll set the matchups next.' : 'Leave it as Decide later to choose when each round is set up.'}</Text>
           </Card>
 
           {sameGame && plans.length > 1 && (
@@ -494,6 +498,7 @@ export default function NewEvent() {
                 playerIds={ids}
                 teamOf={teams}
                 onPick={(k: GameKind) => setPlans((ps) => ps.map((x) => ({ ...x, draft: newDraft(k, players, teams) })))}
+                onLater={() => setPlans((ps) => ps.map((x) => ({ ...x, draft: null })))}
               />
             </Card>
           )}
@@ -522,13 +527,14 @@ export default function NewEvent() {
                 </ScrollView>
               )}
               {sameGame && plans.length > 1 ? (
-                <Text style={{ color: c.muted, fontSize: 13 }}>{p.draft ? gameInfo(p.draft.kind).name : 'Game: pick it above'}</Text>
+                <Text style={{ color: c.muted, fontSize: 13 }}>{p.draft ? gameInfo(p.draft.kind).name : 'Game: decide later'}</Text>
               ) : (
                 <GamePicker
                   value={p.draft?.kind ?? null}
                   playerIds={ids}
                   teamOf={teams}
                   onPick={(k: GameKind) => setPlans((ps) => ps.map((x) => (x.id === p.id ? { ...x, draft: newDraft(k, players, teams) } : x)))}
+                  onLater={() => setPlans((ps) => ps.map((x) => (x.id === p.id ? { ...x, draft: null } : x)))}
                 />
               )}
             </Card>
@@ -540,6 +546,7 @@ export default function NewEvent() {
         <>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.sm }}>
             {plans.map((p, i) => {
+              if (!p.draft) return null; // game decided later: no matchups yet
               const sel = i === current;
               const ok = !matchupProblems[i];
               return (

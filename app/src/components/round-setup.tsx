@@ -223,7 +223,7 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
 }
 
 /** Drop-down to choose the main game. Games that don't fit the group size are shown greyed out with the reason. */
-export function GamePicker({ value, playerIds, teamOf, onPick }: { value: GameKind | null; playerIds: string[]; teamOf?: TeamOf; onPick: (k: GameKind) => void }) {
+export function GamePicker({ value, playerIds, teamOf, onPick, onLater }: { value: GameKind | null; playerIds: string[]; teamOf?: TeamOf; onPick: (k: GameKind) => void; onLater?: () => void }) {
   const playerCount = playerIds.length;
   const c = useColors();
   const [open, setOpen] = useState(false);
@@ -241,14 +241,24 @@ export function GamePicker({ value, playerIds, teamOf, onPick }: { value: GameKi
         })}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 }}>MAIN GAME</Text>
-          <Text style={{ fontFamily: fonts.serif, fontSize: 20, fontWeight: '700', color: value ? c.text : c.muted }}>{info ? info.name : 'Choose a game'}</Text>
-          {info ? <Text style={{ color: c.muted, fontSize: 13 }}>{info.blurb}</Text> : null}
+          <Text style={{ fontFamily: fonts.serif, fontSize: 20, fontWeight: '700', color: value ? c.text : c.muted }}>{info ? info.name : onLater ? 'Decide later' : 'Choose a game'}</Text>
+          {info ? <Text style={{ color: c.muted, fontSize: 13 }}>{info.blurb}</Text> : onLater ? <Text style={{ color: c.muted, fontSize: 13 }}>Pick the game when the round is set up</Text> : null}
         </View>
         <Text style={{ color: c.primary, fontSize: 18, fontWeight: '700' }}>▾</Text>
       </Pressable>
 
       <Sheet visible={open} onClose={() => setOpen(false)} title="Choose a game">
         <Text style={{ color: c.muted, marginBottom: space.sm }}>{playerCount} player{playerCount === 1 ? '' : 's'} selected</Text>
+        {onLater && (
+          <Pressable onPress={() => { onLater(); setOpen(false); }} accessibilityRole="button" accessibilityState={{ selected: !value }}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: c.border, opacity: pressed ? 0.6 : 1 })}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.text, fontSize: 16, fontWeight: '700' }}>Decide later</Text>
+              <Text style={{ color: c.muted, fontSize: 13 }}>Choose the game when the round is set up</Text>
+            </View>
+            {!value && <Text style={{ color: c.primary, fontSize: 18, fontWeight: '900' }}>✓</Text>}
+          </Pressable>
+        )}
         {GAMES.map((g, i) => {
           const problem = gameFitProblem(g, playerIds, teamOf);
           const fits = !problem;
