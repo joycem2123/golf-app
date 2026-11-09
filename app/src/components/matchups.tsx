@@ -5,7 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { shuffle } from '@/lib/format';
 import { buildMatches, teamSizesFor, teamsSet, type GameDraft, type Matchup, type TeamOf } from '@/lib/games';
 import { fonts, radius, space, useColors } from '@/theme';
-import { useTeamColor } from '@/lib/team-colors';
+import { useTeamColor, useTeamName } from '@/lib/team-colors';
 import { Sheet } from './round-setup';
 import { Card, H2, Label, Segmented } from './ui';
 
@@ -30,6 +30,7 @@ export function MatchupsEditor({
   teamOf?: TeamOf;
 }) {
   const teamColor = useTeamColor();
+  const teamName = useTeamName();
   const c = useColors();
   const [slot, setSlot] = useState<Slot | null>(null);
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
@@ -169,7 +170,7 @@ export function MatchupsEditor({
       <Sheet
         visible={!!slot}
         onClose={() => setSlot(null)}
-        title={slot ? `${matches.length > 1 ? `Match ${slot.match + 1} · ` : ''}Team ${sideTeam(matches[slot.match], slot.side) ?? (slot.side === 'a' ? 'A' : 'B')}` : ''}>
+        title={slot ? `${matches.length > 1 ? `Match ${slot.match + 1} · ` : ''}${teamName(sideTeam(matches[slot.match], slot.side) ?? (slot.side === 'a' ? 'A' : 'B'))}` : ''}>
         {free.length > 0 && <Label>Not placed yet</Label>}
         {free.map((id) => (
           <Pressable key={id} onPress={() => place(id)} accessibilityRole="button" style={({ pressed }) => ({ paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: c.border, opacity: pressed ? 0.6 : 1 })}>

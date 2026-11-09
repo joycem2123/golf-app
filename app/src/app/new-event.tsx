@@ -54,7 +54,8 @@ export default function NewEvent() {
   const [letters, setLetters] = useState<string[]>(['A', 'B']);
   const [noTeams, setNoTeams] = useState(false);
   const [teamColors, setTeamColors] = useState<Record<string, string>>({});
-  const [teamNames, setTeamNames] = useState({ A: 'Team A', B: 'Team B' });
+  // Team names (blank = "Team A"), set beside each team's colour.
+  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
   const [holder, setHolder] = useState<'none' | 'A' | 'B'>('none');
   // Rounds
   const [count, setCount] = useState(fromRound ? 0 : 3);
@@ -132,7 +133,7 @@ export default function NewEvent() {
   const resume = (d: typeof snapshot) => {
     setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock);
     setIds(d.ids.filter((id) => saved.some((p) => p.id === id)));
-    setTeamOfState(d.teamOf); if (d.teamColors) setTeamColors(d.teamColors); setLetters(d.letters); setNoTeams(d.noTeams); setTeamNames(d.teamNames); setHolder(d.holder);
+    setTeamOfState(d.teamOf); if (d.teamColors) setTeamColors(d.teamColors); setTeamNames(d.teamNames ?? {}); setLetters(d.letters); setNoTeams(d.noTeams); setHolder(d.holder);
     setCount(d.count); setStep(d.step);
     setTimeout(() => setRestorePlans({ plans: d.plans, current: d.current }), 0);
   };
@@ -194,7 +195,7 @@ export default function NewEvent() {
       playerIds: ids,
       lockHandicaps: lock,
       lockedIndexes: lockHandicaps(chosen),
-      teams: isCup ? { A: { name: teamNames.A.trim() || 'Team A', playerIds: teamIds('A') }, B: { name: teamNames.B.trim() || 'Team B', playerIds: teamIds('B') } } : undefined,
+      teams: isCup ? { A: { name: teamNames.A?.trim() || 'Team A', playerIds: teamIds('A') }, B: { name: teamNames.B?.trim() || 'Team B', playerIds: teamIds('B') } } : undefined,
       holder: isCup && holder !== 'none' ? holder : undefined,
       cupPoints: isCup ? cupPoints : undefined,
       points: { win: 1, halve: 0.5, loss: 0 },
@@ -204,6 +205,7 @@ export default function NewEvent() {
       recurrence: isSeason ? rec : undefined,
       teamOf: teams ? Object.fromEntries(ids.map((id) => [id, teamOf[id]])) : undefined,
       teamColors: teams && Object.keys(teamColors).length ? teamColors : undefined,
+      teamNames: teams && Object.values(teamNames).some((v) => v.trim()) ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : undefined,
       teamLetters: teams ? letters : undefined,
       rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
     };
@@ -280,7 +282,7 @@ export default function NewEvent() {
     : null;
 
   return (
-    <TeamColors picks={teamColors}>
+    <TeamColors picks={teamColors} names={teamNames}>
     <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {stepBar}
@@ -420,19 +422,13 @@ export default function NewEvent() {
             note={isCup ? 'A Ryder Cup has two teams.' : 'Teams stay the same for every round.'}
             colors={teamColors}
             onColors={setTeamColors}
+            names={teamNames}
+            onNames={setTeamNames}
           />
           {isCup && (
             <Card>
-              <H2>Team names</H2>
-              <View style={{ flexDirection: 'row', gap: space.sm }}>
-                {(['A', 'B'] as const).map((t) => (
-                  <View key={t} style={{ flex: 1 }}>
-                    <Field label={`Team ${t}`} value={teamNames[t]} onChangeText={(v) => setTeamNames((n) => ({ ...n, [t]: v }))} />
-                  </View>
-                ))}
-              </View>
               <OptionRow label="Defending champion (keeps the cup on a tie)">
-                <Segmented options={[{ value: 'none', label: 'None' }, { value: 'A', label: teamNames.A || 'Team A' }, { value: 'B', label: teamNames.B || 'Team B' }]} value={holder} onChange={setHolder} />
+                <Segmented options={[{ value: 'none', label: 'None' }, { value: 'A', label: teamNames.A?.trim() || 'Team A' }, { value: 'B', label: teamNames.B?.trim() || 'Team B' }]} value={holder} onChange={setHolder} />
               </OptionRow>
             </Card>
           )}

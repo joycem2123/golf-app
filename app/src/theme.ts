@@ -52,9 +52,7 @@ export const TEAM_SWATCHES: { id: string; name: string; color: string; soft: str
   { id: 'teal', name: 'Teal', color: '#00909C', soft: '#E6F4F5' },
   { id: 'purple', name: 'Purple', color: '#7354B8', soft: '#F1EDF8' },
   { id: 'orange', name: 'Orange', color: '#D35400', soft: '#FBEEE6' },
-  { id: 'pink', name: 'Pink', color: '#C2407E', soft: '#F9ECF2' },
   { id: 'sky', name: 'Sky blue', color: '#2D8FD5', soft: '#E9F3FB' },
-  { id: 'black', name: 'Black', color: '#2B2B2B', soft: '#EDEDED' },
 ];
 
 /** Team letter → chosen swatch id (saved on a round or event). */

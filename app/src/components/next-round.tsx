@@ -16,6 +16,7 @@ import { getCourse } from '@/lib/courses';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord, type EventRound, type RoundRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { namesFor, teamName } from '@/lib/team-colors';
 
 /** The featured round: live first, else the first planned round not yet played. */
 export function featuredRound(e: EventRecord, rounds: RoundRecord[]): { plan?: EventRound; round?: RoundRecord } | null {
@@ -53,7 +54,7 @@ export function NextRound({ e }: { e: EventRecord }) {
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {score.map((t) => (
               <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter, round.teamColors ?? e.teamColors).color }}>
-                <Text style={{ color: '#ffffffcc', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>{(e.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`).toUpperCase()}</Text>
+                <Text style={{ color: '#ffffffcc', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>{teamName(t.letter, namesFor(round, e)).toUpperCase()}</Text>
                 <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 24, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
               </View>
             ))}

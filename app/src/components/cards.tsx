@@ -10,6 +10,7 @@ import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@
 import { TeamScoreLine } from './team-score-line';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, useColors } from '@/theme';
+import { namesFor, teamName } from '@/lib/team-colors';
 
 export function EventCard({ e, rounds, hint }: { e: EventRecord; rounds: RoundRecord[]; hint?: string }) {
   const c = useColors();
@@ -29,7 +30,7 @@ export function EventCard({ e, rounds, hint }: { e: EventRecord; rounds: RoundRe
     );
   } else if (e.teamOf && (e.teamLetters?.length ?? 0) >= 2) {
     const { totals } = eventTeamTotals(e, rounds);
-    line = <TeamScoreLine picks={e.teamColors} done={done} teams={[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => ({ letter: t.letter, name: `Team ${t.letter}`, points: t.points }))} />;
+    line = <TeamScoreLine picks={e.teamColors} done={done} teams={[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => ({ letter: t.letter, name: teamName(t.letter, namesFor(undefined, e)), points: t.points }))} />;
   } else {
     const top = eventStandings(e, rounds)[0];
     const pts = top ? `${formatPoints(top.points)} pt${top.points === 1 ? '' : 's'}` : '';
@@ -57,8 +58,8 @@ export function RoundCard({ r }: { r: RoundRecord }) {
   const date = new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const target = r.status === 'active' ? `/round/${r.id}` : `/round/${r.id}/results`;
   const team = roundTeamScore(r, results);
-  const evTeams = useStore((st) => st.events.find((e) => e.id === r.eventId)?.teams);
-  const teamName = (L: string) => (evTeams && (L === 'A' || L === 'B') ? evTeams[L].name : `Team ${L}`);
+  const ev = useStore((st) => st.events.find((e) => e.id === r.eventId));
+  const roundTeamName = (L: string) => teamName(L, namesFor(r, ev));
   return (
     <Pressable onPress={() => router.push(target as never)}>
       {({ pressed }) => (
@@ -71,7 +72,7 @@ export function RoundCard({ r }: { r: RoundRecord }) {
           <Body muted>{r.players.map((p) => p.name).join(', ')}</Body>
           {/* Team rounds: the team score, coloured by who's ahead. Otherwise the game's summary. */}
           {team ? (
-            <TeamScoreLine picks={r.teamColors} done={r.status === 'complete'} teams={team.map((t) => ({ letter: t.letter, name: teamName(t.letter), points: t.points }))} />
+            <TeamScoreLine picks={r.teamColors} done={r.status === 'complete'} teams={team.map((t) => ({ letter: t.letter, name: roundTeamName(t.letter), points: t.points }))} />
           ) : main && isResult(main) ? (
             <Body muted>{main.summary}</Body>
           ) : null}

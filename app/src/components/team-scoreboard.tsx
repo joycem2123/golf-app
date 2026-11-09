@@ -11,6 +11,7 @@ import { evaluate } from '@/lib/round';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fetchRoundEvent } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { namesFor, teamName as nameOf } from '@/lib/team-colors';
 
 /** pinned: compact, edge to edge, for the top of the screen. mini: one slim row (while entering scores). */
 type Props = { r: RoundRecord; results: ReturnType<typeof evaluate>; pinned?: boolean; mini?: boolean };
@@ -47,7 +48,8 @@ function Board({ r, results, pinned, mini, linked }: Props & { linked?: boolean 
   const score = liveTeamScore(r, results);
   if (!score) return null;
   const first = (id: string) => (r.players.find((p) => p.id === id)?.name ?? '').split(' ')[0];
-  const teamName = (L: string) => (event?.teams && (L === 'A' || L === 'B') ? event.teams[L].name : `Team ${L}`);
+  const names = namesFor(r, event);
+  const teamName = (L: string) => nameOf(L, names);
   const done = score.teams.reduce((s, t) => s + t.points, 0) > 0;
   const changes = score.live > 0;
 
@@ -62,7 +64,7 @@ function Board({ r, results, pinned, mini, linked }: Props & { linked?: boolean 
     eventLine = `${event.name}: ${event.teams.A.name} ${formatPoints(s.teamA)} – ${formatPoints(s.teamB)} ${event.teams.B.name}${s.toWin && !s.winner ? ` · ${formatPoints(s.toWin)} to win` : ''}`;
   } else if (event?.teamOf && (event.teamLetters?.length ?? 0) >= 2) {
     const { totals } = eventTeamTotals(event, rounds);
-    eventLine = `${event.name}: ${[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => `Team ${t.letter} ${formatPoints(t.points)}`).join(' – ')}`;
+    eventLine = `${event.name}: ${[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => `${teamName(t.letter)} ${formatPoints(t.points)}`).join(' – ')}`;
   }
 
   if (mini) {

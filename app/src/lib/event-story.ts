@@ -2,6 +2,7 @@
  * AI overview of a whole event (trip, Ryder Cup or season), from every completed match in it.
  * Saved on the event (so everyone sees the same one) and rewritten only when more matches finish.
  */
+import { teamName } from '@/lib/team-colors';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { useStore } from '@/store/store';
 import { ensureSession } from '@/sync/auth';
@@ -23,7 +24,7 @@ function eventFacts(e: EventRecord, rounds: RoundRecord[]) {
   const first = (id: string) => (players.find((p) => p.id === id)?.name ?? rounds.flatMap((r) => r.players).find((p) => p.id === id)?.name ?? '?').split(' ')[0];
   const side = (ids: string[]) => ids.map(first).join(' & ');
   const teamOfPlayer = (id: string) =>
-    e.teams ? (e.teams.A.playerIds.includes(id) ? e.teams.A.name : e.teams.B.playerIds.includes(id) ? e.teams.B.name : undefined) : e.teamOf?.[id] ? `Team ${e.teamOf[id]}` : undefined;
+    e.teams ? (e.teams.A.playerIds.includes(id) ? e.teams.A.name : e.teams.B.playerIds.includes(id) ? e.teams.B.name : undefined) : e.teamOf?.[id] ? teamName(e.teamOf[id], e.teamNames) : undefined;
   const evRounds = rounds.filter((r) => r.eventId === e.id).sort((a, b) => a.createdAt - b.createdAt);
   const matches = eventMatches(e, rounds);
   const byRound = evRounds.map((r, i) => {
@@ -57,7 +58,7 @@ function eventFacts(e: EventRecord, rounds: RoundRecord[]) {
       winner: s.winner === 'A' ? e.teams.A.name : s.winner === 'B' ? e.teams.B.name : s.winner === 'tied' ? 'tied' : null,
     };
   } else if (e.teamOf && (e.teamLetters?.length ?? 0) >= 2) {
-    score = Object.fromEntries(eventTeamTotals(e, rounds).totals.map((t) => [`Team ${t.letter}`, formatPoints(t.points)]));
+    score = Object.fromEntries(eventTeamTotals(e, rounds).totals.map((t) => [teamName(t.letter, e.teamNames), formatPoints(t.points)]));
   }
   const standings = eventStandings(e, rounds).map((row) => ({
     player: first(row.playerId),

@@ -12,6 +12,7 @@ import { useMe } from '@/lib/me';
 import { track } from '@/lib/usage';
 import { newId, useStore, type EventRecord, type SavedPlayer } from '@/store/store';
 import { radius, space, teamColor, useColors } from '@/theme';
+import { namesFor, teamName } from '@/lib/team-colors';
 
 export function AddEventPlayer({ e }: { e: EventRecord }) {
   const c = useColors();
@@ -32,7 +33,7 @@ export function AddEventPlayer({ e }: { e: EventRecord }) {
   const teamOptions: { value: string; label: string; color: string }[] = e.teams
     ? (['A', 'B'] as const).map((t) => ({ value: t, label: e.teams![t].name, color: teamColor(t, e.teamColors).color }))
     : e.teamOf && (e.teamLetters?.length ?? 0) >= 2
-      ? e.teamLetters!.map((L) => ({ value: L, label: `Team ${L}`, color: teamColor(L, e.teamColors).color }))
+      ? e.teamLetters!.map((L) => ({ value: L, label: teamName(L, namesFor(undefined, e)), color: teamColor(L, e.teamColors).color }))
       : [];
   const [team, setTeam] = useState<string | null>(null);
 

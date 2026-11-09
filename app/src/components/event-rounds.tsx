@@ -14,6 +14,7 @@ import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord, type EventRound } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { namesFor, teamName } from '@/lib/team-colors';
 import { Button, Card, H2, Label } from './ui';
 
 const COLLAPSED = 4;
@@ -85,7 +86,7 @@ export function EventRounds({ e }: { e: EventRecord }) {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                   {score.map((t) => (
                     <View key={t.letter} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: teamColor(t.letter, r?.teamColors ?? e.teamColors).soft }}>
-                      <Text style={{ color: teamColor(t.letter, r?.teamColors ?? e.teamColors).color, fontWeight: '800', fontSize: 12 }}>{e.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`}</Text>
+                      <Text style={{ color: teamColor(t.letter, r?.teamColors ?? e.teamColors).color, fontWeight: '800', fontSize: 12 }}>{teamName(t.letter, namesFor(r, e))}</Text>
                       <Text style={{ color: teamColor(t.letter, r?.teamColors ?? e.teamColors).color, fontWeight: '800', fontSize: 13, fontFamily: fonts.serif }}>{formatPoints(t.points)}</Text>
                     </View>
                   ))}

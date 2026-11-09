@@ -27,7 +27,7 @@ import { TeamScoreboard } from '@/components/team-scoreboard';
 import { cardSides, liveTeamScore } from '@/lib/results';
 import { headline } from '@/lib/headline';
 import { AddToEvent } from '@/components/add-to-event';
-import { TeamColors } from '@/lib/team-colors';
+import { namesFor, renameTeams, teamName, TeamColors } from '@/lib/team-colors';
 import { myMatchIndex } from '@/components/live-carousel';
 import { EditRights, canEditGame, canEditKey, useAccountId, useCanEdit, useEditRequests } from '@/lib/edit-rights';
 import { EditRequestsCard, LockedMatch } from '@/components/edit-lock';
@@ -352,8 +352,8 @@ export default function Scorecard() {
   const h = firstTee.holes[hole - 1];
   const done = (n: number) => keys.every((k) => grossAt(r, k.key, n) !== null);
   const allDone = allHolesScored(r);
-  const eventTeams = useStore.getState().events.find((e) => e.id === r.eventId)?.teams;
-  const sidesByGame = cardSides(r, results, (L) => (eventTeams && (L === 'A' || L === 'B') ? eventTeams[L].name : `Team ${L}`), (L) => teamColor(L, r.teamColors).color);
+  const tnames = namesFor(r, useStore.getState().events.find((e) => e.id === r.eventId));
+  const sidesByGame = cardSides(r, results, (L) => teamName(L, tnames), (L) => teamColor(L, r.teamColors).color);
   const teams = teamGroups(r, c, gi);
   const inTeams = new Set(teams?.flatMap((t) => t.keys) ?? []);
   const solo = keys.filter((k) => !inTeams.has(k.key));
@@ -406,7 +406,7 @@ export default function Scorecard() {
   };
   // Leader in first names ("Ben & Dan"), and the score kept separate so it's never cut off.
   const short = (n: string) => n.split(' & ').map((x) => x.split(' ')[0]).join(' & ');
-  const statusWho = !head ? '' : head.board ? (head.board[0]?.name ?? '') : head.leader ? short(head.leader) : '';
+  const statusWho = renameTeams(!head ? '' : head.board ? (head.board[0]?.name ?? '') : head.leader ? short(head.leader) : '', tnames);
   const statusBig = !head ? '' : head.board ? (head.board[0]?.value ?? head.big) : statusWho ? head.big.replace(/^Win\b/, statusWho.includes('&') ? 'win' : 'wins') : head.big;
   const matchStatusBar = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: sideColor(head?.side ?? null), borderRadius: radius.md, paddingVertical: 6, paddingHorizontal: 12 }}>
@@ -433,7 +433,7 @@ export default function Scorecard() {
   );
 
   return (
-    <TeamColors picks={r.teamColors}>
+    <TeamColors picks={r.teamColors} names={tnames}>
       <Stack.Screen options={{ title: shortCourseName(course.name) }} />
       {/* Full scorecard of a team round: the team score is pinned on top, the match status sits in the page. */}
       {teamTop ? <TeamScoreboard r={r} results={results} pinned={view === 'card' || viewer} mini={view === 'hole' && !viewer} /> : matchBanner()}

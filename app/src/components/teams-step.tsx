@@ -1,7 +1,8 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { formatIndex, shuffle } from '@/lib/format';
 import type { TeamOf } from '@/lib/games';
+import { teamName } from '@/lib/team-colors';
 import { fonts, radius, space, TEAM_LETTERS, teamColor, useColors, TEAM_SWATCHES, type TeamPicks } from '@/theme';
 import { Body, Card, Label } from './ui';
 
@@ -27,7 +28,12 @@ export function TeamsStep({
   note,
   colors,
   onColors,
+  names,
+  onNames,
 }: {
+  /** Name given to each team (letter → name), and a way to change it. */
+  names?: Record<string, string>;
+  onNames?: (n: Record<string, string>) => void;
   /** Colour picked for each team (letter → swatch id), and a way to change it. */
   colors?: TeamPicks;
   onColors?: (c: TeamPicks) => void;
@@ -89,7 +95,7 @@ export function TeamsStep({
           const members = players.filter((p) => teamOf[p.id] === L);
           return (
             <View key={L} style={{ backgroundColor: tc.soft, borderRadius: radius.md, padding: space.md, borderLeftWidth: 4, borderLeftColor: tc.color }}>
-              <Text style={{ color: tc.color, fontWeight: '800', fontSize: 12, letterSpacing: 1.2 }}>TEAM {L}</Text>
+              <Text style={{ color: tc.color, fontWeight: '800', fontSize: 12, letterSpacing: 1.2 }}>{teamName(L, names).toUpperCase()}</Text>
               <Text style={{ color: c.text, fontSize: 15 }}>{members.map((p) => p.name).join(', ') || '—'}</Text>
             </View>
           );
@@ -151,7 +157,7 @@ export function TeamsStep({
         return (
           <View key={L} style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: tc.color, paddingHorizontal: space.lg, paddingVertical: space.sm }}>
-              <Text style={{ flex: 1, color: '#fff', fontFamily: fonts.serif, fontSize: 17, fontWeight: '700' }}>Team {L}</Text>
+              <Text numberOfLines={1} style={{ flex: 1, color: '#fff', fontFamily: fonts.serif, fontSize: 17, fontWeight: '700' }}>{teamName(L, names)}</Text>
               <Text style={{ color: '#ffffffcc', fontSize: 12, fontWeight: '700', marginRight: letters.length > 2 ? space.md : 0 }}>
                 {members.length} player{members.length === 1 ? '' : 's'}
               </Text>
@@ -161,10 +167,26 @@ export function TeamsStep({
                 </Pressable>
               )}
             </View>
+            {onNames && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: space.lg, paddingTop: space.sm }}>
+                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, width: 54 }}>NAME</Text>
+                <TextInput
+                  value={names?.[L] ?? ''}
+                  onChangeText={(v) => onNames({ ...(names ?? {}), [L]: v })}
+                  placeholder={`Team ${L}`}
+                  placeholderTextColor={c.muted}
+                  maxLength={24}
+                  autoCapitalize="words"
+                  returnKeyType="done"
+                  accessibilityLabel={`Name for Team ${L}`}
+                  style={{ flex: 1, color: c.text, fontSize: 16, fontWeight: '600', paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.bg }}
+                />
+              </View>
+            )}
             {onColors && (
               // Pick the team's colour (each team gets a different one).
-              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingHorizontal: space.lg, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: c.border }}>
-                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>COLOUR</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: c.border }}>
+                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, width: 54 }}>COLOUR</Text>
                 {TEAM_SWATCHES.map((sw) => {
                   const mine = tc.color === sw.color;
                   const taken = !mine && letters.some((o) => o !== L && teamColor(o, colors).color === sw.color);
@@ -177,7 +199,7 @@ export function TeamsStep({
                       accessibilityState={{ selected: mine, disabled: taken }}
                       accessibilityLabel={`${sw.name} for Team ${L}${taken ? ' (another team has it)' : ''}`}
                       hitSlop={4}
-                      style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: sw.color, opacity: taken ? 0.2 : 1, borderWidth: mine ? 3 : 0, borderColor: c.card, alignItems: 'center', justifyContent: 'center', ...(mine ? { shadowColor: sw.color, shadowOpacity: 0.8, shadowRadius: 0, shadowOffset: { width: 0, height: 0 }, outlineColor: sw.color, outlineWidth: 2, outlineStyle: 'solid' } : {}) }}>
+                      style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: sw.color, opacity: taken ? 0.2 : 1, borderWidth: mine ? 3 : 0, borderColor: c.card, alignItems: 'center', justifyContent: 'center', ...(mine ? { shadowColor: sw.color, shadowOpacity: 0.8, shadowRadius: 0, shadowOffset: { width: 0, height: 0 }, outlineColor: sw.color, outlineWidth: 2, outlineStyle: 'solid' } : {}) }}>
                       {mine ? <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>✓</Text> : null}
                     </Pressable>
                   );

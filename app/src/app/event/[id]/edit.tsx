@@ -1,14 +1,14 @@
 /** Edit an event's details (name, dates, team names), at any time: before, during or after it. */
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
 import { Button, Card, Field } from '@/components/ui';
 import { daysBetween, formatDate } from '@/lib/dates';
 import { track } from '@/lib/usage';
 import { useEvent, useStore } from '@/store/store';
-import { radius, space, useColors } from '@/theme';
+import { radius, space, teamColor, TEAM_SWATCHES, useColors } from '@/theme';
 
 export default function EditEvent() {
   const c = useColors();
@@ -18,7 +18,10 @@ export default function EditEvent() {
   const [name, setName] = useState(e?.name ?? '');
   const [start, setStart] = useState(e?.startDate ?? '');
   const [end, setEnd] = useState(e?.endDate ?? e?.startDate ?? '');
-  const [teamNames, setTeamNames] = useState({ A: e?.teams?.A.name ?? 'Team A', B: e?.teams?.B.name ?? 'Team B' });
+  // Teams: a Ryder Cup's two, or the event's teams. Names and colours can be changed any time.
+  const letters = e?.teams ? ['A', 'B'] : e?.teamOf ? (e.teamLetters ?? []) : [];
+  const [teamNames, setTeamNames] = useState<Record<string, string>>(() => ({ ...(e?.teams ? { A: e.teams.A.name, B: e.teams.B.name } : {}), ...e?.teamNames }));
+  const [teamColors, setTeamColors] = useState<Record<string, string>>(() => e?.teamColors ?? {});
   if (!e) return null;
 
   const problem = !name.trim() ? 'Give the event a name.' : start && end && end < start ? 'The end date can’t be before the start date.' : null;
@@ -33,7 +36,9 @@ export default function EditEvent() {
       name: name.trim(),
       startDate: start || fresh.startDate,
       endDate: end || fresh.endDate,
-      teams: fresh.teams ? { A: { ...fresh.teams.A, name: teamNames.A.trim() || 'Team A' }, B: { ...fresh.teams.B, name: teamNames.B.trim() || 'Team B' } } : fresh.teams,
+      teams: fresh.teams ? { A: { ...fresh.teams.A, name: teamNames.A?.trim() || 'Team A' }, B: { ...fresh.teams.B, name: teamNames.B?.trim() || 'Team B' } } : fresh.teams,
+      teamNames: letters.length ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : fresh.teamNames,
+      teamColors: letters.length && Object.keys(teamColors).length ? teamColors : fresh.teamColors,
     });
     track('event_edited');
     router.back();
@@ -52,16 +57,35 @@ export default function EditEvent() {
           <Text style={{ color: c.muted, fontSize: 13 }}>{daysBetween(start, end).length} day{daysBetween(start, end).length === 1 ? '' : 's'}</Text>
         </Card>
       ) : null}
-      {e.teams && (
-        <Card style={{ gap: space.sm }}>
-          <Text style={{ color: c.text, fontSize: 17, fontWeight: '700' }}>Team names</Text>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {(['A', 'B'] as const).map((t) => (
-              <View key={t} style={{ flex: 1 }}>
-                <Field label={`Team ${t}`} value={teamNames[t]} onChangeText={(v) => setTeamNames((n) => ({ ...n, [t]: v }))} />
+      {letters.length > 0 && (
+        <Card style={{ gap: space.md }}>
+          <Text style={{ color: c.text, fontSize: 17, fontWeight: '700' }}>Teams</Text>
+          {letters.map((L) => {
+            const tc = teamColor(L, teamColors);
+            return (
+              <View key={L} style={{ gap: 6, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: c.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: tc.color }} />
+                  <View style={{ flex: 1 }}>
+                    <Field label={`Team ${L} name`} value={teamNames[L] ?? ''} onChangeText={(v) => setTeamNames((n) => ({ ...n, [L]: v }))} placeholder={`Team ${L}`} />
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {TEAM_SWATCHES.map((sw) => {
+                    const mine = tc.color === sw.color;
+                    const taken = !mine && letters.some((o) => o !== L && teamColor(o, teamColors).color === sw.color);
+                    return (
+                      <Pressable key={sw.id} disabled={taken} onPress={() => setTeamColors((p) => ({ ...p, [L]: sw.id }))} accessibilityRole="button" accessibilityLabel={`${sw.name} for Team ${L}`} accessibilityState={{ selected: mine, disabled: taken }}
+                        style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: sw.color, opacity: taken ? 0.2 : 1, alignItems: 'center', justifyContent: 'center', borderWidth: mine ? 3 : 0, borderColor: c.card }}>
+                        {mine ? <Text style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</Text> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
-            ))}
-          </View>
+            );
+          })}
+          <Text style={{ color: c.muted, fontSize: 12 }}>Rounds already started keep the names and colours they began with.</Text>
         </Card>
       )}
       {outside.length > 0 && (

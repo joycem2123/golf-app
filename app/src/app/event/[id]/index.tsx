@@ -15,6 +15,7 @@ import { canDeleteEvent, cupScore, eventMatches, eventStandings, eventTeamTotals
 import { formatIndex } from '@/lib/format';
 import { useEvent, useStore, type EventRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { namesFor, teamName } from '@/lib/team-colors';
 import { Tip } from '@/components/tip';
 import { AddEventPlayer } from '@/components/add-event-player';
 import { EventStory } from '@/components/event-story';
@@ -65,7 +66,7 @@ export default function EventScreen() {
       return null;
     }
     const L = e.teamOf?.[pid];
-    return L ? { label: `TEAM ${L}`, color: teamColor(L, e?.teamColors).color } : null;
+    return L ? { label: teamName(L, namesFor(undefined, e)).toUpperCase(), color: teamColor(L, e?.teamColors).color } : null;
   };
   const standingsCard = (
       <Card>
@@ -198,14 +199,14 @@ export default function EventScreen() {
                   <View style={{ flexDirection: 'row' }}>
                     {[...totals].sort((x, y) => x.letter.localeCompare(y.letter)).map((t) => (
                       <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.lg, backgroundColor: teamColor(t.letter, e?.teamColors).color }}>
-                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 }}>TEAM {t.letter}{lead === t.letter ? ' 🏆' : ''}</Text>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 }}>{teamName(t.letter, namesFor(undefined, e)).toUpperCase()}{lead === t.letter ? ' 🏆' : ''}</Text>
                         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 44, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
                         <Text numberOfLines={2} style={{ color: '#ffffffcc', fontSize: 11, textAlign: 'center', paddingHorizontal: 6 }}>{t.members.map((pid) => name(pid).split(' ')[0]).join(', ')}</Text>
                       </View>
                     ))}
                   </View>
                   <Text style={{ textAlign: 'center', padding: space.sm, color: c.text, fontWeight: '600' }}>
-                    {roundsCounted === 0 ? 'No rounds played yet' : `${lead ? `Team ${lead} leads` : 'All square'} after ${roundsCounted} round${roundsCounted === 1 ? '' : 's'}`}
+                    {roundsCounted === 0 ? 'No rounds played yet' : `${lead ? `${teamName(lead, namesFor(undefined, e))} leads` : 'All square'} after ${roundsCounted} round${roundsCounted === 1 ? '' : 's'}`}
                   </Text>
                 </View>
               );

@@ -8,9 +8,9 @@ import { useMe } from '@/lib/me';
 import { matchOutcomes } from '@/lib/results';
 import { evaluate, isResult } from '@/lib/round';
 import { storyHoles } from '@/lib/story';
-import { useRound } from '@/store/store';
+import { useStore, useRound } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
-import { TeamColors } from '@/lib/team-colors';
+import { namesFor, teamName, TeamColors } from '@/lib/team-colors';
 
 /** Everything about one match: result, story, hole-by-hole breakdown and the full scorecard. */
 export default function MatchDetail() {
@@ -27,6 +27,7 @@ export default function MatchDetail() {
   const holes = storyHoles(r, res, m, c);
   const myIds = r.players.filter((p) => isMe(p.id)).map((p) => p.id);
   const showTeam = m.a.letter !== m.b.letter;
+  const names = namesFor(r, useStore.getState().events.find((e) => e.id === r.eventId));
   const ca = teamColor(m.a.letter, r.teamColors);
   const cb = teamColor(m.b.letter, r.teamColors);
   const played = holes.filter((h) => h.outcome !== null);
@@ -76,7 +77,7 @@ export default function MatchDetail() {
   );
 
   return (
-    <TeamColors picks={r.teamColors}>
+    <TeamColors picks={r.teamColors} names={names}>
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -87,9 +88,9 @@ export default function MatchDetail() {
         <SideRow m={m} s={m.b} which="b" showTeam={showTeam} me={m.b.members.some((x) => myIds.includes(x))} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingTop: space.xs }}>
           {[
-            { n: won(1), label: showTeam ? `Team ${m.a.letter} won` : `${m.a.names.split(' ')[0]} won`, color: ca.color },
+            { n: won(1), label: showTeam ? `${teamName(m.a.letter, names)} won` : `${m.a.names.split(' ')[0]} won`, color: ca.color },
             { n: played.filter((h) => h.outcome === 0).length, label: 'Halved', color: c.muted },
-            { n: won(-1), label: showTeam ? `Team ${m.b.letter} won` : `${m.b.names.split(' ')[0]} won`, color: cb.color },
+            { n: won(-1), label: showTeam ? `${teamName(m.b.letter, names)} won` : `${m.b.names.split(' ')[0]} won`, color: cb.color },
           ].map((x) => (
             <View key={x.label} style={{ alignItems: 'center', flex: 1 }}>
               <Text style={{ color: x.color, fontFamily: fonts.serif, fontSize: 26, fontWeight: '700' }}>{x.n}</Text>
@@ -109,8 +110,8 @@ export default function MatchDetail() {
           <View style={{ flexDirection: 'row', paddingBottom: 6 }}>
             {head('HOLE', 36)}
             {head('PAR', 34)}
-            {head(showTeam ? `TEAM ${m.a.letter}` : m.a.names.split(' ')[0].toUpperCase(), undefined, ca.color)}
-            {head(showTeam ? `TEAM ${m.b.letter}` : m.b.names.split(' ')[0].toUpperCase(), undefined, cb.color)}
+            {head(showTeam ? teamName(m.a.letter, names).toUpperCase() : m.a.names.split(' ')[0].toUpperCase(), undefined, ca.color)}
+            {head(showTeam ? teamName(m.b.letter, names).toUpperCase() : m.b.names.split(' ')[0].toUpperCase(), undefined, cb.color)}
             {head('MATCH', 62)}
           </View>
           {holes.slice(0, 9).map(row)}

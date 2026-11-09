@@ -65,6 +65,8 @@ export interface RoundRecord {
   teamOf?: Record<string, string>;
   /** Colour picked for each team (letter → swatch id). */
   teamColors?: Record<string, string>;
+  /** Name given to each team (letter → name), e.g. { A: 'The Bandits' }. */
+  teamNames?: Record<string, string>;
   /** Set once the round is shared online (live leaderboard / other scorekeepers). */
   remote?: Remote;
   /** Entered from a photo of the scorecard (Upload Scorecard). */
@@ -149,6 +151,7 @@ export interface RoundSetup {
   roster: { id: string; teeId: string }[];
   teamOf: Record<string, string>;
   teamColors?: Record<string, string>;
+  teamNames?: Record<string, string>;
   letters: string[];
   noTeams: boolean;
   draft: unknown;
@@ -185,6 +188,8 @@ export interface EventRecord {
   teamOf?: Record<string, string>;
   /** Colour picked for each team (letter → swatch id). */
   teamColors?: Record<string, string>;
+  /** Name given to each team (letter → name), e.g. { A: 'The Bandits' }. */
+  teamNames?: Record<string, string>;
   teamLetters?: string[];
   /** The rounds of the event, in order. */
   rounds?: EventRound[];
@@ -536,6 +541,7 @@ export const useStore = create<State>()(
               eventId: round.eventId ?? r.eventId,
               teamOf: round.teamOf ?? r.teamOf,
               teamColors: round.teamColors ?? r.teamColors,
+              teamNames: round.teamNames ?? r.teamNames,
               course: round.course ?? r.course,
               stories: { ...round.stories, ...r.stories },
               remote: r.remote?.role === 'owner' ? r.remote : round.remote ?? r.remote,

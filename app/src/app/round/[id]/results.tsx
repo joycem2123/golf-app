@@ -22,7 +22,7 @@ import { teamGroups, teamHole } from '@/lib/teams';
 import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor, roundHoleCount } from '@/lib/round';
 import { useRound, useStore } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
-import { TeamColors } from '@/lib/team-colors';
+import { namesFor, teamName, TeamColors } from '@/lib/team-colors';
 import { track } from '@/lib/usage';
 import { Tip } from '@/components/tip';
 import { AddToEvent } from '@/components/add-to-event';
@@ -49,8 +49,10 @@ export default function Results() {
 
   const results = evaluate(r);
   const picks = r.teamColors;
+  const names = namesFor(r, useStore.getState().events.find((ev) => ev.id === r.eventId));
+  const tn = (L: string) => teamName(L, names);
   const evTeams = useStore.getState().events.find((ev) => ev.id === r.eventId)?.teams;
-  const resultSides = cardSides(r, results, (L) => (evTeams && (L === 'A' || L === 'B') ? evTeams[L].name : `Team ${L}`), (L) => teamColor(L, picks).color);
+  const resultSides = cardSides(r, results, (L) => tn(L), (L) => teamColor(L, picks).color);
   const event = events.find((e) => e.id === r.eventId);
   const overall = event?.teamOf || event?.teams ? eventTeamTotals(event!.teamOf ? event! : { ...event!, teamLetters: ['A', 'B'] }, allRounds).totals : null;
   const posting = postingList(r);
@@ -83,9 +85,9 @@ export default function Results() {
   let headline = 'Final results';
   let sub = '';
   if (teamWinner) {
-    headline = `Team ${teamWinner} wins!`;
+    headline = `${tn(teamWinner)} win${tn(teamWinner).startsWith('Team ') ? 's' : ''}!`;
     celebrate = !!myTeam && myTeam === teamWinner;
-    sub = celebrate ? 'Your team took it. Drinks are on the losers.' : myTeam ? `Team ${myTeam} will get them next time.` : '';
+    sub = celebrate ? 'Your team took it. Drinks are on the losers.' : myTeam ? `${tn(myTeam)} will get them next time.` : '';
   } else if (teamTie) {
     headline = 'All square';
     celebrate = myWins.length > 0;
@@ -134,7 +136,7 @@ export default function Results() {
 
   const shareText = () => {
     const lines = [`⛳ ${celebrate && !teamWinner ? 'I won!' : headline} ${courseName} · ${date}`];
-    if (teamRound) lines.push(teams.map((t) => `Team ${t.letter} ${pts(t.points)}`).join(' – '));
+    if (teamRound) lines.push(teams.map((t) => `${tn(t.letter)} ${pts(t.points)}`).join(' – '));
     for (const m of matches) {
       const w = m.winner === 'a' ? m.a.names : m.winner === 'b' ? m.b.names : null;
       lines.push(`${m.title}: ${m.a.names} v ${m.b.names}: ${w ? `${w} ${m.detail}` : m.detail}`);
@@ -163,7 +165,7 @@ export default function Results() {
   };
 
   return (
-    <TeamColors picks={picks}>
+    <TeamColors picks={picks} names={names}>
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
         {/* Everything in here goes into the picture you share. */}
@@ -189,7 +191,7 @@ export default function Results() {
                   const lead = t.letter === teamWinner;
                   return (
                     <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.md, backgroundColor: tc.color, opacity: teamWinner && !lead ? 0.7 : 1 }}>
-                      <Text style={{ color: '#ffffffd9', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>TEAM {t.letter}{lead ? ' 🏆' : ''}</Text>
+                      <Text style={{ color: '#ffffffd9', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>{tn(t.letter).toUpperCase()}{lead ? ' 🏆' : ''}</Text>
                       <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 34, fontWeight: '700' }}>{pts(t.points)}</Text>
                       <Text style={{ color: '#ffffffcc', fontSize: 11, fontWeight: '600' }}>{t.wins}W · {t.halves}H · {t.losses}L</Text>
                     </View>
@@ -308,7 +310,7 @@ export default function Results() {
                   <View style={{ flexDirection: 'row', gap: space.sm }}>
                     {[...overall].sort((x, y) => x.letter.localeCompare(y.letter)).map((t) => (
                       <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: teamColor(t.letter, picks).soft }}>
-                        <Text style={{ color: teamColor(t.letter, picks).color, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{event.teams?.[t.letter as 'A' | 'B']?.name?.toUpperCase() ?? `TEAM ${t.letter}`}</Text>
+                        <Text style={{ color: teamColor(t.letter, picks).color, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{tn(t.letter).toUpperCase()}</Text>
                         <Text style={{ color: teamColor(t.letter, picks).color, fontFamily: fonts.serif, fontSize: 28, fontWeight: '700' }}>{pts(t.points)}</Text>
                       </View>
                     ))}

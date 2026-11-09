@@ -11,6 +11,7 @@ import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { radius, space, teamColor, useColors } from '@/theme';
+import { namesFor, teamName } from '@/lib/team-colors';
 import { EventCard } from './cards';
 import { TeamScoreLine } from './team-score-line';
 import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
@@ -77,7 +78,7 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
           <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{[date, course, gameName(r.games[0]), e ? null : r.players.map((p) => p.name.split(' ')[0]).join(', ')].filter(Boolean).join(' · ')}</Text>
           {score ? (
             <View style={{ marginTop: 4 }}>
-              <TeamScoreLine picks={r.teamColors ?? e?.teamColors} done={!live} teams={score.map((t) => ({ letter: t.letter, name: e?.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`, points: t.points }))} />
+              <TeamScoreLine picks={r.teamColors ?? e?.teamColors} done={!live} teams={score.map((t) => ({ letter: t.letter, name: teamName(t.letter, namesFor(r, e)), points: t.points }))} />
             </View>
           ) : summary ? (
             <Text numberOfLines={2} style={{ color: c.text, fontSize: 13 }}>{summary}</Text>
