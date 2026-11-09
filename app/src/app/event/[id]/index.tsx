@@ -96,7 +96,17 @@ export default function EventScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: e.name }} />
+      <Stack.Screen
+        options={{
+          title: e.name,
+          // Owners and scorekeepers can change the name and dates at any time.
+          headerRight: e.remote?.role === 'viewer' ? undefined : () => (
+            <Pressable onPress={() => router.push({ pathname: '/event/[id]/edit', params: { id: e.id } })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Edit event details">
+              <Text style={{ color: c.primary, fontSize: 16, fontWeight: '700' }}>Edit</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
         {(e.startDate || e.recurrence) && (
           <View style={{ alignItems: 'center', gap: 2 }}>

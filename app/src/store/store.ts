@@ -619,7 +619,7 @@ export const useStore = create<State>()(
             dirtyRounds: [...new Set([...s.dirtyRounds, ...[...label.keys()].filter((id) => s.rounds.some((r) => r.id === id && r.remote && r.remote.role !== 'viewer'))])],
           };
         }),
-      updateEvent: (e) => set((s) => ({ events: s.events.map((x) => (x.id === e.id ? e : x)) })),
+      updateEvent: (e) => set((s) => ({ events: s.events.map((x) => (x.id === e.id ? e : x)), dirtyEvents: dirtyEvent(s, e.id) })),
       deleteEvent: (id) =>
         set((s) => {
           const e = s.events.find((x) => x.id === id);

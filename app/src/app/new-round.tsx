@@ -437,7 +437,7 @@ export default function NewRound() {
                 const fromCard = scan ? [...new Set(scan.rows.map((r) => r.playerId).filter((x): x is string => !!x))].filter((pid) => saved.some((p) => p.id === pid)) : [];
                 if (fromCard.length) {
                   setRoster(fromCard.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
-                } else if (planned?.draft) {
+                } else if (planned?.draft || planned?.matchupsLater) {
                   plannedDraftSet.current = false;
                   setRoster(plannedIds.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
                 } else setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);

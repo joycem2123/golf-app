@@ -88,9 +88,9 @@ export function EventRounds({ e, skip }: { e: EventRecord; skip?: string }) {
       {list.length === 0 && <Text style={{ color: c.muted }}>No rounds yet. Start one when you play.</Text>}
       {canEdit && e.status !== 'complete' && (
         <Button
-          title={e.recurrence?.every === 'asYouGo' ? '+ Play a new round' : '+ Add a round'}
+          title="+ Add round to event"
           kind="secondary"
-          onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id, addRound: '1' } })}
+          onPress={() => router.push({ pathname: '/event/[id]/add-round', params: { id: e.id } })}
         />
       )}
     </Card>
