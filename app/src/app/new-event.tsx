@@ -12,7 +12,7 @@ import { GameOptions } from '@/components/game-options';
 import { HolesSetup } from '@/components/holes-setup';
 import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/components/round-setup';
 import { TeamsStep } from '@/components/teams-step';
-import { Body, Button, Card, Field, H2, Label, OptionRow, Segmented, Stepper, Toggle } from '@/components/ui';
+import { Body, Button, Card, Checkbox, Field, H2, Label, OptionRow, Segmented, Stepper, Toggle } from '@/components/ui';
 import { addDays, daysBetween, describeRecurrence, formatDate, occurrences, today, WEEKDAYS, type Recurrence } from '@/lib/dates';
 import { draftProblem, gameInfo, isMatchFormat, newDraft, teamsSet, type GameDraft, type GameKind, type TeamOf } from '@/lib/games';
 import { meFirst, useMe } from '@/lib/me';
@@ -61,6 +61,8 @@ export default function NewEvent() {
   const [count, setCount] = useState(fromRound ? 0 : 3);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [current, setCurrent] = useState(0);
+  // One game for every round (on by default; untick to choose per round).
+  const [sameGame, setSameGame] = useState(true);
 
   const isSeason = type === 'season';
   const isCup = type === 'cup';
@@ -96,6 +98,13 @@ export default function NewEvent() {
     );
     setCurrent((x) => Math.min(x, Math.max(0, roundCount - 1)));
   }, [roundCount, isSeason, asYouGo, seasonDates.join(','), eventDays.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Same game for all rounds: rounds added later (more rounds, longer dates) get it too.
+  useEffect(() => {
+    const kind = plans.find((p) => p.draft)?.draft?.kind;
+    if (!sameGame || !kind || plans.every((p) => p.draft?.kind === kind)) return;
+    setPlans((ps) => ps.map((p) => (p.draft?.kind === kind ? p : { ...p, draft: newDraft(kind, players, teams) })));
+  }, [sameGame, plans.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (p: SavedPlayer) => {
     setIds((x) => (x.includes(p.id) ? x.filter((y) => y !== p.id) : [...x, p.id]));
@@ -398,6 +407,21 @@ export default function NewEvent() {
               Pick everyone playing in the event. If someone can’t make a round, you’ll be able to swap a sub in for that match when the round starts, without changing the event.
             </Text>
           </View>
+          {(() => {
+            const everyone = saved.filter((p) => !p.pending);
+            const all = everyone.length > 0 && everyone.every((p) => ids.includes(p.id));
+            return (
+              <Checkbox
+                label="Select all"
+                hint={`Everyone in your friends list (${everyone.length})`}
+                value={all}
+                onChange={(v) => {
+                  setIds(v ? everyone.map((p) => p.id) : me ? [me.id] : []);
+                  if (!v) setTeamOfState({});
+                }}
+              />
+            );
+          })()}
           <PlayerPicker
             people={meFirst(saved, isMe)}
             selected={ids}
@@ -447,16 +471,32 @@ export default function NewEvent() {
               </OptionRow>
             )}
             {asYouGo && <Text style={{ color: c.muted, fontSize: 13 }}>You can add more rounds from the event page any time during the season.</Text>}
-            <Text style={{ color: c.muted, fontSize: 13 }}>Choose the format for each round. You’ll set the matchups next.</Text>
-            {plans[0]?.draft && plans.length > 1 && (
-              <Button
-                small
-                kind="secondary"
-                title={`Use ${gameInfo(plans[0].draft.kind).name} for every round`}
-                onPress={() => setPlans((ps) => ps.map((p, i) => (i === 0 ? p : { ...p, draft: newDraft(ps[0].draft!.kind, players, teams) })))}
+            {plans.length > 1 && (
+              <Checkbox
+                label="Same game for all rounds"
+                hint="Pick the game once instead of for every round."
+                value={sameGame}
+                onChange={(v) => {
+                  setSameGame(v);
+                  // Turning it on: every round takes the first round's game.
+                  if (v && plans[0]?.draft) setPlans((ps) => ps.map((p, i) => (i === 0 || p.draft?.kind === ps[0].draft!.kind ? p : { ...p, draft: newDraft(ps[0].draft!.kind, players, teams) })));
+                }}
               />
             )}
+            <Text style={{ color: c.muted, fontSize: 13 }}>{sameGame && plans.length > 1 ? 'Choose the game for every round.' : 'Choose the format for each round.'} You’ll set the matchups next.</Text>
           </Card>
+
+          {sameGame && plans.length > 1 && (
+            <Card>
+              <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>Game for all {plans.length} rounds</Text>
+              <GamePicker
+                value={plans[0]?.draft?.kind ?? null}
+                playerIds={ids}
+                teamOf={teams}
+                onPick={(k: GameKind) => setPlans((ps) => ps.map((x) => ({ ...x, draft: newDraft(k, players, teams) })))}
+              />
+            </Card>
+          )}
 
           {plans.map((p, i) => (
             <Card key={p.id}>
@@ -481,12 +521,16 @@ export default function NewEvent() {
                   })}
                 </ScrollView>
               )}
-              <GamePicker
-                value={p.draft?.kind ?? null}
-                playerIds={ids}
-                teamOf={teams}
-                onPick={(k: GameKind) => setPlans((ps) => ps.map((x) => (x.id === p.id ? { ...x, draft: newDraft(k, players, teams) } : x)))}
-              />
+              {sameGame && plans.length > 1 ? (
+                <Text style={{ color: c.muted, fontSize: 13 }}>{p.draft ? gameInfo(p.draft.kind).name : 'Game: pick it above'}</Text>
+              ) : (
+                <GamePicker
+                  value={p.draft?.kind ?? null}
+                  playerIds={ids}
+                  teamOf={teams}
+                  onPick={(k: GameKind) => setPlans((ps) => ps.map((x) => (x.id === p.id ? { ...x, draft: newDraft(k, players, teams) } : x)))}
+                />
+              )}
             </Card>
           ))}
         </>

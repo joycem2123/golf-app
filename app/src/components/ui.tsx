@@ -139,6 +139,23 @@ export function Stepper({
   );
 }
 
+/** A tick box with a label (for "Select all"-style choices). */
+export function Checkbox({ label, value, onChange, hint }: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string }) {
+  const c = useColors();
+  return (
+    <Pressable onPress={() => onChange(!value)} accessibilityRole="checkbox" accessibilityState={{ checked: value }} accessibilityLabel={label} hitSlop={6}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, opacity: pressed ? 0.7 : 1 })}>
+      <View style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: value ? c.primary : c.border, backgroundColor: value ? c.primary : c.card, alignItems: 'center', justifyContent: 'center' }}>
+        {value ? <Text style={{ color: c.onPrimary, fontSize: 15, fontWeight: '900', lineHeight: 18 }}>✓</Text> : null}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{label}</Text>
+        {hint ? <Text style={{ color: c.muted, fontSize: 12 }}>{hint}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export function Toggle({ label, value, onChange, hint }: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string }) {
   const c = useColors();
   return (
