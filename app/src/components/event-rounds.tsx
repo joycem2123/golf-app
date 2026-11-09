@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { formatDate, today } from '@/lib/dates';
 import { formatPoints } from '@/lib/events';
+import { canStartOn } from '@/lib/event-calendar';
 import { gameInfo, gameName } from '@/lib/games';
 import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
@@ -75,7 +76,8 @@ export function EventRounds({ e }: { e: EventRecord }) {
                 </View>
                 {!r && canEdit && (
                   <View style={{ justifyContent: 'center' }}>
-                    <Button small kind={isNext ? 'primary' : 'secondary'} title="Start" onPress={open} />
+                    {/* Only on the day it's planned for (tap the row to move it to today). */}
+                    {canStartOn(x.date) ? <Button small kind={isNext ? 'primary' : 'secondary'} title="Start" onPress={open} /> : <DateLock date={x.date!} />}
                   </View>
                 )}
               </View>
@@ -92,5 +94,16 @@ export function EventRounds({ e }: { e: EventRecord }) {
         />
       )}
     </Card>
+  );
+}
+
+/** Instead of Start, on another day: when it opens (or that its day was missed). */
+export function DateLock({ date }: { date: string }) {
+  const c = useColors();
+  return (
+    <View style={{ alignItems: 'center', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: c.chip }} accessibilityLabel={`Can be started on ${formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' })}`}>
+      <Text style={{ color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 }}>{date < today() ? 'MISSED' : '🔒 OPENS'}</Text>
+      <Text style={{ color: c.text, fontSize: 12, fontWeight: '700' }}>{formatDate(date, { month: 'short', day: 'numeric' })}</Text>
+    </View>
   );
 }

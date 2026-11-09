@@ -16,11 +16,22 @@ import { gameId, playersIn, playsIn, usePendingRequests } from '@/lib/edit-right
 import { RequestRow } from '@/components/edit-lock';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type RoundRecord } from '@/store/store';
+import { Countdown } from '@/components/countdown';
+import type { CountdownTarget, PlannedItem } from '@/lib/event-calendar';
+import { gameInfo } from '@/lib/games';
 import { fonts, radius, space, useColors } from '@/theme';
 
 type Item = { r: RoundRecord; gi: number; mine: boolean; matches: number; at: number };
 
-export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundRecord[]; onDelete: (roundId: string) => void; firstRef?: TipTarget }) {
+export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown = null }: {
+  rounds: RoundRecord[];
+  onDelete: (roundId: string) => void;
+  firstRef?: TipTarget;
+  /** Event rounds planned for today: "Start round" cards, first. */
+  today?: PlannedItem[];
+  /** The next event or round to look forward to: a countdown card, last. */
+  countdown?: CountdownTarget | null;
+}) {
   const c = useColors();
   const { isMe } = useMe();
   const events = useStore((s) => s.events);
@@ -42,7 +53,8 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
   }
   // Rounds I'm playing in first; newest first within each.
   items.sort((a, b) => Number(b.mine) - Number(a.mine) || b.at - a.at);
-  if (items.length === 0) return null;
+  const total = today.length + items.length + (countdown ? 1 : 0);
+  if (total === 0) return null;
 
   return (
     <View>
@@ -53,9 +65,15 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
         decelerationRate="fast"
         disableIntervalMomentum
         contentContainerStyle={{ paddingHorizontal: space.lg, gap }}
-        onScroll={(e) => setIndex(Math.max(0, Math.min(items.length - 1, Math.round(e.nativeEvent.contentOffset.x / (cardW + gap)))))}
+        onScroll={(e) => setIndex(Math.max(0, Math.min(total - 1, Math.round(e.nativeEvent.contentOffset.x / (cardW + gap)))))}
         scrollEventThrottle={32}>
-        {items.map((it, n) => {
+        {today.map((t, n) => (
+          <View key={`today-${t.id}`} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
+            <TodayCard item={t} />
+          </View>
+        ))}
+        {items.map((it, i) => {
+          const n = i + today.length;
           const { r, gi } = it;
           const res = evaluate(r)[gi];
           const head = res && isResult(res) ? headline(res, r.players) : null;
@@ -128,11 +146,16 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
             </View>
           );
         })}
+        {countdown && (
+          <Pressable key="countdown" onPress={() => router.push(`/event/${countdown.event.id}`)} accessibilityRole="button" style={{ width: cardW }}>
+            <Countdown target={countdown} compact />
+          </Pressable>
+        )}
       </ScrollView>
-      {items.length > 1 && (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: space.sm }} accessibilityLabel={`Round ${index + 1} of ${items.length}. Swipe to see the others.`}>
-          {items.map((it, n) => (
-            <View key={it.r.id} style={{ width: n === index ? 18 : 7, height: 7, borderRadius: 4, backgroundColor: n === index ? c.primary : c.border }} />
+      {total > 1 && (
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: space.sm }} accessibilityLabel={`Card ${index + 1} of ${total}. Swipe to see the others.`}>
+          {Array.from({ length: total }, (_, n) => (
+            <View key={n} style={{ width: n === index ? 18 : 7, height: 7, borderRadius: 4, backgroundColor: n === index ? c.primary : c.border }} />
           ))}
         </View>
       )}
@@ -149,3 +172,31 @@ export function myMatchIndex(r: RoundRecord, isMe: (id: string) => boolean): num
 
 /** "Jacob Smith & John Smith" → "Jacob & John". */
 const firstNames = (names: string) => names.split(' & ').map((n) => n.trim().split(' ')[0]).join(' & ');
+
+/** An event round planned for today: tap Start round to set up what isn't set yet. */
+function TodayCard({ item }: { item: PlannedItem }) {
+  const c = useColors();
+  const plan = item.kind === 'round' ? item.event.rounds?.find((x) => x.id === item.id) : undefined;
+  const fmt = plan?.draft ? gameInfo(plan.draft.kind).name : undefined;
+  const matches = plan?.matchupsLater ? 'Matchups on the day' : plan?.draft?.matches.length ? `${plan.draft.matches.length} match${plan.draft.matches.length === 1 ? '' : 'es'}` : undefined;
+  const start = () => router.push({ pathname: '/new-round', params: item.params });
+  return (
+    <Pressable onPress={start} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={`${item.event.name} ${item.title} is today. Start round`}>
+      {({ pressed }) => (
+        <View style={{ flex: 1, backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 2, borderColor: c.brandGold, overflow: 'hidden', opacity: pressed ? 0.85 : 1, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
+          <View style={{ height: 3, backgroundColor: c.accent }} />
+          <View style={{ flex: 1, padding: space.lg, gap: 4, justifyContent: 'center' }}>
+            <Text numberOfLines={1} style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>📅 TODAY · {item.event.name.toUpperCase()}</Text>
+            <Text numberOfLines={1} style={{ color: c.muted, fontSize: 13 }}>{[item.title, fmt, matches].filter(Boolean).join(' · ')}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: c.primary }}>Game day! ⛳</Text>
+            <View style={{ flexDirection: 'row', marginTop: 4 }}>
+              <View style={{ backgroundColor: c.primary, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 }}>
+                <Text style={{ color: c.onPrimary, fontWeight: '800', fontSize: 14 }}>Start round ›</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+    </Pressable>
+  );
+}

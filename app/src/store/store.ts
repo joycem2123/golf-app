@@ -254,6 +254,8 @@ interface State {
   saveScheduled: (eventId: string, m: ScheduledMatch) => void;
   /** Link a started round to the event round it was planned as. */
   setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
+  /** Move a planned event round to another day (YYYY-MM-DD). */
+  setEventRoundDate: (eventId: string, eventRoundId: string, date: string) => void;
   removeScheduled: (eventId: string, matchId: string) => void;
   clearDirtyEvents: (ids: string[]) => void;
   setMe: (id: string | null) => void;
@@ -447,6 +449,11 @@ export const useStore = create<State>()(
       setEventRoundId: (eventId, eventRoundId, roundId) =>
         set((s) => ({
           events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: e.rounds?.map((x) => (x.id === eventRoundId ? { ...x, roundId } : x)) } : e)),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
+      setEventRoundDate: (eventId, eventRoundId, date) =>
+        set((s) => ({
+          events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: e.rounds?.map((x) => (x.id === eventRoundId ? { ...x, date } : x)) } : e)),
           dirtyEvents: dirtyEvent(s, eventId),
         })),
       saveScheduled: (eventId, m) =>

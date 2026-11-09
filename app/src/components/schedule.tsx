@@ -6,6 +6,8 @@ import { Pressable, Text, View } from 'react-native';
 import { formatDate, formatTime, today } from '@/lib/dates';
 import { gameInfo, type GameKind } from '@/lib/games';
 import { evaluate, isResult, shortCourseName } from '@/lib/round';
+import { canStartOn } from '@/lib/event-calendar';
+import { DateLock } from '@/components/event-rounds';
 import { useStore, type EventRecord, type ScheduledMatch } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 import { Calendar } from './calendar';
@@ -56,7 +58,7 @@ function MatchItem({ e, m }: { e: EventRecord; m: ScheduledMatch }) {
           </View>
           {!round && canEdit && (
             <View style={{ justifyContent: 'center' }}>
-              <Button small title="Start" onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id, matchId: m.id } })} />
+              {canStartOn(m.date) ? <Button small title="Start" onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id, matchId: m.id } })} /> : <DateLock date={m.date} />}
             </View>
           )}
         </View>

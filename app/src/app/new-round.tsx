@@ -17,8 +17,9 @@ import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, playSpec,
 import { newId, useEvent, useStore, type RoundRecord, type RoundSetup, type SavedPlayer } from '@/store/store';
 import { SaveFavourite, SetupSaved } from '@/components/setup-saved';
 import { autoShare } from '@/sync/sync';
-import { radius, space, teamColor, useColors } from '@/theme';
-import { today } from '@/lib/dates';
+import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { formatDate, today } from '@/lib/dates';
+import { canStartOn } from '@/lib/event-calendar';
 import { getCourse, useCourses } from '@/lib/courses';
 import { track } from '@/lib/usage';
 import { getPendingScan, guessRows, holesFromCard, ledgerFromCard, playedAt, setPendingScan } from '@/lib/round-scan';
@@ -185,6 +186,7 @@ export default function NewRound() {
 
   const addEventRound = useStore((s) => s.addEventRound);
   const setEventRoundId = useStore((s) => s.setEventRoundId);
+  const setEventRoundDate = useStore((s) => s.setEventRoundDate);
   const addEventPlayers = useStore((s) => s.addEventPlayers);
   // Uploaded card: which card row is each player's (or team's). Best guess by name, then the user's picks.
   const [rowPicks, setRowPicks] = useState<Record<string, number | null>>({});
@@ -357,6 +359,32 @@ export default function NewRound() {
       />
     ) : null;
 
+  // A planned round or scheduled match can only be started on its day.
+  const plannedDate = planned?.date ?? scheduled?.date;
+  if (event && plannedDate && !canStartOn(plannedDate) && !scan) {
+    const what = planned ? `Round ${planned.number}` : (scheduled?.label ?? 'This match');
+    const canMove = event.remote?.role !== 'viewer';
+    return (
+      <View style={{ flex: 1, padding: space.xl, gap: space.lg, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 44, textAlign: 'center' }}>📅</Text>
+        <Text style={{ fontFamily: fonts.serif, fontSize: 22, fontWeight: '700', color: c.text, textAlign: 'center' }}>{what} is planned for {formatDate(plannedDate, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+        <Body muted style={{ textAlign: 'center' }}>
+          Event rounds can only be started on the day they’re planned{plannedDate > today() ? '. It’ll show on your Home screen that morning with a Start round button.' : '.'}
+        </Body>
+        {canMove && (
+          <Button
+            title="Move it to today and start"
+            onPress={() => {
+              if (planned) setEventRoundDate(event.id, planned.id, today());
+              else if (scheduled) saveScheduled(event.id, { ...scheduled, date: today() });
+            }}
+          />
+        )}
+        <Button kind="secondary" title="Back" onPress={() => router.back()} />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
@@ -391,7 +419,12 @@ export default function NewRound() {
                   setRoster(plannedIds.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
                 } else setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);
                 setDraft(null);
-                setStep('players');
+                // A planned round with its players and matchups already set: straight to the game step to check and start.
+                // (Matchups decided on the day: pick who's playing first.)
+                if (planned?.draft && !planned.matchupsLater && plannedIds.length) {
+                  if (!eventTeams || !plannedIds.every((pid) => eventTeams[pid])) setNoTeams(true);
+                  setStep('game');
+                } else setStep('players');
               }}>
               <Card style={{ ...(course?.id === co.id ? { borderColor: c.primary, borderWidth: 2 } : {}), opacity: unfinished ? 0.55 : 1 }}>
                 <H2>{co.name}</H2>

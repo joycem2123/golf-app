@@ -1,3 +1,5 @@
+import { Countdown } from '@/components/countdown';
+import { eventCountdown } from '@/lib/event-calendar';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -107,6 +109,11 @@ export default function EventScreen() {
             {e.recurrence && <Text style={{ color: c.muted, fontSize: 13 }}>{describeRecurrence(e.recurrence)}</Text>}
           </View>
         )}
+        {/* Something to look forward to: the countdown to the start, or to the next round. */}
+        {(() => {
+          const cd = eventCountdown(e, rounds);
+          return cd ? <Countdown target={cd} /> : null;
+        })()}
         {e.teams ? (
           (() => {
             const { matches: cupMatches, standings: s } = cupScore(e, rounds);

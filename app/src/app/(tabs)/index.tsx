@@ -17,6 +17,7 @@ import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 import { Tip, type TipTarget } from '@/components/tip';
 import { LiveCarousel } from '@/components/live-carousel';
+import { nextCountdown, plannedToday } from '@/lib/event-calendar';
 
 function greeting() {
   const h = new Date().getHours();
@@ -51,6 +52,10 @@ export default function Home() {
   const me = useStore((s) => s.me);
   const names = useStore((s) => s.names);
   const active = rounds.filter((r) => r.status === 'active');
+  // The event calendar: rounds planned for today (Start round), and a countdown to what's next.
+  const todays = plannedToday(events, rounds);
+  const countdown = nextCountdown(events, rounds);
+  const banner = active.length + todays.length + (countdown ? 1 : 0) > 0;
   const { me: myPlayer } = useMe();
   const incoming = useFriendRequests((s) => s.incoming);
   const requestCount = incoming.length;
@@ -64,7 +69,7 @@ export default function Home() {
     <View style={{ flex: 1 }}>
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: space.xl * 3 }}>
       {/* Banner */}
-      <View style={{ backgroundColor: c.brand, paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xl + (active.length ? 56 : 0) }}>
+      <View style={{ backgroundColor: c.brand, paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xl + (banner ? 56 : 0) }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
           <LogoMark size={46} />
           <Wordmark size={30} color="#FFFFFF" />
@@ -72,15 +77,15 @@ export default function Home() {
         <View style={{ height: 1, backgroundColor: c.brandGold, opacity: 0.6, marginVertical: space.lg }} />
         <Text style={{ color: '#ffffffcc', fontSize: 14, letterSpacing: 0.5 }}>{greeting()}{firstName ? `, ${firstName}` : ''}</Text>
         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 26, fontWeight: '700', marginTop: 2 }}>
-          {active.length ? (active.length > 1 || active[0].games.filter((g) => matchLabel(g)).length > 1 ? 'Matches in play' : 'You have a round in play') : 'Ready for a match?'}
+          {todays.length ? 'It’s game day!' : active.length ? (active.length > 1 || active[0].games.filter((g) => matchLabel(g)).length > 1 ? 'Matches in play' : 'You have a round in play') : countdown ? 'Something to look forward to' : 'Ready for a match?'}
         </Text>
       </View>
 
       {/* Live round, overlapping the banner */}
       {/* Every match in progress: swipe between them (mine first). */}
-      {active.length > 0 && (
+      {banner && (
         <View style={{ marginTop: -56 }}>
-          <LiveCarousel rounds={active} onDelete={deleteRound} firstRef={liveRef} />
+          <LiveCarousel rounds={active} onDelete={deleteRound} firstRef={liveRef} today={todays} countdown={countdown} />
         </View>
       )}
 
