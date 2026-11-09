@@ -17,6 +17,7 @@ import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, playSpec,
 import { newId, useEvent, useStore, type RoundRecord, type RoundSetup, type SavedPlayer } from '@/store/store';
 import { SaveFavourite, SetupSaved } from '@/components/setup-saved';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { PlayerDropdown } from '@/components/head-to-head-view';
 import { namesFor, teamName, TeamColors } from '@/lib/team-colors';
 import { autoShare } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
@@ -588,8 +589,14 @@ export default function NewRound() {
             return (
               <Card>
                 <H2>Tees for everyone</H2>
-                <View style={styles.wrap}>
-                  {names.map((n) => <Chip key={n} label={n} selected={everyone(n)} onPress={() => setAll(n)} />)}
+                <View style={{ flexDirection: 'row' }}>
+                  <PlayerDropdown
+                    label="Tees for everyone"
+                    value={names.find(everyone) ?? null}
+                    placeholder="Mixed: pick one to set everyone"
+                    options={names.map((n) => ({ id: n, name: n }))}
+                    onChange={setAll}
+                  />
                 </View>
                 <Label style={{ textTransform: 'none', letterSpacing: 0 }}>Sets every player’s tee at once. You can still change anyone below.{names.some((n) => missing(n) > 0) ? ' Players without that tee keep theirs.' : ''}</Label>
               </Card>
@@ -607,15 +614,14 @@ export default function NewRound() {
                     Index {formatIndex(p.handicapIndex)} → Course hcp <Text style={{ fontWeight: '700', color: c.text }}>{courseHandicap(p.handicapIndex, tee)}</Text>
                   </Body>
                 </View>
-                <View style={styles.wrap}>
-                  {teesFor(course, p.gender).map((t) => (
-                    <Chip
-                      key={t.id}
-                      label={teeLabel(t)}
-                      selected={t.id === r.teeId}
-                      onPress={() => setRoster((rs) => rs.map((x) => (x.id === r.id ? { ...x, teeId: t.id } : x)))}
-                    />
-                  ))}
+                <View style={{ flexDirection: 'row' }}>
+                  <PlayerDropdown
+                    label={`${p.name}’s tees`}
+                    value={r.teeId}
+                    placeholder="Choose tees"
+                    options={teesFor(course, p.gender).map((t) => ({ id: t.id, name: `${teeLabel(t)} · ${t.holes.reduce((s2, h) => s2 + (h.yards ?? 0), 0)} yds` }))}
+                    onChange={(teeId) => setRoster((rs) => rs.map((x) => (x.id === r.id ? { ...x, teeId } : x)))}
+                  />
                 </View>
                 <Label style={{ textTransform: 'none' }}>
                   {tee.courseRating} / {tee.slope} · {tee.holes.reduce((s, h) => s + (h.yards ?? 0), 0)} yds

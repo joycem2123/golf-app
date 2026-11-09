@@ -16,6 +16,7 @@ import { holesOnCard, readRoundPhoto, setPendingScan, suggestPlayer, type Scanne
 import { useMe } from '@/lib/me';
 import { pickScorecard } from '@/lib/scan';
 import { ScoreCell } from '@/components/score-cell';
+import { PlayerDropdown } from '@/components/head-to-head-view';
 import { track } from '@/lib/usage';
 import { newId, useStore, type SavedPlayer } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
@@ -45,7 +46,6 @@ export default function UploadScorecard() {
   const [courseSheet, setCourseSheet] = useState(false);
   const [courseQuery, setCourseQuery] = useState('');
   const [friendQuery, setFriendQuery] = useState<Record<number, string>>({});
-  const [teeOpen, setTeeOpen] = useState<number | null>(null);
 
   const read = async (source: 'camera' | 'library') => {
     setError(null);
@@ -173,10 +173,14 @@ export default function UploadScorecard() {
       {course && (
         <Card style={{ gap: space.sm }}>
           <H2>Tees played</H2>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-            {teeNames.map((n) => (
-              <Chip key={n} label={n} selected={card.teeName === n} onPress={() => setCard({ ...card, teeName: n, rows: card.rows.map((r) => ({ ...r, teeId: undefined })) })} />
-            ))}
+          <View style={{ flexDirection: 'row' }}>
+            <PlayerDropdown
+              label="Tees played"
+              value={card.teeName ?? null}
+              placeholder="Choose tees"
+              options={teeNames.map((n) => ({ id: n, name: n }))}
+              onChange={(n) => setCard({ ...card, teeName: n, rows: card.rows.map((r) => ({ ...r, teeId: undefined })) })}
+            />
           </View>
           <Label style={{ textTransform: 'none', letterSpacing: 0 }}>For everyone. Change one player’s tee on their row below.</Label>
         </Card>
@@ -264,20 +268,15 @@ export default function UploadScorecard() {
 
             {/* This player's tee */}
             {course && card.teeName && (
-              <View style={{ gap: space.xs }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ flex: 1, color: c.muted, fontSize: 13 }}>Tee: {tee ? `${teeLabel(tee)} · ${tee.courseRating}/${tee.slope}` : '–'}</Text>
-                  <Pressable onPress={() => setTeeOpen(teeOpen === i ? null : i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Change row ${i + 1} tee`}>
-                    <Text style={{ color: c.primary, fontWeight: '600', fontSize: 13 }}>{teeOpen === i ? 'Done' : 'Change'}</Text>
-                  </Pressable>
-                </View>
-                {teeOpen === i && (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                    {course.tees.map((t) => (
-                      <Chip key={t.id} label={teeLabel(t)} selected={tee?.id === t.id} onPress={() => { setRow(i, { teeId: t.id }); setTeeOpen(null); }} />
-                    ))}
-                  </View>
-                )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <Text style={{ color: c.muted, fontSize: 13 }}>Tee</Text>
+                <PlayerDropdown
+                  label={`${r.name.trim() || `Row ${i + 1}`}’s tees`}
+                  value={tee?.id ?? null}
+                  placeholder="Choose tees"
+                  options={course.tees.map((t) => ({ id: t.id, name: `${teeLabel(t)} · ${t.courseRating}/${t.slope}` }))}
+                  onChange={(teeId) => setRow(i, { teeId })}
+                />
               </View>
             )}
 
