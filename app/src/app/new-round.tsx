@@ -36,7 +36,7 @@ function teesFor(course: Course, gender: 'M' | 'F') {
 export default function NewRound() {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const { eventId, matchId, eventRound, addRound: addingRound, scan: scanParam } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string; addRound?: string; scan?: string }>();
+  const { eventId, matchId, eventRound, addRound: addingRound, scan: scanParam, fav, play } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string; addRound?: string; scan?: string; fav?: string; play?: string }>();
   // Uploading a scorecard photo: the scores are already known, so the round goes straight to results.
   const scan = useMemo(() => (scanParam ? getPendingScan() : null), [scanParam]);
   const event = useEvent(eventId);
@@ -241,6 +241,14 @@ export default function NewRound() {
   };
   // "Play now" on a favourite: load it, then start as soon as it's in place.
   const [autoStart, setAutoStart] = useState(false);
+  // Opened from a favourite on Home: load it (and start straight away for "play").
+  const favLoaded = useRef(false);
+  useEffect(() => {
+    if (favLoaded.current || !fav) return;
+    favLoaded.current = true;
+    const f = useStore.getState().favourites.find((x) => x.id === fav);
+    if (f && applySetup(f.setup, 'game') && play) setAutoStart(true);
+  }, [fav]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!autoStart || !course) return;
     setAutoStart(false);

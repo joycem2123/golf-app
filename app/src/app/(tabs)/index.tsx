@@ -58,6 +58,7 @@ export default function Home() {
   const { deleteRound, deleteEvent, bar } = useDeleteWithUndo();
   const liveRef: TipTarget = useRef(null);
   const firstOpenRef: TipTarget = useRef(null);
+  const favourites = useStore((st) => st.favourites);
   const firstName = myPlayer ? myPlayer.name.split(' ')[0] : me && names[me] ? names[me].split(' ')[0] : null;
 
   return (
@@ -100,6 +101,30 @@ export default function Home() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
           <Tile primary title="New Round" sub="Pick a course, players and games" icon={glyph('+', '#fff')} onPress={() => router.push('/new-round')} />
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
+          {/* Favourite setups: one tap starts today's round. */}
+          {favourites.length > 0 && (
+            <View style={{ flexBasis: '100%', gap: 6 }}>
+              <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>★ PLAY A FAVOURITE</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+                {favourites.map((f) => (
+                  <Pressable
+                    key={f.id}
+                    onPress={() => router.push({ pathname: '/new-round', params: { fav: f.id, play: '1' } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Play ${f.name} now`}
+                    style={({ pressed }) => ({
+                      maxWidth: 240, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.card, borderRadius: 999,
+                      borderWidth: 1.5, borderColor: c.brandGold, paddingVertical: 8, paddingLeft: 8, paddingRight: 14, opacity: pressed ? 0.7 : 1,
+                    })}>
+                    <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#fff', fontSize: 11 }}>▶</Text>
+                    </View>
+                    <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontWeight: '700', fontSize: 14 }}>{f.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
           {/* Upload a scorecard: the other way to start a round, so it sits right under New Round, in deep green and gold. */}
           <Pressable
             onPress={() => router.push('/upload-scorecard')}
