@@ -67,6 +67,10 @@ export function NextRound({ e }: { e: EventRecord }) {
           </View>
         ))}
         <Button title={round.remote?.role === 'viewer' ? 'Follow live ›' : 'Open live scoring ›'} onPress={() => router.push(`/round/${round.id}`)} />
+        {round.remote?.role !== 'viewer' && (
+          // Kept score on paper: read the card straight into this round.
+          <Button kind="secondary" title="📷 Upload scorecard" onPress={() => router.push(`/round/${round.id}/upload-card`)} />
+        )}
       </Shell>
     );
   }
