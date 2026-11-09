@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { formatDate, today } from '@/lib/dates';
@@ -11,21 +12,33 @@ import { useStore, type EventRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { Button, Card, H2, Label } from './ui';
 
+const COLLAPSED = 4;
+
 /** Every planned round of the event: date, format, status, team score, and Start / Resume / Results. */
-export function EventRounds({ e, skip }: { e: EventRecord; skip?: string }) {
+export function EventRounds({ e }: { e: EventRecord }) {
   const c = useColors();
   const rounds = useStore((s) => s.rounds);
   const list = e.rounds ?? [];
   const canEdit = e.remote?.role !== 'viewer';
+  // Upcoming and in progress first (in order), then completed (most recent first). Four until expanded.
+  const [all, setAll] = useState(false);
+  const isFinal = (x: (typeof list)[number]) => rounds.some((r) => r.id === x.roundId && r.status === 'complete');
+  const upcoming = list.filter((x) => !isFinal(x));
+  const done = list.filter(isFinal).reverse();
+  const ordered = [...upcoming, ...done];
+  // Collapsed: keep both sections in view (at least the latest completed round).
+  const k = done.length ? Math.min(upcoming.length, COLLAPSED - 1) : COLLAPSED;
+  const shown = all ? ordered : [...upcoming.slice(0, k), ...done.slice(0, COLLAPSED - Math.min(upcoming.length, k))];
   const nextUp = list.find((x) => !rounds.some((r) => r.id === x.roundId && r.status === 'complete'))?.id;
 
   return (
     <Card>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <H2>{skip ? 'Other rounds' : 'Rounds'}</H2>
+        <H2>Rounds</H2>
         <Label>{list.filter((x) => rounds.some((r) => r.id === x.roundId && r.status === 'complete')).length} of {list.length} played</Label>
       </View>
-      {list.filter((x) => x.id !== skip).map((x) => {
+      {shown.map((x, n) => {
+        const heading = n === 0 || isFinal(x) !== isFinal(shown[n - 1]) ? (isFinal(x) ? 'COMPLETED' : 'UPCOMING & IN PROGRESS') : null;
         const r = rounds.find((y) => y.id === x.roundId);
         const status = !r ? 'upcoming' : r.status === 'complete' ? 'final' : 'live';
         const results = r ? evaluate(r) : [];
@@ -42,7 +55,9 @@ export function EventRounds({ e, skip }: { e: EventRecord; skip?: string }) {
           else if (canEdit) router.push({ pathname: '/new-round', params: { eventId: e.id, eventRound: x.id } });
         };
         return (
-          <Pressable key={x.id} onPress={open} accessibilityRole="button" accessibilityLabel={`Round ${x.number}`}>
+          <View key={x.id}>
+          {heading && <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginTop: n ? space.md : space.sm, marginBottom: 2 }}>{heading}</Text>}
+          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Round ${x.number}`}>
             {({ pressed }) => (
               <View style={{ flexDirection: 'row', gap: space.md, paddingVertical: space.md, borderTopWidth: 1, borderTopColor: c.border, opacity: pressed ? 0.6 : 1 }}>
                 <View style={{ width: 50, alignItems: 'center', paddingTop: 2 }}>
@@ -83,8 +98,14 @@ export function EventRounds({ e, skip }: { e: EventRecord; skip?: string }) {
               </View>
             )}
           </Pressable>
+          </View>
         );
       })}
+      {ordered.length > COLLAPSED && (
+        <Pressable onPress={() => setAll(!all)} accessibilityRole="button" hitSlop={6} style={{ paddingVertical: space.sm, alignItems: 'center', borderTopWidth: 1, borderTopColor: c.border }}>
+          <Text style={{ color: c.primary, fontWeight: '700' }}>{all ? 'Show fewer ▴' : `Show all ${ordered.length} rounds ▾`}</Text>
+        </Pressable>
+      )}
       {list.length === 0 && <Text style={{ color: c.muted }}>No rounds yet. Start one when you play.</Text>}
       {canEdit && e.status !== 'complete' && (
         <Button

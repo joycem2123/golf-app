@@ -1,5 +1,5 @@
 import { Countdown } from '@/components/countdown';
-import { NextRound, featuredRound } from '@/components/next-round';
+import { NextRound } from '@/components/next-round';
 import { eventCountdown } from '@/lib/event-calendar';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
@@ -175,7 +175,7 @@ export default function EventScreen() {
                 </Card>
                 {canAdd && <AddEventPlayer e={e} />}
 
-                {e.rounds?.length ? <EventRounds e={e} skip={featuredRound(e, rounds)?.plan?.id} /> : null}
+                {e.rounds?.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
 
                 {cupMatches.length > 0 && (
@@ -214,7 +214,7 @@ export default function EventScreen() {
             <EventStory e={e} rounds={rounds} />
             {standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
-            {e.rounds?.length ? <EventRounds e={e} skip={featuredRound(e, rounds)?.plan?.id} /> : null}
+            {e.rounds?.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             <Card>
               <H2>Results</H2>
