@@ -178,7 +178,10 @@ export default function UploadScorecard() {
               label="Tees played"
               value={card.teeName ?? null}
               placeholder="Choose tees"
-              options={teeNames.map((n) => ({ id: n, name: n }))}
+              options={teeNames.map((n) => {
+                const t = course.tees.find((x) => x.name === n && (x.gender ?? 'M') === 'M') ?? course.tees.find((x) => x.name === n)!;
+                return { id: n, name: `${n} · ${t.holes.reduce((s2, h) => s2 + (h.yards ?? 0), 0)} yds` };
+              })}
               onChange={(n) => setCard({ ...card, teeName: n, rows: card.rows.map((r) => ({ ...r, teeId: undefined })) })}
             />
           </View>

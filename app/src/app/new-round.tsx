@@ -594,7 +594,11 @@ export default function NewRound() {
                     label="Tees for everyone"
                     value={names.find(everyone) ?? null}
                     placeholder="Mixed: pick one to set everyone"
-                    options={names.map((n) => ({ id: n, name: n }))}
+                    options={names.map((n) => {
+                      // Yardage of that tee (the men's version when there are both).
+                      const t = course.tees.find((x) => x.name === n && (x.gender ?? 'M') === 'M') ?? course.tees.find((x) => x.name === n)!;
+                      return { id: n, name: `${n} · ${t.holes.reduce((s2, h) => s2 + (h.yards ?? 0), 0)} yds` };
+                    })}
                     onChange={setAll}
                   />
                 </View>
