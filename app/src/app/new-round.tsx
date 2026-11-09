@@ -16,6 +16,7 @@ import { HolesSetup } from '@/components/holes-setup';
 import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, playSpec, sideMatchConfig, teamsSet, type GameDraft, type TeamOf } from '@/lib/games';
 import { newId, useEvent, useStore, type RoundRecord, type RoundSetup, type SavedPlayer } from '@/store/store';
 import { SaveFavourite, SetupSaved } from '@/components/setup-saved';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { autoShare } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { formatDate, today } from '@/lib/dates';
@@ -187,6 +188,9 @@ export default function NewRound() {
   const addEventRound = useStore((s) => s.addEventRound);
   const setEventRoundId = useStore((s) => s.setEventRoundId);
   const setEventRoundDate = useStore((s) => s.setEventRoundDate);
+  const removeEventRound = useStore((s) => s.removeEventRound);
+  const removeScheduled = useStore((s) => s.removeScheduled);
+  const [deleting, setDeleting] = useState(false);
   const addEventPlayers = useStore((s) => s.addEventPlayers);
   // Uploaded card: which card row is each player's (or team's). Best guess by name, then the user's picks.
   const [rowPicks, setRowPicks] = useState<Record<string, number | null>>({});
@@ -366,6 +370,7 @@ export default function NewRound() {
     const canMove = event.remote?.role !== 'viewer';
     return (
       <View style={{ flex: 1, padding: space.xl, gap: space.lg, justifyContent: 'center' }}>
+        <Stack.Screen options={{ title: plannedDate < today() ? 'Missed round' : 'Not today yet' }} />
         <Text style={{ fontSize: 44, textAlign: 'center' }}>📅</Text>
         <Text style={{ fontFamily: fonts.serif, fontSize: 22, fontWeight: '700', color: c.text, textAlign: 'center' }}>{what} is planned for {formatDate(plannedDate, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
         <Body muted style={{ textAlign: 'center' }}>
@@ -380,7 +385,25 @@ export default function NewRound() {
             }}
           />
         )}
+        {canMove && plannedDate < today() && (
+          <Button kind="ghost" title={planned ? 'Delete this round from the event' : 'Delete this match from the event'} onPress={() => setDeleting(true)} />
+        )}
         <Button kind="secondary" title="Back" onPress={() => router.back()} />
+        <ConfirmDialog
+          visible={deleting}
+          title={`Delete ${what}?`}
+          message={planned ? 'It comes off the event’s list of rounds, and the rounds after it move up a number. Rounds already played aren’t affected.' : 'It comes off the event’s schedule.'}
+          cancelLabel="Keep it"
+          confirmLabel="Delete"
+          onCancel={() => setDeleting(false)}
+          onConfirm={() => {
+            setDeleting(false);
+            if (planned) removeEventRound(event.id, planned.id);
+            else if (scheduled) removeScheduled(event.id, scheduled.id);
+            track('event_round_deleted', { missed: true });
+            router.back();
+          }}
+        />
       </View>
     );
   }

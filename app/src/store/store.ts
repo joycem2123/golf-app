@@ -274,6 +274,8 @@ interface State {
   addEvent: (e: EventRecord) => void;
   /** A round added to an event as it's played ("play as you go"). */
   addEventRound: (eventId: string, round: EventRound) => void;
+  /** Take a planned round out of an event; the rest are renumbered (and their rounds relabelled). */
+  removeEventRound: (eventId: string, eventRoundId: string) => void;
   /** Add players to an event (e.g. a season round with someone new). */
   addEventPlayers: (eventId: string, ids: string[]) => void;
   /** Add one player mid-event, onto a team if the event has teams (team = 'A'/'B' or a team letter). */
@@ -605,6 +607,18 @@ export const useStore = create<State>()(
           events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: [...(e.rounds ?? []), { ...round, number: (e.rounds?.length ?? 0) + 1 }] } : e)),
           dirtyEvents: dirtyEvent(s, eventId),
         })),
+      removeEventRound: (eventId, eventRoundId) =>
+        set((s) => {
+          const e = s.events.find((x) => x.id === eventId);
+          const left = (e?.rounds ?? []).filter((x) => x.id !== eventRoundId).map((x, i) => ({ ...x, number: i + 1 }));
+          const label = new Map(left.filter((x) => x.roundId).map((x) => [x.roundId!, `Round ${x.number}`]));
+          return {
+            events: s.events.map((x) => (x.id === eventId ? { ...x, rounds: left } : x)),
+            rounds: s.rounds.map((r) => (label.has(r.id) && r.label !== label.get(r.id) ? { ...r, label: label.get(r.id) } : r)),
+            dirtyEvents: dirtyEvent(s, eventId),
+            dirtyRounds: [...new Set([...s.dirtyRounds, ...[...label.keys()].filter((id) => s.rounds.some((r) => r.id === id && r.remote && r.remote.role !== 'viewer'))])],
+          };
+        }),
       updateEvent: (e) => set((s) => ({ events: s.events.map((x) => (x.id === e.id ? e : x)) })),
       deleteEvent: (id) =>
         set((s) => {
