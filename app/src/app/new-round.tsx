@@ -14,7 +14,8 @@ import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
 import { HolesSetup } from '@/components/holes-setup';
 import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, playSpec, sideMatchConfig, teamsSet, type GameDraft, type TeamOf } from '@/lib/games';
-import { newId, useEvent, useStore, type RoundRecord, type SavedPlayer } from '@/store/store';
+import { newId, useEvent, useStore, type RoundRecord, type RoundSetup, type SavedPlayer } from '@/store/store';
+import { SaveFavourite, SetupSaved } from '@/components/setup-saved';
 import { autoShare } from '@/sync/sync';
 import { radius, space, teamColor, useColors } from '@/theme';
 import { today } from '@/lib/dates';
@@ -206,6 +207,46 @@ export default function NewRound() {
         : null;
   const completeRound = useStore((s) => s.completeRound);
 
+  // ------------------------------------------------------------------ drafts and favourites
+  // A plain new round (not from an event, a scheduled match or a scorecard photo) is saved as you go,
+  // so closing the screen by accident loses nothing, and can be saved as a favourite to play again.
+  const plain = !eventId && !matchId && !scan;
+  const saveDraft = useStore((s) => s.saveDraft);
+  const setup: RoundSetup | null = course ? { courseId: course.id, roster, teamOf, letters, noTeams, draft, sideMatches, statsEnabled } : null;
+  const gameLabel = draft ? GAMES.find((g) => g.kind === draft.kind)?.name : undefined;
+  const summary = course
+    ? [shortCourseName(course.name), players.map((p) => p.name.split(' ')[0]).join(', ') || null, gameLabel].filter(Boolean).join(' · ')
+    : '';
+  useEffect(() => {
+    if (!plain || !setup) return;
+    saveDraft('round', { data: { ...setup, step }, summary, savedAt: Date.now() });
+  }, [plain, step, course, roster, teamOf, letters, noTeams, draft, sideMatches, statsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Load a saved setup (draft or favourite). Players no longer in your list are left out. */
+  const applySetup = (su: RoundSetup, toStep: Step): boolean => {
+    const co = courses.find((x) => x.id === su.courseId) ?? getCourse(su.courseId);
+    if (!co) return false;
+    const known = su.roster.filter((r) => allSaved.some((p) => p.id === r.id));
+    const intact = known.length === su.roster.length;
+    setCourse(co);
+    setRoster(known);
+    setTeamOfState(su.teamOf);
+    setLetters(su.letters);
+    setNoTeams(su.noTeams);
+    setDraft(intact ? (su.draft as GameDraft | null) : null);
+    setSideMatches(intact ? su.sideMatches : []);
+    setStatsEnabled(su.statsEnabled);
+    setStep(intact ? toStep : 'players');
+    return true;
+  };
+  // "Play now" on a favourite: load it, then start as soon as it's in place.
+  const [autoStart, setAutoStart] = useState(false);
+  useEffect(() => {
+    if (!autoStart || !course) return;
+    setAutoStart(false);
+    if (draft && !problem) start();
+  }, [autoStart, course, draft, problem]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const start = () => {
     if (!course || !draft || problem || scanProblem || (!event && toSeason === 'yes' && !season)) return;
     const id = newId();
@@ -233,6 +274,7 @@ export default function NewRound() {
       round.fromPhoto = true;
     }
     addRound(round);
+    if (plain) saveDraft('round', null);
     track('round_created', { games: round.games.map((g) => g.type).join(','), players: players.length, teams: !!round.teamOf, stats: !!statsEnabled, in_event: !!round.eventId, side_matches: sideMatches.length });
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
     if (event && planned) setEventRoundId(event.id, planned.id, id);
@@ -315,6 +357,13 @@ export default function NewRound() {
 
       {step === 'course' && (
         <>
+          {plain && (
+            <SetupSaved
+              onResume={(d) => applySetup(d as RoundSetup, ((d as { step?: Step }).step ?? 'players'))}
+              onPlay={(su) => { if (applySetup(su, 'game')) setAutoStart(true); }}
+              onEdit={(su) => applySetup(su, 'game')}
+            />
+          )}
           <Field label="Search courses" value={query} onChangeText={setQuery} placeholder="Course name or city" />
           {searchCourses(query, courses).map((co) => {
             const unfinished = validateCourse(co).length > 0;
@@ -576,6 +625,8 @@ export default function NewRound() {
             </Card>
           )}
 
+
+          {plain && setup && draft && !problem && <SaveFavourite setup={setup} summary={summary} suggested={[gameLabel, shortCourseName(course.name)].filter(Boolean).join(' at ')} />}
 
           <Sheet visible={seasonSheet} onClose={() => setSeasonSheet(false)} title="Choose a season">
             <View style={{ gap: space.sm }}>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
+import { SetupSaved } from '@/components/setup-saved';
 import { GameOptions } from '@/components/game-options';
 import { HolesSetup } from '@/components/holes-setup';
 import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/components/round-setup';
@@ -105,6 +106,32 @@ export default function NewEvent() {
     if (add.length) setIds((x) => [...x, ...add.map((p) => p.id).filter((id) => !x.includes(id))]);
   }, [picked]);
 
+  // ------------------------------------------------------------------ draft
+  // Saved as you go, so closing the screen by accident loses nothing ("Pick up where you left off").
+  const saveDraft = useStore((s) => s.saveDraft);
+  const snapshot = { step, type, name, start, end, rec, lock, ids, teamOf, letters, noTeams, teamNames, holder, count, plans, current };
+  const started = !!name.trim() || ids.length > 1 || step !== 'details';
+  useEffect(() => {
+    if (fromRound || !started) return;
+    const label = TYPES.find((t) => t.value === type)?.label ?? 'Event';
+    saveDraft('event', { data: snapshot, summary: [name.trim() ? `${label}: ${name.trim()}` : label, ids.length ? `${ids.length} player${ids.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '), savedAt: Date.now() });
+  }, [JSON.stringify(snapshot)]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Restoring: the round plans go back last, after the screen has adjusted them to the players and dates.
+  const [restorePlans, setRestorePlans] = useState<{ plans: Plan[]; current: number } | null>(null);
+  useEffect(() => {
+    if (!restorePlans) return;
+    setPlans(restorePlans.plans);
+    setCurrent(restorePlans.current);
+    setRestorePlans(null);
+  }, [restorePlans]);
+  const resume = (d: typeof snapshot) => {
+    setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock);
+    setIds(d.ids.filter((id) => saved.some((p) => p.id === id)));
+    setTeamOfState(d.teamOf); setLetters(d.letters); setNoTeams(d.noTeams); setTeamNames(d.teamNames); setHolder(d.holder);
+    setCount(d.count); setStep(d.step);
+    setTimeout(() => setRestorePlans({ plans: d.plans, current: d.current }), 0);
+  };
+
   // ------------------------------------------------------------------ checks
   const detailsProblem = !name.trim()
     ? 'Give the event a name'
@@ -175,6 +202,7 @@ export default function NewEvent() {
       rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
     };
     addEvent(e);
+    if (!fromRound) saveDraft('event', null);
     track('event_created', { type, rounds: plans.length, players: ids.length, teams: !!teams, recurring: !!(isSeason && rec) });
     // The event is saved; go to it once this screen has finished handling the tap.
     setTimeout(() => {
@@ -227,6 +255,7 @@ export default function NewEvent() {
 
       {step === 'details' && (
         <>
+          {!fromRound && <SetupSaved draftKey="event" onResume={(d) => resume(d as typeof snapshot)} />}
           <View style={{ gap: space.sm }}>
             {TYPES.map((t) => {
               const sel = type === t.value;

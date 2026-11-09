@@ -123,6 +123,34 @@ export interface EventRound {
   matchupsLater?: boolean;
 }
 
+/** A setup that hasn't been started yet. `data` is the screen's own state; `summary` describes it ("Willow Park · 4 players"). */
+export interface SetupDraft {
+  data: unknown;
+  summary: string;
+  savedAt: number;
+}
+
+/** A saved round setup to play again. */
+export interface Favourite {
+  id: string;
+  name: string;
+  summary: string;
+  setup: RoundSetup;
+  createdAt: number;
+}
+
+/** Everything chosen on the New Round screen (not the date). */
+export interface RoundSetup {
+  courseId: string;
+  roster: { id: string; teeId: string }[];
+  teamOf: Record<string, string>;
+  letters: string[];
+  noTeams: boolean;
+  draft: unknown;
+  sideMatches: [string, string][];
+  statsEnabled: boolean;
+}
+
 export interface EventRecord {
   id: string;
   name: string;
@@ -177,6 +205,13 @@ interface State {
   tutorialOffered: boolean;
   /** This account said the pre-separation data on this phone isn't theirs. */
   legacyDismissed: boolean;
+  /** Setups in progress ('round', 'event'), saved as you go so closing the screen loses nothing. */
+  drafts: Record<string, SetupDraft>;
+  saveDraft: (key: string, d: SetupDraft | null) => void;
+  /** Round setups saved to play again (course, players, tees, teams, games). */
+  favourites: Favourite[];
+  addFavourite: (f: Favourite) => void;
+  removeFavourite: (id: string) => void;
   setLegacyDismissed: (v: boolean) => void;
   setMyPlayer: (id: string | null) => void;
   /** My unique @username (null until chosen). */
@@ -306,6 +341,8 @@ export const EMPTY_DATA = {
   tipsSeen: [] as string[],
   tutorialOffered: false,
   legacyDismissed: false,
+  drafts: {} as Record<string, SetupDraft>,
+  favourites: [] as Favourite[],
   myUsername: null as string | null,
   names: {} as Record<string, string>,
   outbox: [] as OutboxItem[],
@@ -339,6 +376,16 @@ export const useStore = create<State>()(
       tutorialOffered: false,
       legacyDismissed: false,
       setLegacyDismissed: (v) => set({ legacyDismissed: v }),
+      drafts: {},
+      saveDraft: (key, d) => set((s) => {
+        const drafts = { ...s.drafts };
+        if (d) drafts[key] = d;
+        else delete drafts[key];
+        return { drafts };
+      }),
+      favourites: [],
+      addFavourite: (f) => set((s) => ({ favourites: [f, ...s.favourites.filter((x) => x.id !== f.id)] })),
+      removeFavourite: (id) => set((s) => ({ favourites: s.favourites.filter((x) => x.id !== id) })),
       setMyPlayer: (id) => set({ myPlayerId: id }),
       myUsername: null,
       setMyUsername: (u) => set({ myUsername: u }),
@@ -672,7 +719,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => AsyncStorage),
       version: STORE_VERSION,
       migrate: (state) =>
-        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], tipsSeen: [], tutorialOffered: false, myUsername: null, legacyDismissed: false, ...(state as object) }) as unknown as State,
+        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], tipsSeen: [], tutorialOffered: false, myUsername: null, legacyDismissed: false, drafts: {}, favourites: [], ...(state as object) }) as unknown as State,
     },
   ),
 );
