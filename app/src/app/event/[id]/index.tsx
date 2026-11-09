@@ -1,4 +1,5 @@
 import { Countdown } from '@/components/countdown';
+import { NextRound, featuredRound } from '@/components/next-round';
 import { eventCountdown } from '@/lib/event-calendar';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
@@ -112,7 +113,7 @@ export default function EventScreen() {
         {/* Something to look forward to: the countdown to the start, or to the next round. */}
         {(() => {
           const cd = eventCountdown(e, rounds);
-          return cd ? <Countdown target={cd} /> : null;
+          return cd && cd.kind === 'event' ? <Countdown target={cd} /> : null;
         })()}
         {e.teams ? (
           (() => {
@@ -146,6 +147,7 @@ export default function EventScreen() {
                   <Text style={{ textAlign: 'center', padding: space.sm, color: c.text, fontWeight: '600' }}>{status}</Text>
                 </View>
 
+                <NextRound e={e} />
                 <EventStory e={e} rounds={rounds} />
                 {standingsCard}
 
@@ -163,7 +165,7 @@ export default function EventScreen() {
                 </Card>
                 {canAdd && <AddEventPlayer e={e} />}
 
-                {e.rounds?.length ? <EventRounds e={e} /> : null}
+                {e.rounds?.length ? <EventRounds e={e} skip={featuredRound(e, rounds)?.plan?.id} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
 
                 {cupMatches.length > 0 && (
@@ -198,10 +200,11 @@ export default function EventScreen() {
                 </View>
               );
             })()}
+            <NextRound e={e} />
             <EventStory e={e} rounds={rounds} />
             {standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
-            {e.rounds?.length ? <EventRounds e={e} /> : null}
+            {e.rounds?.length ? <EventRounds e={e} skip={featuredRound(e, rounds)?.plan?.id} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             <Card>
               <H2>Results</H2>

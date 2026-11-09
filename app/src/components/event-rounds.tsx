@@ -12,7 +12,7 @@ import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { Button, Card, H2, Label } from './ui';
 
 /** Every planned round of the event: date, format, status, team score, and Start / Resume / Results. */
-export function EventRounds({ e }: { e: EventRecord }) {
+export function EventRounds({ e, skip }: { e: EventRecord; skip?: string }) {
   const c = useColors();
   const rounds = useStore((s) => s.rounds);
   const list = e.rounds ?? [];
@@ -22,10 +22,10 @@ export function EventRounds({ e }: { e: EventRecord }) {
   return (
     <Card>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <H2>Rounds</H2>
+        <H2>{skip ? 'Other rounds' : 'Rounds'}</H2>
         <Label>{list.filter((x) => rounds.some((r) => r.id === x.roundId && r.status === 'complete')).length} of {list.length} played</Label>
       </View>
-      {list.map((x) => {
+      {list.filter((x) => x.id !== skip).map((x) => {
         const r = rounds.find((y) => y.id === x.roundId);
         const status = !r ? 'upcoming' : r.status === 'complete' ? 'final' : 'live';
         const results = r ? evaluate(r) : [];
