@@ -4,7 +4,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { RoundCard } from '@/components/cards';
 import { GameSections } from '@/components/game-sections';
-import { useDeleteWithUndo } from '@/components/swipe-to-delete';
+import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
+import { EventDrill } from '@/components/score-drill';
+import { canDeleteEvent, eventPhase } from '@/lib/events';
 import { HeadToHeadView } from '@/components/head-to-head-view';
 import { TabHeader } from '@/components/tab-header';
 import { MeBadge, StatTiles } from '@/components/people';
@@ -101,14 +103,39 @@ function History() {
   );
 }
 
+/** Events, live and upcoming first, each opening out into its rounds and matches. */
+function EventsList({ onDeleteEvent }: { onDeleteEvent: (id: string) => void }) {
+  const events = useStore((s) => s.events);
+  const rounds = useStore((s) => s.rounds);
+  if (events.length === 0) return <Body muted>No events yet. Set up a trip, Ryder Cup or season from Home.</Body>;
+  const last = (id: string, fallback: number) => Math.max(fallback, ...rounds.filter((r) => r.eventId === id).map((r) => r.completedAt ?? r.createdAt));
+  const sorted = [...events].sort((a, b) => last(b.id, b.createdAt) - last(a.id, a.createdAt));
+  const open = sorted.filter((e) => eventPhase(e, rounds) !== 'completed');
+  const done = sorted.filter((e) => eventPhase(e, rounds) === 'completed');
+  const item = (e: (typeof events)[number]) =>
+    canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' ? (
+      <SwipeToDelete key={e.id} label={`event ${e.name}`} onDelete={() => onDeleteEvent(e.id)}><EventDrill e={e} rounds={rounds} /></SwipeToDelete>
+    ) : (
+      <EventDrill key={e.id} e={e} rounds={rounds} />
+    );
+  return (
+    <View style={{ gap: space.md }}>
+      {open.length > 0 && <Label>Live & upcoming</Label>}
+      {open.map(item)}
+      {done.length > 0 && <Label>Completed</Label>}
+      {done.map(item)}
+    </View>
+  );
+}
+
 export default function Scores() {
   const c = useColors();
   const rounds = useStore((s) => s.rounds);
   const [section, setSection] = useState<Section>('rounds');
   const { deleteRound, deleteEvent, bar } = useDeleteWithUndo();
   const events = useStore((s) => s.events);
-  const active = rounds.filter((r) => r.status === 'active');
-  const done = rounds.filter((r) => r.status === 'complete');
+  const [games, setGames] = useState<'events' | 'solo'>(() => (events.length ? 'events' : 'solo'));
+  const solo = rounds.filter((r) => !r.eventId || !events.some((e) => e.id === r.eventId));
 
   return (
     <View style={{ flex: 1 }}>
@@ -121,8 +148,21 @@ export default function Scores() {
         />
         {section === 'rounds' && (
           <>
-            <GameSections onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} />
-            {rounds.length === 0 && events.length === 0 && <Body muted>No rounds or events yet. Start one from Home.</Body>}
+            {/* Events (opening out into rounds and matches) or rounds played on their own. */}
+            <Segmented
+              compact
+              options={[{ value: 'events', label: `Events${events.length ? ` (${events.length})` : ''}` }, { value: 'solo', label: `Rounds${solo.length ? ` (${solo.length})` : ''}` }]}
+              value={games}
+              onChange={setGames}
+            />
+            {games === 'events' ? (
+              <EventsList onDeleteEvent={deleteEvent} />
+            ) : (
+              <>
+                <GameSections roundsOnly onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} />
+                {solo.length === 0 && <Body muted>No rounds outside events yet. Start one from Home.</Body>}
+              </>
+            )}
           </>
         )}
         {section === 'history' && <History />}

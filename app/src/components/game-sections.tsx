@@ -29,7 +29,10 @@ export function GameSections({
   onDeleteRound,
   onDeleteEvent,
   firstOpenRef,
+  roundsOnly,
 }: {
+  /** Only rounds that aren't part of an event (Scores → Rounds). */
+  roundsOnly?: boolean;
   /** A round already shown elsewhere on the screen (Home's live card). */
   skipRoundIds?: string[];
   completedLimit?: number;
@@ -45,9 +48,10 @@ export function GameSections({
   const events = useStore((s) => s.events);
 
   const phaseOf = Object.fromEntries(events.map((e) => [e.id, eventPhase(e, rounds)]));
-  const openEvents = events.filter((e) => phaseOf[e.id] !== 'completed');
-  const doneEvents = events.filter((e) => phaseOf[e.id] === 'completed');
-  const standalone = (r: (typeof rounds)[number]) => !hideEventRounds || !r.eventId || !events.some((e) => e.id === r.eventId);
+  const openEvents = roundsOnly ? [] : events.filter((e) => phaseOf[e.id] !== 'completed');
+  const doneEvents = roundsOnly ? [] : events.filter((e) => phaseOf[e.id] === 'completed');
+  const standalone = (r: (typeof rounds)[number]) =>
+    roundsOnly ? !r.eventId || !events.some((e) => e.id === r.eventId) : !hideEventRounds || !r.eventId || !events.some((e) => e.id === r.eventId);
   const liveRounds = rounds.filter((r) => r.status === 'active' && !(skipRoundIds ?? []).includes(r.id) && standalone(r));
   const doneRounds = rounds.filter((r) => r.status === 'complete' && standalone(r));
   /** An event sorts by its latest round. */

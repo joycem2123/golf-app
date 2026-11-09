@@ -9,7 +9,7 @@ import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, useColors } from '@/theme';
 
-export function EventCard({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+export function EventCard({ e, rounds, hint }: { e: EventRecord; rounds: RoundRecord[]; hint?: string }) {
   const c = useColors();
   const players = useStore((s) => s.players);
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
@@ -36,6 +36,7 @@ export function EventCard({ e, rounds }: { e: EventRecord; rounds: RoundRecord[]
           <Label>{e.type === 'cup' ? 'Ryder Cup' : e.type === 'trip' ? 'Trip' : 'Season'}</Label>
           <H2>{e.name}</H2>
           {line}
+          {hint ? <Text style={{ color: c.primary, fontWeight: '700', fontSize: 13 }}>{hint}</Text> : null}
         </Card>
       )}
     </Pressable>
