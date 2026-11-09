@@ -2,7 +2,8 @@
  * Where the team match stands in this round (and, in an event, the overall score), for the full scorecard.
  */
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
 
 import { cupScore, eventTeamTotals, formatPoints } from '@/lib/events';
 import { liveTeamScore } from '@/lib/results';
@@ -12,7 +13,20 @@ import { fetchRoundEvent } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 
 /** pinned: compact, edge to edge, for the top of the screen. mini: one slim row (while entering scores). */
-export function TeamScoreboard({ r, results, pinned, mini }: { r: RoundRecord; results: ReturnType<typeof evaluate>; pinned?: boolean; mini?: boolean }) {
+type Props = { r: RoundRecord; results: ReturnType<typeof evaluate>; pinned?: boolean; mini?: boolean };
+
+/** In an event (on this phone), tapping the team score opens the event page. */
+export function TeamScoreboard(props: Props) {
+  const eventId = useStore((s) => (s.events.some((e) => e.id === props.r.eventId) ? props.r.eventId : undefined));
+  if (!eventId) return <Board {...props} />;
+  return (
+    <Pressable onPress={() => router.push(`/event/${eventId}`)} accessibilityRole="button" accessibilityLabel="Team score. Open the event page" accessibilityHint="Shows the event's standings and rounds">
+      {({ pressed }) => <View style={{ opacity: pressed ? 0.75 : 1 }}><Board {...props} linked /></View>}
+    </Pressable>
+  );
+}
+
+function Board({ r, results, pinned, mini, linked }: Props & { linked?: boolean }) {
   const c = useColors();
   const localEvent = useStore((s) => s.events.find((e) => e.id === r.eventId));
   const localRounds = useStore((s) => s.rounds);
@@ -63,7 +77,7 @@ export function TeamScoreboard({ r, results, pinned, mini }: { r: RoundRecord; r
             </View>
           ))}
         </View>
-        {eventLine && <Text numberOfLines={1} style={{ textAlign: 'center', color: c.muted, fontSize: 11, paddingBottom: 5 }}>🏆 {eventLine}</Text>}
+        {eventLine && <Text numberOfLines={1} style={{ textAlign: 'center', color: c.muted, fontSize: 11, paddingBottom: 5 }}>🏆 {eventLine}{linked ? '  ›' : ''}</Text>}
       </View>
     );
   }
@@ -89,7 +103,7 @@ export function TeamScoreboard({ r, results, pinned, mini }: { r: RoundRecord; r
       </Text>
       {eventLine && (
         <View style={{ backgroundColor: c.brand, paddingVertical: pinned ? 6 : 8, paddingHorizontal: space.md }}>
-          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>🏆 {eventLine}</Text>
+          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>🏆 {eventLine}{linked ? '  ›' : ''}</Text>
         </View>
       )}
     </View>
