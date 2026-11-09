@@ -323,6 +323,16 @@ export async function flush() {
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
     const st = useStore.getState();
+    // Round setup changes first: a swapped-in player's scores need the round's new player list online.
+    const dirty = useStore.getState().dirtyRounds;
+    const cleared: string[] = [];
+    for (const id of dirty) {
+      const r = useStore.getState().rounds.find((x) => x.id === id);
+      if (!r?.remote) { cleared.push(id); continue; }
+      const { error } = await supabase.from('rounds').update({ data: roundDoc(r), status: r.status, updated_at: new Date().toISOString() }).eq('id', id);
+      if (!error) cleared.push(id);
+    }
+    if (cleared.length) useStore.getState().clearDirty(cleared);
     const done = [];
     for (const rid of new Set(st.outbox.map((i) => i.roundId))) await claimMe(rid).catch(() => undefined);
     for (const item of st.outbox) {
@@ -354,15 +364,6 @@ export async function flush() {
     }
     if (doneDeletes.length) useStore.getState().markDeletedDone(doneDeletes);
 
-    const dirty = useStore.getState().dirtyRounds;
-    const cleared: string[] = [];
-    for (const id of dirty) {
-      const r = useStore.getState().rounds.find((x) => x.id === id);
-      if (!r?.remote) { cleared.push(id); continue; }
-      const { error } = await supabase.from('rounds').update({ data: roundDoc(r), status: r.status, updated_at: new Date().toISOString() }).eq('id', id);
-      if (!error) cleared.push(id);
-    }
-    if (cleared.length) useStore.getState().clearDirty(cleared);
 
     const dirtyEvents = useStore.getState().dirtyEvents;
     const doneEvents: string[] = [];

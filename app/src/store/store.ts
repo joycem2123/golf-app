@@ -312,6 +312,8 @@ interface State {
   setStats: (roundId: string, playerId: string, hole: number, stats: HoleStats | null) => void;
   setHole: (roundId: string, hole: number, gameId?: string) => void;
   updateGame: (roundId: string, index: number, game: GameConfig) => void;
+  /** Someone else actually played: swap a player in a round for another, keeping their scores, matches and team. */
+  replaceRoundPlayer: (roundId: string, oldId: string, next: { id: string; name: string; handicapIndex: number }) => void;
   /** Move players between teams in a round (team scores follow). */
   setRoundTeams: (roundId: string, teamOf: Record<string, string>) => void;
   completeRound: (roundId: string, matches: RecordedMatch[]) => void;
@@ -737,6 +739,32 @@ export const useStore = create<State>()(
           dirtyRounds: dirty(s, roundId),
         })),
 
+      replaceRoundPlayer: (roundId, oldId, next) =>
+        set((s) => {
+          const r = s.rounds.find((x) => x.id === roundId);
+          if (!r || r.players.some((p) => p.id === next.id)) return {};
+          // Ids are unique, so swapping the id everywhere in the round's setup is safe.
+          const swap = <T,>(v: T): T => JSON.parse(JSON.stringify(v).split(JSON.stringify(oldId)).join(JSON.stringify(next.id)));
+          const swapKey = (k: string) => (k === oldId ? next.id : k);
+          const ledger = Object.fromEntries(
+            Object.entries(r.ledger).map(([slot, e]) => [e.key === oldId ? `${next.id}#${e.hole}` : slot, e.key === oldId ? { ...e, key: next.id } : e]),
+          );
+          const now = Date.now();
+          // Their scores go online under the new player.
+          const moved = r.remote ? Object.values(r.ledger).filter((e) => e.key === oldId).map((e) => ({ roundId, key: next.id, hole: e.hole, gross: e.gross, enteredAt: now })) : [];
+          return {
+            rounds: mapRound(s.rounds, roundId, (x) => ({
+              ...x,
+              players: x.players.map((p) => (p.id === oldId ? { ...p, id: next.id, name: next.name, handicapIndex: next.handicapIndex } : p)),
+              games: swap(x.games),
+              teamOf: x.teamOf ? Object.fromEntries(Object.entries(x.teamOf).map(([k, v]) => [swapKey(k), v])) : x.teamOf,
+              stats: Object.fromEntries(Object.entries(x.stats).map(([k, v]) => [swapKey(k), v])),
+              ledger,
+            })),
+            outbox: [...s.outbox, ...moved],
+            dirtyRounds: dirty(s, roundId),
+          };
+        }),
       setRoundTeams: (roundId, teamOf) =>
         set((s) => ({ rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, teamOf })), dirtyRounds: dirty(s, roundId) })),
       setStory: (roundId, gameId, story) =>
