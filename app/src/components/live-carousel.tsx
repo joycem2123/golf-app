@@ -65,14 +65,18 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
           const eventName = r.eventId ? events.find((e) => e.id === r.eventId)?.name : undefined;
           const game = it.matches > 1 ? `${gameName(r.games[gi])} · ${it.matches}\u00a0matches` : gameName(r.games[gi]);
           const label = matchLabel(r.games[gi]);
-          const big = head ? (head.board ? (head.board[0] ? `${head.board[0].pos === 'T1' ? 'Tied: ' : ''}${head.board[0].name} ${head.board[0].value}${head.board[0].thru !== '–' ? ` · ${head.board[0].thru === 'F' ? 'F' : `thru ${head.board[0].thru}`}` : ''}` : '') : head.leader ? `${head.leader} ${head.big}` : head.big) : '';
+          // First names only ("Jacob & John 1 UP"), so the score always fits on one line.
+          const big = head ? (head.board ? (head.board[0] ? `${head.board[0].pos === 'T1' ? 'Tied: ' : ''}${firstNames(head.board[0].name)} ${head.board[0].value}` : '') : head.leader ? `${firstNames(head.leader)} ${head.big}` : head.big) : '';
+          // How far along: "thru 7", or "not started".
+          const progress = head ? (head.board?.[0] && head.board[0].thru !== '–' ? (head.board[0].thru === 'F' ? 'finished' : `thru ${head.board[0].thru}`) : head.small.toLowerCase()) : '';
           const deletable = canDeleteRound(r) && r.remote?.role !== 'viewer';
           const asks = toAnswer(r);
           return (
             <View key={r.id} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
-              <Pressable onPress={() => router.push({ pathname: '/round/[id]', params: { id: r.id, match: String(gi) } })} accessibilityRole="button" accessibilityLabel={`${label ?? gameName(r.games[gi])}: ${big}. Open`}>
+              {/* Every card as tall as the tallest, so swiping never jumps. */}
+              <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/round/[id]', params: { id: r.id, match: String(gi) } })} accessibilityRole="button" accessibilityLabel={`${label ?? gameName(r.games[gi])}: ${big}. Open`}>
                 {({ pressed }) => (
-                  <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', opacity: pressed ? 0.85 : 1, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
+                  <View style={{ flex: 1, backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', opacity: pressed ? 0.85 : 1, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
                     <View style={{ height: 3, backgroundColor: c.accent }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', padding: space.lg, gap: space.md }}>
                       <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
@@ -85,14 +89,11 @@ export function LiveCarousel({ rounds, onDelete, firstRef }: { rounds: RoundReco
                             </View>
                           )}
                         </View>
-                        <Text numberOfLines={2} style={{ color: c.muted, fontSize: 13 }}>
-                          {eventName && course ? `${course} · ${game}` : game}
+                        <Text numberOfLines={1} style={{ color: c.muted, fontSize: 13 }}>
+                          {[eventName && course ? course : '', game, progress].filter(Boolean).join(' · ')}
                         </Text>
-                        <Text numberOfLines={2}>
-                          <Text style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: head?.side === 1 ? c.teamB : c.primary }}>{big}</Text>
-                          {head?.small && !big.includes(head.small) ? <Text style={{ color: c.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1 }}>{'   '}{head.small.toUpperCase()}</Text> : null}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: head?.side === 1 ? c.teamB : c.primary }}>{big}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, minHeight: 20 }}>
                           <Text style={{ color: c.primary, fontWeight: '700' }}>{r.remote?.role === 'viewer' ? 'Follow live ›' : 'Resume scoring ›'}</Text>
                           {it.mine && it.matches > 1 && label && (
                             <View style={{ backgroundColor: c.primarySoft, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
@@ -145,3 +146,6 @@ export function myMatchIndex(r: RoundRecord, isMe: (id: string) => boolean): num
   const list = matches.length ? matches : r.games.map((_, i) => i);
   return list.find((i) => playersIn(r.games[i]).some(isMe)) ?? list[0] ?? 0;
 }
+
+/** "Jacob Smith & John Smith" → "Jacob & John". */
+const firstNames = (names: string) => names.split(' & ').map((n) => n.trim().split(' ')[0]).join(' & ');
