@@ -60,7 +60,7 @@ export function EventRounds({ e }: { e: EventRecord }) {
       <SwipeToDelete disabled={!deletable} label={`Round ${x.number}`} onDelete={() => setDeleting(x)}>
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Round ${x.number}`}>
         {({ pressed }) => (
-          <View style={{ flexDirection: 'row', gap: space.md, paddingVertical: space.md, borderTopWidth: 1, borderTopColor: c.border, opacity: pressed ? 0.6 : 1 }}>
+          <View style={{ flexDirection: 'row', gap: space.md, paddingVertical: space.md, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: pressed ? c.chip : c.card }}>
             <View style={{ width: 50, alignItems: 'center', paddingTop: 2 }}>
               <Text style={{ color: date && date < today() && status === 'upcoming' ? c.muted : c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>
                 {date ? formatDate(date, { weekday: 'short' }).toUpperCase() : 'DATE'}
