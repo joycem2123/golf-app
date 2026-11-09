@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
-import { Button, Card, Field } from '@/components/ui';
+import { Button, Card, Field, Toggle } from '@/components/ui';
+import { TeamEditor } from '@/components/team-editor';
 import { daysBetween, formatDate } from '@/lib/dates';
 import { track } from '@/lib/usage';
 import { useEvent, useStore } from '@/store/store';
@@ -22,6 +23,14 @@ export default function EditEvent() {
   const letters = e?.teams ? ['A', 'B'] : e?.teamOf ? (e.teamLetters ?? []) : [];
   const [teamNames, setTeamNames] = useState<Record<string, string>>(() => ({ ...(e?.teams ? { A: e.teams.A.name, B: e.teams.B.name } : {}), ...e?.teamNames }));
   const [teamColors, setTeamColors] = useState<Record<string, string>>(() => e?.teamColors ?? {});
+  // Who's on which team (a Ryder Cup's two teams, or the event's teams).
+  const [members, setMembers] = useState<Record<string, string>>(() =>
+    e?.teams ? Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])]) : { ...(e?.teamOf ?? {}) },
+  );
+  const [applyLive, setApplyLive] = useState(false);
+  const saved = useStore((s) => s.players);
+  const allRounds = useStore((s) => s.rounds);
+  const setRoundTeams = useStore((s) => s.setRoundTeams);
   if (!e) return null;
 
   const problem = !name.trim() ? 'Give the event a name.' : start && end && end < start ? 'The end date can’t be before the start date.' : null;
@@ -36,10 +45,24 @@ export default function EditEvent() {
       name: name.trim(),
       startDate: start || fresh.startDate,
       endDate: end || fresh.endDate,
-      teams: fresh.teams ? { A: { ...fresh.teams.A, name: teamNames.A?.trim() || 'Team A' }, B: { ...fresh.teams.B, name: teamNames.B?.trim() || 'Team B' } } : fresh.teams,
+      teams: fresh.teams
+        ? {
+            A: { ...fresh.teams.A, name: teamNames.A?.trim() || 'Team A', playerIds: fresh.playerIds.filter((id) => members[id] === 'A') },
+            B: { ...fresh.teams.B, name: teamNames.B?.trim() || 'Team B', playerIds: fresh.playerIds.filter((id) => members[id] === 'B') },
+          }
+        : fresh.teams,
+      teamOf: fresh.teamOf ? { ...fresh.teamOf, ...members } : fresh.teamOf,
       teamNames: letters.length ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : fresh.teamNames,
       teamColors: letters.length && Object.keys(teamColors).length ? teamColors : fresh.teamColors,
     });
+    // Rounds being played now: only if asked (each round can also be changed from its own Edit teams).
+    if (applyLive && letters.length) {
+      for (const r of allRounds.filter((x) => x.eventId === e.id && x.status === 'active' && x.teamOf)) {
+        const next = { ...r.teamOf };
+        for (const p of r.players) if (members[p.id]) next[p.id] = members[p.id];
+        setRoundTeams(r.id, next);
+      }
+    }
     track('event_edited');
     router.back();
   };
@@ -86,6 +109,18 @@ export default function EditEvent() {
             );
           })}
           <Text style={{ color: c.muted, fontSize: 12 }}>Rounds already started keep the names and colours they began with.</Text>
+          <Text style={{ color: c.text, fontSize: 15, fontWeight: '700', marginTop: space.sm }}>Players</Text>
+          <TeamEditor
+            players={e.playerIds.map((id) => ({ id, name: saved.find((p) => p.id === id)?.name ?? 'Player' }))}
+            teamOf={members}
+            letters={letters}
+            names={teamNames}
+            picks={teamColors}
+            onChange={setMembers}
+          />
+          {allRounds.some((x) => x.eventId === e.id && x.status === 'active') && (
+            <Toggle label="Also change rounds being played now" hint="Otherwise only upcoming rounds use the new teams." value={applyLive} onChange={setApplyLive} />
+          )}
         </Card>
       )}
       {outside.length > 0 && (

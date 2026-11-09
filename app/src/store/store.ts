@@ -312,6 +312,8 @@ interface State {
   setStats: (roundId: string, playerId: string, hole: number, stats: HoleStats | null) => void;
   setHole: (roundId: string, hole: number, gameId?: string) => void;
   updateGame: (roundId: string, index: number, game: GameConfig) => void;
+  /** Move players between teams in a round (team scores follow). */
+  setRoundTeams: (roundId: string, teamOf: Record<string, string>) => void;
   completeRound: (roundId: string, matches: RecordedMatch[]) => void;
   setStory: (roundId: string, gameId: string, story: string) => void;
   reopenRound: (roundId: string) => void;
@@ -539,7 +541,8 @@ export const useStore = create<State>()(
               games: s.dirtyRounds.includes(r.id) ? r.games : round.games,
               status: s.dirtyRounds.includes(r.id) ? r.status : round.status,
               eventId: round.eventId ?? r.eventId,
-              teamOf: round.teamOf ?? r.teamOf,
+              // My unsent change (e.g. moving a player to the other team) wins over an older copy.
+              teamOf: s.dirtyRounds.includes(r.id) ? r.teamOf : (round.teamOf ?? r.teamOf),
               teamColors: round.teamColors ?? r.teamColors,
               teamNames: round.teamNames ?? r.teamNames,
               course: round.course ?? r.course,
@@ -734,6 +737,8 @@ export const useStore = create<State>()(
           dirtyRounds: dirty(s, roundId),
         })),
 
+      setRoundTeams: (roundId, teamOf) =>
+        set((s) => ({ rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, teamOf })), dirtyRounds: dirty(s, roundId) })),
       setStory: (roundId, gameId, story) =>
         set((s) => ({
           rounds: mapRound(s.rounds, roundId, (r) => ({ ...r, stories: { ...r.stories, [gameId]: story } })),

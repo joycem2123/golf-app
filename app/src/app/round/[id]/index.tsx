@@ -560,6 +560,10 @@ export default function Scorecard() {
 
         <ShareCard remote={r.remote} what="round" onShare={() => shareRound(r.id)} />
         <AddToEvent r={r} />
+        {/* Move players between teams mid-round (team scores follow). */}
+        {r.remote?.role !== 'viewer' && r.teamOf && Object.keys(r.teamOf).length > 0 && (
+          <Button title="Edit teams" kind="secondary" onPress={() => router.push(`/round/${r.id}/teams`)} />
+        )}
         {r.remote?.role !== 'viewer' && <Button title="Finish round" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />}
         {r.remote?.role !== 'viewer' && canDeleteRound(r) && (
           <Button title={r.remote && r.remote.role !== 'owner' ? 'Leave round' : 'Quit round'} kind="ghost" onPress={() => setQuitting(true)} />
