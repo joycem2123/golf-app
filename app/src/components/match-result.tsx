@@ -1,6 +1,6 @@
 import type { GameResult } from '@golf/engine';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { requestAiStory } from '@/lib/ai-story';
 import type { MatchOutcome, ResultSide } from '@/lib/results';
@@ -43,16 +43,16 @@ export function MatchStory({ r, res, m, holes, compact }: { r: RoundRecord; res:
   const gameId = r.games[m.gi].id ?? String(m.gi);
   const saved = r.stories?.[gameId];
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
   const finished = m.winner !== null;
-
-  useEffect(() => {
-    if (saved || !finished) return;
-    let live = true;
+  // Written by AI only when asked (it costs a little each time); until then, the built-in summary.
+  const generate = async () => {
     setLoading(true);
-    requestAiStory(r, res, m, holes).finally(() => live && setLoading(false));
-    return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, finished, r.id, gameId]);
+    setFailed(false);
+    const text = await requestAiStory(r, res, m, holes);
+    setLoading(false);
+    if (!text) setFailed(true);
+  };
 
   return (
     <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, gap: 4, borderLeftWidth: 3, borderLeftColor: c.accent }}>
@@ -62,6 +62,13 @@ export function MatchStory({ r, res, m, holes, compact }: { r: RoundRecord; res:
       </View>
       <Text style={{ color: c.text, fontSize: compact ? 14 : 15, lineHeight: compact ? 20 : 22 }}>{saved ?? localStory(m, holes)}</Text>
       {saved && !compact && <Text style={{ color: c.muted, fontSize: 11 }}>Written by AI from the hole-by-hole scores.</Text>}
+      {!saved && finished && r.remote?.role !== 'viewer' && (
+        <Pressable onPress={generate} disabled={loading} accessibilityRole="button" accessibilityLabel="Generate story"
+          style={({ pressed }) => ({ alignSelf: 'flex-start', marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.card, borderWidth: 1, borderColor: c.accent, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, opacity: pressed || loading ? 0.6 : 1 })}>
+          <Text style={{ color: c.accent, fontWeight: '800', fontSize: 13 }}>{loading ? 'Writing the story…' : '✨ Generate story'}</Text>
+        </Pressable>
+      )}
+      {failed && <Text style={{ color: c.danger, fontSize: 12 }}>Couldn’t write it just now. Check your connection and try again.</Text>}
     </View>
   );
 }
