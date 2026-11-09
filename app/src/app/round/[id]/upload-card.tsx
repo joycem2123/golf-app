@@ -4,19 +4,21 @@
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { Body, Button, Card, H2 } from '@/components/ui';
 import { canEditKey, useAccountId, useEditRequests } from '@/lib/edit-rights';
 import { useMe } from '@/lib/me';
 import { gameHoles, grossAt, scoreKeys, teeFor } from '@/lib/round';
 import { ScoreCell } from '@/components/score-cell';
+import { PlayerDropdown } from '@/components/head-to-head-view';
 import { guessRows, readRoundPhoto, type ScannedRound } from '@/lib/round-scan';
 import { pickScorecard } from '@/lib/scan';
 import { track } from '@/lib/usage';
 import { useRound, useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 
+const NONE = '__none__';
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BACK = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 const ALL = [...FRONT, ...BACK];
@@ -49,7 +51,10 @@ export default function UploadCardIntoRound() {
       setPhase('reading');
       const got = await readRoundPhoto(photo);
       setCard(got);
-      setPicks(guessRows(mine, got.rows));
+      // Rows with no name are ignored, so they're never guessed.
+      const named = got.rows.map((row) => (row.name?.trim() ? row : { ...row, name: '\u0000' }));
+      const g = guessRows(mine, named);
+      setPicks(Object.fromEntries(Object.entries(g).map(([k, v]) => [k, v !== null && !got.rows[v]?.name?.trim() ? null : v])));
       setPhase('match');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -130,6 +135,8 @@ export default function UploadCardIntoRound() {
         </View>
 
         {card.rows.map((row, i) => {
+          // A row with no name written on it isn't anyone's: leave it out.
+          if (!row.name?.trim()) return null;
           const who = keyForRow(i);
           const whoLabel = who ? keys.find((k) => k.key === who)?.label : null;
           return (
@@ -163,22 +170,18 @@ export default function UploadCardIntoRound() {
                 </View>
               ))}
 
-              <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 2 }}>THIS IS</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {mine.map((k) => {
-                  const sel = who === k.key;
-                  const elsewhere = !sel && picks[k.key] !== null && picks[k.key] !== undefined;
-                  return (
-                    <Pressable key={k.key} onPress={() => assign(i, sel ? null : k.key)} accessibilityRole="button" accessibilityState={{ selected: sel }} accessibilityLabel={`Row ${row.name || i + 1} is ${k.label}`}
-                      style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1.5, borderColor: sel ? c.primary : c.border, backgroundColor: sel ? c.primary : c.card, opacity: elsewhere ? 0.45 : 1 }}>
-                      <Text style={{ color: sel ? c.onPrimary : c.text, fontWeight: '700', fontSize: 14 }}>{sel ? '✓ ' : ''}{k.label}</Text>
-                    </Pressable>
-                  );
-                })}
-                <Pressable onPress={() => assign(i, null)} accessibilityRole="button" accessibilityState={{ selected: !who }}
-                  style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1.5, borderColor: !who ? c.muted : c.border, backgroundColor: !who ? c.chip : c.card }}>
-                  <Text style={{ color: c.muted, fontWeight: '700', fontSize: 14 }}>Not in this round</Text>
-                </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 2 }}>
+                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>THIS IS</Text>
+                <PlayerDropdown
+                  label={`Who is “${row.name}”?`}
+                  value={who}
+                  placeholder="Not in this round"
+                  options={[
+                    ...mine.map((k) => ({ id: k.key, name: picks[k.key] !== null && picks[k.key] !== undefined && picks[k.key] !== i ? `${k.label} (another row)` : k.label })),
+                    { id: NONE, name: 'Not in this round' },
+                  ]}
+                  onChange={(id) => assign(i, id === NONE ? null : id)}
+                />
               </View>
               {whoLabel ? <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700' }}>These scores go to {whoLabel}.</Text> : null}
             </Card>

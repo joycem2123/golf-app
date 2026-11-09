@@ -10,7 +10,8 @@ import { Sheet } from './round-setup';
 import { Body, Card, Field, H2, Label, Segmented, styles } from './ui';
 
 /** A drop-down to pick one player (opens a list, with search for long lists). */
-function PlayerDropdown({ label, value, options, onChange }: { label: string; value: string | null; options: { id: string; name: string }[]; onChange: (id: string) => void }) {
+/** A drop-down of players: shows the one chosen, opens a list (with search when it's long). */
+export function PlayerDropdown({ label, value, options, onChange, placeholder = 'Choose a player' }: { label: string; value: string | null; options: { id: string; name: string }[]; onChange: (id: string) => void; placeholder?: string }) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -21,9 +22,9 @@ function PlayerDropdown({ label, value, options, onChange }: { label: string; va
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${chosen?.name ?? 'choose a player'}`}
+        accessibilityLabel={`${label}: ${chosen?.name ?? placeholder}`}
         style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, backgroundColor: c.chip, paddingVertical: 10, paddingHorizontal: 12, opacity: pressed ? 0.7 : 1 })}>
-        <Text numberOfLines={1} style={{ flex: 1, color: chosen ? c.text : c.muted, fontSize: 16, fontWeight: '600' }}>{chosen?.name ?? 'Choose a player'}</Text>
+        <Text numberOfLines={1} style={{ flex: 1, color: chosen ? c.text : c.muted, fontSize: 16, fontWeight: '600' }}>{chosen?.name ?? placeholder}</Text>
         <Text style={{ color: c.primary, fontSize: 14 }}>▾</Text>
       </Pressable>
       <Sheet visible={open} onClose={() => { setOpen(false); setQ(''); }} title={label}>
