@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { DateField } from '@/components/date-field';
 import { Button, Card, Field, Toggle } from '@/components/ui';
 import { TeamEditor } from '@/components/team-editor';
+import { AddEventPlayer } from '@/components/add-event-player';
 import { daysBetween, formatDate } from '@/lib/dates';
 import { track } from '@/lib/usage';
 import { useEvent, useStore } from '@/store/store';
@@ -28,6 +29,11 @@ export default function EditEvent() {
     e?.teams ? Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])]) : { ...(e?.teamOf ?? {}) },
   );
   const [applyLive, setApplyLive] = useState(false);
+  // Teams as they are now (players just added below included), with my changes on top.
+  const liveTeams: Record<string, string> = e?.teams
+    ? Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])])
+    : { ...(e?.teamOf ?? {}) };
+  const teamsNow = { ...liveTeams, ...members };
   const saved = useStore((s) => s.players);
   const allRounds = useStore((s) => s.rounds);
   const setRoundTeams = useStore((s) => s.setRoundTeams);
@@ -47,11 +53,11 @@ export default function EditEvent() {
       endDate: end || fresh.endDate,
       teams: fresh.teams
         ? {
-            A: { ...fresh.teams.A, name: teamNames.A?.trim() || 'Team A', playerIds: fresh.playerIds.filter((id) => members[id] === 'A') },
-            B: { ...fresh.teams.B, name: teamNames.B?.trim() || 'Team B', playerIds: fresh.playerIds.filter((id) => members[id] === 'B') },
+            A: { ...fresh.teams.A, name: teamNames.A?.trim() || 'Team A', playerIds: fresh.playerIds.filter((id) => teamsNow[id] === 'A') },
+            B: { ...fresh.teams.B, name: teamNames.B?.trim() || 'Team B', playerIds: fresh.playerIds.filter((id) => teamsNow[id] === 'B') },
           }
         : fresh.teams,
-      teamOf: fresh.teamOf ? { ...fresh.teamOf, ...members } : fresh.teamOf,
+      teamOf: fresh.teamOf ? { ...fresh.teamOf, ...teamsNow } : fresh.teamOf,
       teamNames: letters.length ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : fresh.teamNames,
       teamColors: letters.length && Object.keys(teamColors).length ? teamColors : fresh.teamColors,
     });
@@ -59,7 +65,7 @@ export default function EditEvent() {
     if (applyLive && letters.length) {
       for (const r of allRounds.filter((x) => x.eventId === e.id && x.status === 'active' && x.teamOf)) {
         const next = { ...r.teamOf };
-        for (const p of r.players) if (members[p.id]) next[p.id] = members[p.id];
+        for (const p of r.players) if (teamsNow[p.id]) next[p.id] = teamsNow[p.id];
         setRoundTeams(r.id, next);
       }
     }
@@ -112,17 +118,20 @@ export default function EditEvent() {
           <Text style={{ color: c.text, fontSize: 15, fontWeight: '700', marginTop: space.sm }}>Players</Text>
           <TeamEditor
             players={e.playerIds.map((id) => ({ id, name: saved.find((p) => p.id === id)?.name ?? 'Player' }))}
-            teamOf={members}
+            teamOf={teamsNow}
             letters={letters}
             names={teamNames}
             picks={teamColors}
             onChange={setMembers}
           />
+          {/* Someone new joining the event: added straight away, on the team picked. */}
+          <AddEventPlayer e={e} />
           {allRounds.some((x) => x.eventId === e.id && x.status === 'active') && (
             <Toggle label="Also change rounds being played now" hint="Otherwise only upcoming rounds use the new teams." value={applyLive} onChange={setApplyLive} />
           )}
         </Card>
       )}
+      {letters.length === 0 && <AddEventPlayer e={e} />}
       {outside.length > 0 && (
         <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md }}>
           <Text style={{ color: c.text, fontSize: 13 }}>
