@@ -2,13 +2,13 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { formatDate, today } from '@/lib/dates';
+import { formatDate, toISODate, today } from '@/lib/dates';
 import { formatPoints } from '@/lib/events';
 import { canStartOn } from '@/lib/event-calendar';
 import { gameInfo, gameName } from '@/lib/games';
 import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
-import { useStore, type EventRecord } from '@/store/store';
+import { useStore, type EventRecord, type EventRound } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { Button, Card, H2, Label } from './ui';
 
@@ -18,12 +18,19 @@ const COLLAPSED = 4;
 export function EventRounds({ e }: { e: EventRecord }) {
   const c = useColors();
   const rounds = useStore((s) => s.rounds);
-  const list = e.rounds ?? [];
+  // Planned rounds, plus any round in the event that isn't one of them (started unscheduled, or added afterwards).
+  const planned = e.rounds ?? [];
+  const extra = rounds
+    .filter((r) => r.eventId === e.id && !planned.some((x) => x.roundId === r.id))
+    .map((r) => ({ id: `round-${r.id}`, number: Number(/Round (\d+)/.exec(r.label ?? '')?.[1]) || 0, date: toISODate(new Date(r.createdAt)), roundId: r.id }) as EventRound);
+  const list = [...planned, ...extra].sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || a.number - b.number);
   const canEdit = e.remote?.role !== 'viewer';
   // Upcoming and in progress first (in order), then completed (most recent first). Four until expanded.
   const [all, setAll] = useState(false);
   const isFinal = (x: (typeof list)[number]) => rounds.some((r) => r.id === x.roundId && r.status === 'complete');
-  const upcoming = list.filter((x) => !isFinal(x));
+  const isLive = (x: (typeof list)[number]) => rounds.some((r) => r.id === x.roundId && r.status === 'active');
+  // Live rounds lead the list, then upcoming in date order.
+  const upcoming = [...list.filter(isLive), ...list.filter((x) => !isFinal(x) && !isLive(x))];
   const done = list.filter(isFinal).reverse();
   const ordered = [...upcoming, ...done];
   // Collapsed: keep both sections in view (at least the latest completed round).
@@ -69,7 +76,7 @@ export function EventRounds({ e }: { e: EventRecord }) {
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>Round {x.number}</Text>
+                    <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>{x.number ? `Round ${x.number}` : (r?.label ?? 'Round')}</Text>
                     <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm, backgroundColor: status === 'live' ? c.under : status === 'final' ? c.primary : isNext ? c.accent : c.chip }}>
                       <Text style={{ color: status === 'upcoming' && !isNext ? c.muted : '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>
                         {status === 'live' ? 'LIVE' : status === 'final' ? 'FINAL' : isNext ? 'UP NEXT' : 'UPCOMING'}

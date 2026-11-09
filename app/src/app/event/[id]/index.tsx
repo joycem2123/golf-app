@@ -13,7 +13,6 @@ import { shareEvent } from '@/sync/sync';
 import { describeRecurrence, formatDate } from '@/lib/dates';
 import { canDeleteEvent, cupScore, eventMatches, eventStandings, eventTeamTotals, formatPoints, type EventMatch } from '@/lib/events';
 import { formatIndex } from '@/lib/format';
-import { courseFor, shortCourseName } from '@/lib/round';
 import { useEvent, useStore, type EventRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { Tip } from '@/components/tip';
@@ -175,7 +174,7 @@ export default function EventScreen() {
                 </Card>
                 {canAdd && <AddEventPlayer e={e} />}
 
-                {e.rounds?.length ? <EventRounds e={e} /> : null}
+                {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
 
                 {cupMatches.length > 0 && (
@@ -214,7 +213,7 @@ export default function EventScreen() {
             <EventStory e={e} rounds={rounds} />
             {standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
-            {e.rounds?.length ? <EventRounds e={e} /> : null}
+            {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
                 {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             <Card>
               <H2>Results</H2>
@@ -228,19 +227,6 @@ export default function EventScreen() {
         )}
         <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />
 
-        {eventRounds.length > 0 && (
-          <Card>
-            <H2>Rounds</H2>
-            {eventRounds.map((r) => (
-              <Pressable key={r.id} onPress={() => router.push(r.status === 'active' ? `/round/${r.id}` : `/round/${r.id}/results`)}>
-                <View style={[styles.row, { justifyContent: 'space-between', paddingVertical: 6 }]}>
-                  <Body>{shortCourseName(courseFor(r).name)} · {new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Body>
-                  <Label>{r.status === 'active' ? 'In progress' : 'Final'}</Label>
-                </View>
-              </Pressable>
-            ))}
-          </Card>
-        )}
 
         <Button title="Head-to-head records" kind="secondary" onPress={() => router.push('/head-to-head')} />
         {canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' && <Button
