@@ -43,7 +43,28 @@ const TEAM_COLORS: Record<string, { color: string; soft: string }> = {
   G: { color: '#C2602E', soft: '#F9EEE8' },
   H: { color: '#A8418F', soft: '#F7ECF4' },
 };
-export const teamColor = (letter: string) => TEAM_COLORS[letter] ?? TEAM_COLORS.H;
+/** Colours a team can pick (Teams step). Each team gets a different one. */
+export const TEAM_SWATCHES: { id: string; name: string; color: string; soft: string }[] = [
+  { id: 'green', name: 'Green', color: palette.teamA, soft: palette.teamASoft },
+  { id: 'navy', name: 'Navy', color: palette.teamB, soft: palette.teamBSoft },
+  { id: 'red', name: 'Red', color: '#C0392B', soft: '#FBECEA' },
+  { id: 'gold', name: 'Gold', color: '#B5831A', soft: '#F8F1E3' },
+  { id: 'teal', name: 'Teal', color: '#00909C', soft: '#E6F4F5' },
+  { id: 'purple', name: 'Purple', color: '#7354B8', soft: '#F1EDF8' },
+  { id: 'orange', name: 'Orange', color: '#D35400', soft: '#FBEEE6' },
+  { id: 'pink', name: 'Pink', color: '#C2407E', soft: '#F9ECF2' },
+  { id: 'sky', name: 'Sky blue', color: '#2D8FD5', soft: '#E9F3FB' },
+  { id: 'black', name: 'Black', color: '#2B2B2B', soft: '#EDEDED' },
+];
+
+/** Team letter → chosen swatch id (saved on a round or event). */
+export type TeamPicks = Record<string, string>;
+
+/** A team's colour: the one picked for it, else the default for its letter. */
+export const teamColor = (letter: string, picks?: TeamPicks) => {
+  const pick = picks?.[letter] ? TEAM_SWATCHES.find((x) => x.id === picks[letter]) : undefined;
+  return pick ? { color: pick.color, soft: pick.soft } : (TEAM_COLORS[letter] ?? TEAM_COLORS.H);
+};
 export const TEAM_LETTERS = Object.keys(TEAM_COLORS);
 
 export function useColors(): Colors {

@@ -63,6 +63,8 @@ export interface RoundRecord {
   label?: string;
   /** Team letter for each player, from the Teams step ("A", "B", "C"…). */
   teamOf?: Record<string, string>;
+  /** Colour picked for each team (letter → swatch id). */
+  teamColors?: Record<string, string>;
   /** Set once the round is shared online (live leaderboard / other scorekeepers). */
   remote?: Remote;
   /** Entered from a photo of the scorecard (Upload Scorecard). */
@@ -146,6 +148,7 @@ export interface RoundSetup {
   courseId: string;
   roster: { id: string; teeId: string }[];
   teamOf: Record<string, string>;
+  teamColors?: Record<string, string>;
   letters: string[];
   noTeams: boolean;
   draft: unknown;
@@ -180,6 +183,8 @@ export interface EventRecord {
   recurrence?: Recurrence;
   /** Team letter for each player (from the Teams step). */
   teamOf?: Record<string, string>;
+  /** Colour picked for each team (letter → swatch id). */
+  teamColors?: Record<string, string>;
   teamLetters?: string[];
   /** The rounds of the event, in order. */
   rounds?: EventRound[];
@@ -530,6 +535,7 @@ export const useStore = create<State>()(
               status: s.dirtyRounds.includes(r.id) ? r.status : round.status,
               eventId: round.eventId ?? r.eventId,
               teamOf: round.teamOf ?? r.teamOf,
+              teamColors: round.teamColors ?? r.teamColors,
               course: round.course ?? r.course,
               stories: { ...round.stories, ...r.stories },
               remote: r.remote?.role === 'owner' ? r.remote : round.remote ?? r.remote,

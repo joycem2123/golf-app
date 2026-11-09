@@ -2,7 +2,8 @@ import type { GameResult, Player } from '@golf/engine';
 import { Text, View } from 'react-native';
 
 import { headline } from '@/lib/headline';
-import { fonts, space, teamColor, useColors } from '@/theme';
+import { fonts, space, useColors } from '@/theme';
+import { useTeamColor } from '@/lib/team-colors';
 
 /** The big, simple "who's winning" banner pinned to the top of the scorecard. */
 /** "Matt Joyce & Braydon Cole" → "Matt & Braydon" (team names like "Team A" stay as they are). */
@@ -22,10 +23,11 @@ export function StatusBanner({
   /** Colours for side 0 and side 1 (e.g. Team C and Team D). */
   sideColors?: [string, string];
 }) {
+  const teamColor = useTeamColor();
   const c = useColors();
   if (!result || 'error' in result) return null;
   const h = headline(result, players);
-  const [ca, cb] = sideColors ?? [c.teamA, c.teamB];
+  const [ca, cb] = sideColors ?? [teamColor('A').color, teamColor('B').color];
   const color = h.side === 0 ? ca : h.side === 1 ? cb : c.primary;
 
   return (

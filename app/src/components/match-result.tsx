@@ -6,11 +6,13 @@ import { requestAiStory } from '@/lib/ai-story';
 import type { MatchOutcome, ResultSide } from '@/lib/results';
 import { localStory, type StoryHole } from '@/lib/story';
 import type { RoundRecord } from '@/store/store';
-import { radius, space, teamColor, useColors } from '@/theme';
+import { radius, space, useColors } from '@/theme';
+import { useTeamColor } from '@/lib/team-colors';
 import { MeBadge } from './people';
 
 /** One side of a match: filled in its team colour (with a trophy) when it won, greyed when it lost. */
 export function SideRow({ m, s, which, showTeam, me }: { m: MatchOutcome; s: ResultSide; which: 'a' | 'b'; showTeam: boolean; me: boolean }) {
+  const teamColor = useTeamColor();
   const c = useColors();
   const tc = teamColor(s.letter);
   const won = m.winner === which;

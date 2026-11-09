@@ -22,7 +22,7 @@ export function teamGroups(r: RoundRecord, c: Colors, gi = 0): TeamGroup[] | nul
   const make = (id: string, i: number, members: string[], keys: string[]): TeamGroup => {
     // Team letter from the id ("match-2-C", "team-C", old "teamA"); otherwise by position.
     const L = /-([A-Z])$/.exec(id)?.[1] ?? /^team([A-Z])$/.exec(id)?.[1] ?? String.fromCharCode(65 + i);
-    const tc = teamColor(L);
+    const tc = teamColor(L, r.teamColors);
     return { id, label: `Team ${L}`, names: members.map(name).join(' & '), color: tc.color, soft: tc.soft, keys };
   };
   if ((g.type === 'matchPlay' && g.format === 'fourBall') || (g.type === 'nassau' && g.format === 'fourBall')) {

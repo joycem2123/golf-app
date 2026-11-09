@@ -10,7 +10,7 @@ import { shuffle } from '@/lib/format';
 import { gameInfo, GAMES, type GameKind } from '@/lib/games';
 import { shortCourseName } from '@/lib/round';
 import { newId, useEvent, useStore, type ScheduledMatch } from '@/store/store';
-import { space, useColors } from '@/theme';
+import { space, useColors, teamColor } from '@/theme';
 
 /** Formats where two sides play each other. */
 const HEAD_TO_HEAD: GameKind[] = ['singles', 'bestBall', 'alternateShot', 'nassau', 'vegas', 'scramble', 'shamble'];
@@ -97,7 +97,7 @@ export default function ScheduleMatch() {
     router.back();
   };
 
-  const chipColor = (pid: string) => (sideA.includes(pid) ? c.teamA : sideB.includes(pid) ? c.teamB : undefined);
+  const chipColor = (pid: string) => (sideA.includes(pid) ? teamColor('A', e?.teamColors).color : sideB.includes(pid) ? teamColor('B', e?.teamColors).color : undefined);
 
   return (
     <>
@@ -154,10 +154,10 @@ export default function ScheduleMatch() {
           {e.teams ? (
             (['A', 'B'] as const).map((t) => (
               <View key={t} style={{ gap: space.xs }}>
-                <Text style={{ color: t === 'A' ? c.teamA : c.teamB, fontWeight: '800', fontSize: 12, letterSpacing: 1 }}>{e.teams![t].name.toUpperCase()}</Text>
+                <Text style={{ color: t === 'A' ? teamColor('A', e?.teamColors).color : teamColor('B', e?.teamColors).color, fontWeight: '800', fontSize: 12, letterSpacing: 1 }}>{e.teams![t].name.toUpperCase()}</Text>
                 <View style={styles.wrap}>
                   {e.teams![t].playerIds.map((pid) => (
-                    <Chip key={pid} label={name(pid)} selected={(t === 'A' ? sideA : sideB).includes(pid)} color={t === 'A' ? c.teamA : c.teamB} onPress={() => cycle(pid)} />
+                    <Chip key={pid} label={name(pid)} selected={(t === 'A' ? sideA : sideB).includes(pid)} color={t === 'A' ? teamColor('A', e?.teamColors).color : teamColor('B', e?.teamColors).color} onPress={() => cycle(pid)} />
                   ))}
                 </View>
               </View>
@@ -171,9 +171,9 @@ export default function ScheduleMatch() {
           )}
           {headToHead && (sideA.length > 0 || sideB.length > 0) && (
             <Body>
-              <Text style={{ color: c.teamA, fontWeight: '700' }}>{sideA.map(name).join(' & ') || '—'}</Text>
+              <Text style={{ color: teamColor('A', e?.teamColors).color, fontWeight: '700' }}>{sideA.map(name).join(' & ') || '—'}</Text>
               <Text style={{ color: c.muted }}>  v  </Text>
-              <Text style={{ color: c.teamB, fontWeight: '700' }}>{sideB.map(name).join(' & ') || '—'}</Text>
+              <Text style={{ color: teamColor('B', e?.teamColors).color, fontWeight: '700' }}>{sideB.map(name).join(' & ') || '—'}</Text>
             </Body>
           )}
           {headToHead && <Button small kind="secondary" title={`Randomize ${perSide ?? 1} v ${perSide ?? 1}`} onPress={randomize} />}

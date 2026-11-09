@@ -4,7 +4,8 @@ import { Pressable, Text, View } from 'react-native';
 
 import { shuffle } from '@/lib/format';
 import { buildMatches, teamSizesFor, teamsSet, type GameDraft, type Matchup, type TeamOf } from '@/lib/games';
-import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { fonts, radius, space, useColors } from '@/theme';
+import { useTeamColor } from '@/lib/team-colors';
 import { Sheet } from './round-setup';
 import { Card, H2, Label, Segmented } from './ui';
 
@@ -28,6 +29,7 @@ export function MatchupsEditor({
   onChange: (d: GameDraft) => void;
   teamOf?: TeamOf;
 }) {
+  const teamColor = useTeamColor();
   const c = useColors();
   const [slot, setSlot] = useState<Slot | null>(null);
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';

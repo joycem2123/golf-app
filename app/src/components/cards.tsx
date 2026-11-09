@@ -24,12 +24,12 @@ export function EventCard({ e, rounds, hint }: { e: EventRecord; rounds: RoundRe
       <TeamScoreLine
         done={done || !!s.winner}
         teams={[{ letter: 'A', name: e.teams.A.name, points: s.teamA }, { letter: 'B', name: e.teams.B.name, points: s.teamB }]}
-        color={(L) => (L === 'A' ? c.teamA : c.teamB)}
+        picks={e.teamColors}
       />
     );
   } else if (e.teamOf && (e.teamLetters?.length ?? 0) >= 2) {
     const { totals } = eventTeamTotals(e, rounds);
-    line = <TeamScoreLine done={done} teams={[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => ({ letter: t.letter, name: `Team ${t.letter}`, points: t.points }))} />;
+    line = <TeamScoreLine picks={e.teamColors} done={done} teams={[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => ({ letter: t.letter, name: `Team ${t.letter}`, points: t.points }))} />;
   } else {
     const top = eventStandings(e, rounds)[0];
     const pts = top ? `${formatPoints(top.points)} pt${top.points === 1 ? '' : 's'}` : '';
@@ -71,7 +71,7 @@ export function RoundCard({ r }: { r: RoundRecord }) {
           <Body muted>{r.players.map((p) => p.name).join(', ')}</Body>
           {/* Team rounds: the team score, coloured by who's ahead. Otherwise the game's summary. */}
           {team ? (
-            <TeamScoreLine done={r.status === 'complete'} teams={team.map((t) => ({ letter: t.letter, name: teamName(t.letter), points: t.points }))} />
+            <TeamScoreLine picks={r.teamColors} done={r.status === 'complete'} teams={team.map((t) => ({ letter: t.letter, name: teamName(t.letter), points: t.points }))} />
           ) : main && isResult(main) ? (
             <Body muted>{main.summary}</Body>
           ) : null}

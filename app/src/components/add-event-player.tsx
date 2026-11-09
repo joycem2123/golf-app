@@ -30,9 +30,9 @@ export function AddEventPlayer({ e }: { e: EventRecord }) {
 
   // Teams: a Ryder Cup's two teams, or the lettered teams from the event's Teams step.
   const teamOptions: { value: string; label: string; color: string }[] = e.teams
-    ? (['A', 'B'] as const).map((t) => ({ value: t, label: e.teams![t].name, color: t === 'A' ? c.teamA : c.teamB }))
+    ? (['A', 'B'] as const).map((t) => ({ value: t, label: e.teams![t].name, color: teamColor(t, e.teamColors).color }))
     : e.teamOf && (e.teamLetters?.length ?? 0) >= 2
-      ? e.teamLetters!.map((L) => ({ value: L, label: `Team ${L}`, color: teamColor(L).color }))
+      ? e.teamLetters!.map((L) => ({ value: L, label: `Team ${L}`, color: teamColor(L, e.teamColors).color }))
       : [];
   const [team, setTeam] = useState<string | null>(null);
 

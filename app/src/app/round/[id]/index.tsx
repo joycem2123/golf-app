@@ -27,6 +27,7 @@ import { TeamScoreboard } from '@/components/team-scoreboard';
 import { cardSides, liveTeamScore } from '@/lib/results';
 import { headline } from '@/lib/headline';
 import { AddToEvent } from '@/components/add-to-event';
+import { TeamColors } from '@/lib/team-colors';
 import { myMatchIndex } from '@/components/live-carousel';
 import { EditRights, canEditGame, canEditKey, useAccountId, useCanEdit, useEditRequests } from '@/lib/edit-rights';
 import { EditRequestsCard, LockedMatch } from '@/components/edit-lock';
@@ -269,8 +270,8 @@ function SinglesBox({ r, k, hole, gi, side, result, strokes }: { r: RoundRecord;
   const c = useColors();
   const g = r.games[gi] as NassauConfig | Extract<RoundRecord['games'][number], { type: 'matchPlay' }>;
   const letter = r.teamOf?.[k.key] ?? (/-([A-Z])$/.exec(side === 'A' ? g.sideA.id : g.sideB.id)?.[1]) ?? side;
-  const color = teamColor(letter).color;
-  const soft = teamColor(letter).soft;
+  const color = teamColor(letter, r.teamColors).color;
+  const soft = teamColor(letter, r.teamColors).soft;
   const outcomes = result && isResult(result) ? (result.type === 'matchPlay' ? result.status.outcomes : result.type === 'nassau' ? result.segments[2].status.outcomes : []) : [];
   const o = outcomes[hole - 1] ?? null;
   const won = o !== null && o === (side === 'A' ? 1 : -1);
@@ -352,7 +353,7 @@ export default function Scorecard() {
   const done = (n: number) => keys.every((k) => grossAt(r, k.key, n) !== null);
   const allDone = allHolesScored(r);
   const eventTeams = useStore.getState().events.find((e) => e.id === r.eventId)?.teams;
-  const sidesByGame = cardSides(r, results, (L) => (eventTeams && (L === 'A' || L === 'B') ? eventTeams[L].name : `Team ${L}`), (L) => teamColor(L).color);
+  const sidesByGame = cardSides(r, results, (L) => (eventTeams && (L === 'A' || L === 'B') ? eventTeams[L].name : `Team ${L}`), (L) => teamColor(L, r.teamColors).color);
   const teams = teamGroups(r, c, gi);
   const inTeams = new Set(teams?.flatMap((t) => t.keys) ?? []);
   const solo = keys.filter((k) => !inTeams.has(k.key));
@@ -400,8 +401,8 @@ export default function Scorecard() {
   const sideColor = (sd: 0 | 1 | null) => {
     if (sd === null) return c.brand;
     const L = gameSides ? r.teamOf?.[gameSides[sd][0]] : undefined;
-    if (L) return teamColor(L).color;
-    return sd === 0 ? (teams?.[0]?.color ?? c.teamA) : (teams?.[1]?.color ?? c.teamB);
+    if (L) return teamColor(L, r.teamColors).color;
+    return sd === 0 ? (teams?.[0]?.color ?? teamColor('A', r.teamColors).color) : (teams?.[1]?.color ?? teamColor('B', r.teamColors).color);
   };
   // Leader in first names ("Ben & Dan"), and the score kept separate so it's never cut off.
   const short = (n: string) => n.split(' & ').map((x) => x.split(' ')[0]).join(' & ');
@@ -432,7 +433,7 @@ export default function Scorecard() {
   );
 
   return (
-    <>
+    <TeamColors picks={r.teamColors}>
       <Stack.Screen options={{ title: shortCourseName(course.name) }} />
       {/* Full scorecard of a team round: the team score is pinned on top, the match status sits in the page. */}
       {teamTop ? <TeamScoreboard r={r} results={results} pinned={view === 'card' || viewer} mini={view === 'hole' && !viewer} /> : matchBanner()}
@@ -611,6 +612,6 @@ export default function Scorecard() {
           ...(multi ? ['Tap the matches along the top to switch between them. Every match updates as you score.'] : []),
         ]}
       />
-    </>
+    </TeamColors>
   );
 }

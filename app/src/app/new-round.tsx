@@ -17,6 +17,7 @@ import { draftProblem, draftToConfigs, GAMES, isMatchFormat, newDraft, playSpec,
 import { newId, useEvent, useStore, type RoundRecord, type RoundSetup, type SavedPlayer } from '@/store/store';
 import { SaveFavourite, SetupSaved } from '@/components/setup-saved';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { TeamColors } from '@/lib/team-colors';
 import { autoShare } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { formatDate, today } from '@/lib/dates';
@@ -66,6 +67,8 @@ export default function NewRound() {
   const [teamOf, setTeamOfState] = useState<TeamOf>(() => eventTeams ?? {});
   const [letters, setLetters] = useState<string[]>(event?.teamLetters ?? ['A', 'B']);
   const [noTeams, setNoTeams] = useState(false);
+  // Each team's colour (an event's rounds start with the event's colours).
+  const [teamColors, setTeamColors] = useState<Record<string, string>>(() => event?.teamColors ?? {});
   const setTeamOf = (t: TeamOf) => {
     setTeamOfState(t);
     setDraft(null);
@@ -219,7 +222,7 @@ export default function NewRound() {
   const setEventRoundSetup = useStore((s) => s.setEventRoundSetup);
   const savePlan = () => {
     if (!event || !planned || !course || !draft || problem) return;
-    setEventRoundSetup(event.id, planned.id, { courseId: course.id, roster, teamOf, letters, noTeams, draft, sideMatches, statsEnabled });
+    setEventRoundSetup(event.id, planned.id, { courseId: course.id, roster, teamOf, teamColors, letters, noTeams, draft, sideMatches, statsEnabled });
     track('event_round_set_up_ahead');
     router.back();
   };
@@ -229,7 +232,7 @@ export default function NewRound() {
   // so closing the screen by accident loses nothing, and can be saved as a favourite to play again.
   const plain = !eventId && !matchId && !scan;
   const saveDraft = useStore((s) => s.saveDraft);
-  const setup: RoundSetup | null = course ? { courseId: course.id, roster, teamOf, letters, noTeams, draft, sideMatches, statsEnabled } : null;
+  const setup: RoundSetup | null = course ? { courseId: course.id, roster, teamOf, teamColors, letters, noTeams, draft, sideMatches, statsEnabled } : null;
   const gameLabel = draft ? GAMES.find((g) => g.kind === draft.kind)?.name : undefined;
   const summary = course
     ? [shortCourseName(course.name), players.map((p) => p.name.split(' ')[0]).join(', ') || null, gameLabel].filter(Boolean).join(' · ')
@@ -237,7 +240,7 @@ export default function NewRound() {
   useEffect(() => {
     if (!plain || !setup) return;
     saveDraft('round', { data: { ...setup, step }, summary, savedAt: Date.now() });
-  }, [plain, step, course, roster, teamOf, letters, noTeams, draft, sideMatches, statsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [plain, step, course, roster, teamOf, teamColors, letters, noTeams, draft, sideMatches, statsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Load a saved setup (draft or favourite). Players no longer in your list are left out. */
   const applySetup = (su: RoundSetup, toStep: Step): boolean => {
@@ -248,6 +251,7 @@ export default function NewRound() {
     setCourse(co);
     setRoster(known);
     setTeamOfState(su.teamOf);
+    if (su.teamColors) setTeamColors(su.teamColors);
     setLetters(su.letters);
     setNoTeams(su.noTeams);
     setDraft(intact ? (su.draft as GameDraft | null) : null);
@@ -300,6 +304,7 @@ export default function NewRound() {
       eventId: event?.id ?? season?.id,
       label: planned ? `Round ${planned.number}` : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : season ? `Round ${(season.rounds?.length ?? 0) + 1}` : scheduled?.label,
       teamOf: !noTeams && Object.keys(teamOf).length ? teamOf : undefined,
+      teamColors: !noTeams && Object.keys(teamOf).length && Object.keys(teamColors).length ? teamColors : undefined,
     };
     if (scan) {
       const holes = [...new Set(round.games.flatMap(gameHoles))];
@@ -431,6 +436,7 @@ export default function NewRound() {
   }
 
   return (
+    <TeamColors picks={teamColors}>
     <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {scan && <Stack.Screen options={{ title: 'Set Up the Round' }} />}
@@ -513,7 +519,7 @@ export default function NewRound() {
             onToggle={togglePlayer}
             isMe={isMe}
             indexFor={(p) => (event?.lockHandicaps ? (event.lockedIndexes[p.id] ?? p.handicapIndex) : p.handicapIndex)}
-            colorFor={(id) => (eventTeams?.[id] ? teamColor(eventTeams[id]).color : undefined)}
+            colorFor={(id) => (eventTeams?.[id] ? teamColor(eventTeams[id], teamColors).color : undefined)}
             allowNew={!event}
             onFindNew={(q) => router.push({ pathname: '/add-friend', params: { pick: 'new-round', q } })}
           />
@@ -617,6 +623,8 @@ export default function NewRound() {
             letters={letters}
             onLetters={(l) => { setLetters(l); setDraft(null); }}
             lockedReason={eventTeams ? `Teams come from ${event!.name}.` : undefined}
+            colors={teamColors}
+            onColors={event?.teamColors && eventTeams ? undefined : setTeamColors}
           />
         </>
       )}
@@ -759,5 +767,6 @@ export default function NewRound() {
       </View>
     )}
     </View>
+    </TeamColors>
   );
 }

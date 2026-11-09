@@ -84,9 +84,9 @@ export function EventRounds({ e }: { e: EventRecord }) {
               {score && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                   {score.map((t) => (
-                    <View key={t.letter} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: teamColor(t.letter).soft }}>
-                      <Text style={{ color: teamColor(t.letter).color, fontWeight: '800', fontSize: 12 }}>{e.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`}</Text>
-                      <Text style={{ color: teamColor(t.letter).color, fontWeight: '800', fontSize: 13, fontFamily: fonts.serif }}>{formatPoints(t.points)}</Text>
+                    <View key={t.letter} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: teamColor(t.letter, r?.teamColors ?? e.teamColors).soft }}>
+                      <Text style={{ color: teamColor(t.letter, r?.teamColors ?? e.teamColors).color, fontWeight: '800', fontSize: 12 }}>{e.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`}</Text>
+                      <Text style={{ color: teamColor(t.letter, r?.teamColors ?? e.teamColors).color, fontWeight: '800', fontSize: 13, fontFamily: fonts.serif }}>{formatPoints(t.points)}</Text>
                     </View>
                   ))}
                 </View>

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DateField } from '@/components/date-field';
 import { SetupSaved } from '@/components/setup-saved';
+import { TeamColors } from '@/lib/team-colors';
 import { GameOptions } from '@/components/game-options';
 import { HolesSetup } from '@/components/holes-setup';
 import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/components/round-setup';
@@ -52,6 +53,7 @@ export default function NewEvent() {
   const [teamOf, setTeamOfState] = useState<TeamOf>({});
   const [letters, setLetters] = useState<string[]>(['A', 'B']);
   const [noTeams, setNoTeams] = useState(false);
+  const [teamColors, setTeamColors] = useState<Record<string, string>>({});
   const [teamNames, setTeamNames] = useState({ A: 'Team A', B: 'Team B' });
   const [holder, setHolder] = useState<'none' | 'A' | 'B'>('none');
   // Rounds
@@ -112,7 +114,7 @@ export default function NewEvent() {
   // ------------------------------------------------------------------ draft
   // Saved as you go, so closing the screen by accident loses nothing ("Pick up where you left off").
   const saveDraft = useStore((s) => s.saveDraft);
-  const snapshot = { step, type, name, start, end, rec, lock, ids, teamOf, letters, noTeams, teamNames, holder, count, plans, current };
+  const snapshot = { step, type, name, start, end, rec, lock, ids, teamOf, teamColors, letters, noTeams, teamNames, holder, count, plans, current };
   const started = !!name.trim() || ids.length > 1 || step !== 'details';
   useEffect(() => {
     if (fromRound || !started) return;
@@ -130,7 +132,7 @@ export default function NewEvent() {
   const resume = (d: typeof snapshot) => {
     setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock);
     setIds(d.ids.filter((id) => saved.some((p) => p.id === id)));
-    setTeamOfState(d.teamOf); setLetters(d.letters); setNoTeams(d.noTeams); setTeamNames(d.teamNames); setHolder(d.holder);
+    setTeamOfState(d.teamOf); if (d.teamColors) setTeamColors(d.teamColors); setLetters(d.letters); setNoTeams(d.noTeams); setTeamNames(d.teamNames); setHolder(d.holder);
     setCount(d.count); setStep(d.step);
     setTimeout(() => setRestorePlans({ plans: d.plans, current: d.current }), 0);
   };
@@ -201,6 +203,7 @@ export default function NewEvent() {
       endDate: end,
       recurrence: isSeason ? rec : undefined,
       teamOf: teams ? Object.fromEntries(ids.map((id) => [id, teamOf[id]])) : undefined,
+      teamColors: teams && Object.keys(teamColors).length ? teamColors : undefined,
       teamLetters: teams ? letters : undefined,
       rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
     };
@@ -277,6 +280,7 @@ export default function NewEvent() {
     : null;
 
   return (
+    <TeamColors picks={teamColors}>
     <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {stepBar}
@@ -414,6 +418,8 @@ export default function NewEvent() {
             onLetters={(l) => { setLetters(l); setPlans((ps) => rebuild(ps, teamOf)); }}
             maxTeams={isCup ? 2 : undefined}
             note={isCup ? 'A Ryder Cup has two teams.' : 'Teams stay the same for every round.'}
+            colors={teamColors}
+            onColors={setTeamColors}
           />
           {isCup && (
             <Card>
@@ -556,5 +562,6 @@ export default function NewEvent() {
       </View>
     )}
     </View>
+    </TeamColors>
   );
 }

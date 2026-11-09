@@ -70,7 +70,7 @@ function Board({ r, results, pinned, mini, linked }: Props & { linked?: boolean 
       <View style={{ backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border }}>
         <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: space.sm, paddingVertical: 6 }}>
           {score.teams.map((t) => (
-            <View key={t.letter} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter).color }}>
+            <View key={t.letter} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter, r.teamColors).color }}>
               <Text numberOfLines={1} style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.5, flexShrink: 1 }}>{teamName(t.letter).toUpperCase()}</Text>
               <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
               {changes && <Text style={{ color: '#ffffffd0', fontSize: 11 }}>proj {formatPoints(t.projected)}</Text>}
@@ -87,7 +87,7 @@ function Board({ r, results, pinned, mini, linked }: Props & { linked?: boolean 
       <Text style={{ textAlign: 'center', color: c.muted, fontSize: pinned ? 10 : 11, fontWeight: '800', letterSpacing: 1.5, paddingTop: pinned ? 6 : space.sm }}>TEAM MATCH · THIS ROUND</Text>
       <View style={{ flexDirection: 'row', paddingHorizontal: space.sm, paddingVertical: pinned ? 6 : space.sm, gap: space.sm }}>
         {score.teams.map((t) => {
-          const tc = teamColor(t.letter);
+          const tc = teamColor(t.letter, r.teamColors);
           return (
             <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: pinned ? 5 : space.sm, borderRadius: radius.md, backgroundColor: tc.color }}>
               <Text numberOfLines={1} style={{ color: '#fff', fontSize: pinned ? 11 : 12, fontWeight: '800', letterSpacing: 1 }}>{teamName(t.letter).toUpperCase()}</Text>

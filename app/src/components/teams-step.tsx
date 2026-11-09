@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { formatIndex, shuffle } from '@/lib/format';
 import type { TeamOf } from '@/lib/games';
-import { fonts, radius, space, TEAM_LETTERS, teamColor, useColors } from '@/theme';
+import { fonts, radius, space, TEAM_LETTERS, teamColor, useColors, TEAM_SWATCHES, type TeamPicks } from '@/theme';
 import { Body, Card, Label } from './ui';
 
 export interface TeamPlayer {
@@ -25,7 +25,12 @@ export function TeamsStep({
   lockedReason,
   maxTeams = TEAM_LETTERS.length,
   note,
+  colors,
+  onColors,
 }: {
+  /** Colour picked for each team (letter → swatch id), and a way to change it. */
+  colors?: TeamPicks;
+  onColors?: (c: TeamPicks) => void;
   players: TeamPlayer[];
   teamOf: TeamOf;
   onTeamOf: (t: TeamOf) => void;
@@ -80,7 +85,7 @@ export function TeamsStep({
         <Text style={{ fontFamily: fonts.serif, fontSize: 19, fontWeight: '700', color: c.text }}>Teams</Text>
         <Body muted>{lockedReason}</Body>
         {letters.map((L) => {
-          const tc = teamColor(L);
+          const tc = teamColor(L, colors);
           const members = players.filter((p) => teamOf[p.id] === L);
           return (
             <View key={L} style={{ backgroundColor: tc.soft, borderRadius: radius.md, padding: space.md, borderLeftWidth: 4, borderLeftColor: tc.color }}>
@@ -117,7 +122,7 @@ export function TeamsStep({
                 </View>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {letters.map((L) => {
-                    const tc = teamColor(L);
+                    const tc = teamColor(L, colors);
                     return (
                       <Pressable
                         key={L}
@@ -141,7 +146,7 @@ export function TeamsStep({
       </Card>
 
       {letters.map((L) => {
-        const tc = teamColor(L);
+        const tc = teamColor(L, colors);
         const members = players.filter((p) => teamOf[p.id] === L);
         return (
           <View key={L} style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
@@ -156,6 +161,29 @@ export function TeamsStep({
                 </Pressable>
               )}
             </View>
+            {onColors && (
+              // Pick the team's colour (each team gets a different one).
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingHorizontal: space.lg, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: c.border }}>
+                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>COLOUR</Text>
+                {TEAM_SWATCHES.map((sw) => {
+                  const mine = tc.color === sw.color;
+                  const taken = !mine && letters.some((o) => o !== L && teamColor(o, colors).color === sw.color);
+                  return (
+                    <Pressable
+                      key={sw.id}
+                      disabled={taken}
+                      onPress={() => onColors({ ...(colors ?? {}), [L]: sw.id })}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: mine, disabled: taken }}
+                      accessibilityLabel={`${sw.name} for Team ${L}${taken ? ' (another team has it)' : ''}`}
+                      hitSlop={4}
+                      style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: sw.color, opacity: taken ? 0.2 : 1, borderWidth: mine ? 3 : 0, borderColor: c.card, alignItems: 'center', justifyContent: 'center', ...(mine ? { shadowColor: sw.color, shadowOpacity: 0.8, shadowRadius: 0, shadowOffset: { width: 0, height: 0 }, outlineColor: sw.color, outlineWidth: 2, outlineStyle: 'solid' } : {}) }}>
+                      {mine ? <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>✓</Text> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
             <View style={{ paddingHorizontal: space.lg, backgroundColor: tc.soft }}>
               {members.length === 0 ? (
                 <Text style={{ color: c.muted, paddingVertical: space.md, fontSize: 14 }}>No players yet. Use the team buttons above.</Text>

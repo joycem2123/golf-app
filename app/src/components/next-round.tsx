@@ -52,7 +52,7 @@ export function NextRound({ e }: { e: EventRecord }) {
         {score && (
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {score.map((t) => (
-              <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter).color }}>
+              <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter, round.teamColors ?? e.teamColors).color }}>
                 <Text style={{ color: '#ffffffcc', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>{(e.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`).toUpperCase()}</Text>
                 <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 24, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
               </View>

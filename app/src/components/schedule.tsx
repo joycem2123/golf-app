@@ -9,7 +9,7 @@ import { evaluate, isResult, shortCourseName } from '@/lib/round';
 import { canStartOn } from '@/lib/event-calendar';
 import { DateLock } from '@/components/event-rounds';
 import { useStore, type EventRecord, type ScheduledMatch } from '@/store/store';
-import { radius, space, useColors } from '@/theme';
+import { radius, space, teamColor, useColors } from '@/theme';
 import { Calendar } from './calendar';
 import { Body, Button, Card, H2, Label, Segmented } from './ui';
 
@@ -48,9 +48,9 @@ function MatchItem({ e, m }: { e: EventRecord; m: ScheduledMatch }) {
             </Text>
             {(m.sideA.length > 0 || m.sideB.length > 0) && (
               <Text style={{ fontSize: 14 }}>
-                <Text style={{ color: c.teamA, fontWeight: '600' }}>{m.sideA.map(name).join(' & ')}</Text>
+                <Text style={{ color: teamColor('A', e.teamColors).color, fontWeight: '600' }}>{m.sideA.map(name).join(' & ')}</Text>
                 {m.sideB.length > 0 && <Text style={{ color: c.muted }}>  v  </Text>}
-                <Text style={{ color: c.teamB, fontWeight: '600' }}>{m.sideB.map(name).join(' & ')}</Text>
+                <Text style={{ color: teamColor('B', e.teamColors).color, fontWeight: '600' }}>{m.sideB.map(name).join(' & ')}</Text>
               </Text>
             )}
             {res && isResult(res) ? <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{res.summary}</Text> : null}

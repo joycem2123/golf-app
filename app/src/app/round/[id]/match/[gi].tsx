@@ -10,6 +10,7 @@ import { evaluate, isResult } from '@/lib/round';
 import { storyHoles } from '@/lib/story';
 import { useRound } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
+import { TeamColors } from '@/lib/team-colors';
 
 /** Everything about one match: result, story, hole-by-hole breakdown and the full scorecard. */
 export default function MatchDetail() {
@@ -26,8 +27,8 @@ export default function MatchDetail() {
   const holes = storyHoles(r, res, m, c);
   const myIds = r.players.filter((p) => isMe(p.id)).map((p) => p.id);
   const showTeam = m.a.letter !== m.b.letter;
-  const ca = teamColor(m.a.letter);
-  const cb = teamColor(m.b.letter);
+  const ca = teamColor(m.a.letter, r.teamColors);
+  const cb = teamColor(m.b.letter, r.teamColors);
   const played = holes.filter((h) => h.outcome !== null);
   const won = (side: 1 | -1) => played.filter((h) => h.outcome === side).length;
 
@@ -75,6 +76,7 @@ export default function MatchDetail() {
   );
 
   return (
+    <TeamColors picks={r.teamColors}>
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -125,5 +127,6 @@ export default function MatchDetail() {
         <Text style={{ color: c.muted, fontSize: 12 }}>○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot</Text>
       </View>
     </ScrollView>
+    </TeamColors>
   );
 }

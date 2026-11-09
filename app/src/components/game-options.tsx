@@ -3,7 +3,8 @@ import { Text, View } from 'react-native';
 
 import { gameInfo, type GameDraft, type TeamOf } from '@/lib/games';
 import { MatchupsEditor } from './matchups';
-import { radius, space, teamColor, useColors } from '@/theme';
+import { radius, space, useColors } from '@/theme';
+import { useTeamColor } from '@/lib/team-colors';
 import { Body, Card, Chip, H2, Label, OptionRow, Segmented, Stepper, Toggle, styles } from './ui';
 
 const WOLF_POINT_LABELS: [keyof WolfPoints, string][] = [
@@ -29,6 +30,7 @@ export function GameOptions({
   /** Matchups decided later (an event round that's still TBD). */
   hideMatchups?: boolean;
 }) {
+  const teamColor = useTeamColor();
   const c = useColors();
   const info = gameInfo(draft.kind);
   const set = <K extends keyof GameDraft>(k: K, v: GameDraft[K]) => onChange({ ...draft, [k]: v });

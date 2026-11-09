@@ -21,7 +21,7 @@ import { EventStory } from '@/components/event-story';
 
 function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: string) => string }) {
   const c = useColors();
-  const colorFor = (x: 'A' | 'B' | 'halved' | null) => (e.teams ? (x === 'A' ? c.teamA : x === 'B' ? c.teamB : c.muted) : c.primary);
+  const colorFor = (x: 'A' | 'B' | 'halved' | null) => (e.teams ? (x === 'A' ? teamColor('A', e?.teamColors).color : x === 'B' ? teamColor('B', e?.teamColors).color : c.muted) : c.primary);
   const state = m.result ?? m.leader;
   return (
     <Pressable onPress={() => router.push(m.result === null ? `/round/${m.roundId}` : `/round/${m.roundId}/results`)}>
@@ -30,9 +30,9 @@ function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: st
         <View style={{ flex: 1 }}>
           <Label style={{ letterSpacing: 1 }}>{m.name}{m.result === null ? (m.thru ? ` · thru ${m.thru}` : ' · not started') : ' · final'}</Label>
           <Text style={{ color: c.text, fontSize: 15 }}>
-            <Text style={{ color: e.teams ? c.teamA : c.text, fontWeight: m.result === 'A' ? '800' : '500' }}>{m.sideA.map(name).join(' & ')}</Text>
+            <Text style={{ color: e.teams ? teamColor('A', e?.teamColors).color : c.text, fontWeight: m.result === 'A' ? '800' : '500' }}>{m.sideA.map(name).join(' & ')}</Text>
             <Text style={{ color: c.muted }}>  v  </Text>
-            <Text style={{ color: e.teams ? c.teamB : c.text, fontWeight: m.result === 'B' ? '800' : '500' }}>{m.sideB.map(name).join(' & ')}</Text>
+            <Text style={{ color: e.teams ? teamColor('B', e?.teamColors).color : c.text, fontWeight: m.result === 'B' ? '800' : '500' }}>{m.sideB.map(name).join(' & ')}</Text>
           </Text>
           <Text style={{ color: c.muted, fontSize: 13 }}>{m.summary}</Text>
         </View>
@@ -60,12 +60,12 @@ export default function EventScreen() {
   // Each player's record, with their team (Ryder Cup: its team names and colours; other events: Team A, B…).
   const teamTag = (pid: string): { label: string; color: string } | null => {
     if (e.teams) {
-      if (e.teams.A.playerIds.includes(pid)) return { label: e.teams.A.name.toUpperCase(), color: c.teamA };
-      if (e.teams.B.playerIds.includes(pid)) return { label: e.teams.B.name.toUpperCase(), color: c.teamB };
+      if (e.teams.A.playerIds.includes(pid)) return { label: e.teams.A.name.toUpperCase(), color: teamColor('A', e?.teamColors).color };
+      if (e.teams.B.playerIds.includes(pid)) return { label: e.teams.B.name.toUpperCase(), color: teamColor('B', e?.teamColors).color };
       return null;
     }
     const L = e.teamOf?.[pid];
-    return L ? { label: `TEAM ${L}`, color: teamColor(L).color } : null;
+    return L ? { label: `TEAM ${L}`, color: teamColor(L, e?.teamColors).color } : null;
   };
   const standingsCard = (
       <Card>
@@ -144,7 +144,7 @@ export default function EventScreen() {
                   <View style={{ height: 3, backgroundColor: c.accent }} />
                   <View style={{ flexDirection: 'row' }}>
                     {(['A', 'B'] as const).map((t) => (
-                      <View key={t} style={{ flex: 1, alignItems: 'center', paddingVertical: space.lg, backgroundColor: t === 'A' ? c.teamA : c.teamB }}>
+                      <View key={t} style={{ flex: 1, alignItems: 'center', paddingVertical: space.lg, backgroundColor: t === 'A' ? teamColor('A', e?.teamColors).color : teamColor('B', e?.teamColors).color }}>
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 }}>{e.teams![t].name.toUpperCase()}</Text>
                         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 48, fontWeight: '700' }}>{formatPoints(t === 'A' ? s.teamA : s.teamB)}</Text>
                         {proj && (proj.teamA !== s.teamA || proj.teamB !== s.teamB) ? (
@@ -167,7 +167,7 @@ export default function EventScreen() {
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
                     {(['A', 'B'] as const).map((t) => (
                       <View key={t} style={{ flex: 1 }}>
-                        <Text style={{ color: t === 'A' ? c.teamA : c.teamB, fontWeight: '800', fontSize: 12, letterSpacing: 1 }}>{e.teams![t].name.toUpperCase()}</Text>
+                        <Text style={{ color: t === 'A' ? teamColor('A', e?.teamColors).color : teamColor('B', e?.teamColors).color, fontWeight: '800', fontSize: 12, letterSpacing: 1 }}>{e.teams![t].name.toUpperCase()}</Text>
                         {e.teams![t].playerIds.map((pid) => (
                           <Body key={pid}>{name(pid)} <Text style={{ color: c.muted }}>{formatIndex(e.lockHandicaps ? e.lockedIndexes[pid] : (saved.find((p) => p.id === pid)?.handicapIndex ?? 0))}</Text></Body>
                         ))}
@@ -197,7 +197,7 @@ export default function EventScreen() {
                   <View style={{ height: 3, backgroundColor: c.accent }} />
                   <View style={{ flexDirection: 'row' }}>
                     {[...totals].sort((x, y) => x.letter.localeCompare(y.letter)).map((t) => (
-                      <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.lg, backgroundColor: teamColor(t.letter).color }}>
+                      <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: space.lg, backgroundColor: teamColor(t.letter, e?.teamColors).color }}>
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 }}>TEAM {t.letter}{lead === t.letter ? ' 🏆' : ''}</Text>
                         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 44, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
                         <Text numberOfLines={2} style={{ color: '#ffffffcc', fontSize: 11, textAlign: 'center', paddingHorizontal: 6 }}>{t.members.map((pid) => name(pid).split(' ')[0]).join(', ')}</Text>

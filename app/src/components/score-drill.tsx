@@ -77,7 +77,7 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
           <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{[date, course, gameName(r.games[0]), e ? null : r.players.map((p) => p.name.split(' ')[0]).join(', ')].filter(Boolean).join(' · ')}</Text>
           {score ? (
             <View style={{ marginTop: 4 }}>
-              <TeamScoreLine done={!live} teams={score.map((t) => ({ letter: t.letter, name: e?.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`, points: t.points }))} />
+              <TeamScoreLine picks={r.teamColors ?? e?.teamColors} done={!live} teams={score.map((t) => ({ letter: t.letter, name: e?.teams?.[t.letter as 'A' | 'B']?.name ?? `Team ${t.letter}`, points: t.points }))} />
             </View>
           ) : summary ? (
             <Text numberOfLines={2} style={{ color: c.text, fontSize: 13 }}>{summary}</Text>
@@ -92,7 +92,7 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
             const res = results[m.gi];
             // The winner's team colour (or the app's green when there are no teams).
             const side = m.winner === 'a' ? m.a : m.winner === 'b' ? m.b : null;
-            const winColor = m.winner === 'halved' ? c.accent : side ? (side.letter ? teamColor(side.letter).color : c.primary) : undefined;
+            const winColor = m.winner === 'halved' ? c.accent : side ? (side.letter ? teamColor(side.letter, r.teamColors).color : c.primary) : undefined;
             const status = m.winner === 'halved' ? 'Halved' : m.winner ? `${(m.winner === 'a' ? m.a : m.b).names.split(' & ').map((n) => n.split(' ')[0]).join(' & ')} ${m.detail}` : res && isResult(res) && res.thru ? m.detail : 'Not started';
             return (
               <Pressable key={m.gi} onPress={() => router.push(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`}
