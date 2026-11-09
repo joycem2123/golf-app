@@ -164,7 +164,8 @@ export default function NewRound() {
 
   // Planned event round: once the course is picked, bring in its players and its game.
   // Matchups decided on the day start with the whole event group (take out anyone not playing).
-  const plannedIds = planned?.matchupsLater
+  // (No format chosen yet counts as decided on the day: start with the whole group.)
+  const plannedIds = planned?.matchupsLater || (planned && !planned.draft)
     ? saved.filter((p) => event!.playerIds.includes(p.id)).map((p) => p.id)
     : planned?.draft
       ? Object.keys(planned.draft.teamOf).filter((id) => saved.some((p) => p.id === id))
@@ -213,6 +214,16 @@ export default function NewRound() {
         : null;
   const completeRound = useStore((s) => s.completeRound);
 
+  // A planned round on a later day: everything can be set up now, but it's saved, not started.
+  const planMode = !!event && !!planned?.date && planned.date > today() && !scan;
+  const setEventRoundSetup = useStore((s) => s.setEventRoundSetup);
+  const savePlan = () => {
+    if (!event || !planned || !course || !draft || problem) return;
+    setEventRoundSetup(event.id, planned.id, { courseId: course.id, roster, teamOf, letters, noTeams, draft, sideMatches, statsEnabled });
+    track('event_round_set_up_ahead');
+    router.back();
+  };
+
   // ------------------------------------------------------------------ drafts and favourites
   // A plain new round (not from an event, a scheduled match or a scorecard photo) is saved as you go,
   // so closing the screen by accident loses nothing, and can be saved as a favourite to play again.
@@ -249,6 +260,14 @@ export default function NewRound() {
   const [autoStart, setAutoStart] = useState(false);
   // Opened from a favourite on Home: load it (and start straight away for "play").
   const favLoaded = useRef(false);
+  // A planned event round set up ahead (or being set up ahead): open on its saved setup.
+  const planLoaded = useRef(false);
+  useEffect(() => {
+    if (planLoaded.current || !planned?.setup) return;
+    planLoaded.current = true;
+    plannedDraftSet.current = true;
+    applySetup(planned.setup, 'game');
+  }, [planned?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (favLoaded.current || !fav) return;
     favLoaded.current = true;
@@ -355,6 +374,9 @@ export default function NewRound() {
         disabled={!teamsSet(rosterIds, (id) => (letters.includes(teamOf[id]) ? teamOf[id] : undefined))}
         onPress={() => { setNoTeams(false); setStep('game'); }}
       />
+    ) : step === 'game' && course && planMode ? (
+      // Set up ahead of the day: saved to the event, started on the day.
+      <Button title="Save round setup" disabled={!!problem} onPress={savePlan} />
     ) : step === 'game' && course ? (
       <Button
         title={scan ? 'Calculate results' : season ? `Start round · ${season.name}` : 'Start round'}
@@ -365,7 +387,7 @@ export default function NewRound() {
 
   // A planned round or scheduled match can only be started on its day.
   const plannedDate = planned?.date ?? scheduled?.date;
-  if (event && plannedDate && !canStartOn(plannedDate) && !scan) {
+  if (event && plannedDate && !canStartOn(plannedDate) && !scan && !planMode) {
     const what = planned ? `Round ${planned.number}` : (scheduled?.label ?? 'This match');
     const canMove = event.remote?.role !== 'viewer';
     return (
@@ -412,6 +434,15 @@ export default function NewRound() {
     <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {scan && <Stack.Screen options={{ title: 'Set Up the Round' }} />}
+      {planMode && planned && <Stack.Screen options={{ title: `Set up Round ${planned.number}` }} />}
+      {planMode && planned?.date && (
+        <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, borderLeftWidth: 3, borderLeftColor: c.accent }}>
+          <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>
+            <Text style={{ fontWeight: '800' }}>Setting up Round {planned.number} for {formatDate(planned.date, { weekday: 'long', month: 'short', day: 'numeric' })}.</Text>
+            {' '}Pick everything now; it’s saved to the event and can be started on the day.
+          </Text>
+        </View>
+      )}
       {stepBar}
 
       {step === 'course' && (
@@ -437,7 +468,7 @@ export default function NewRound() {
                 const fromCard = scan ? [...new Set(scan.rows.map((r) => r.playerId).filter((x): x is string => !!x))].filter((pid) => saved.some((p) => p.id === pid)) : [];
                 if (fromCard.length) {
                   setRoster(fromCard.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
-                } else if (planned?.draft || planned?.matchupsLater) {
+                } else if (planned) {
                   plannedDraftSet.current = false;
                   setRoster(plannedIds.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
                 } else setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);

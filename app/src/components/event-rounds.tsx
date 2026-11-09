@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { formatDate, toISODate, today } from '@/lib/dates';
 import { formatPoints } from '@/lib/events';
 import { canStartOn } from '@/lib/event-calendar';
+import { getCourse } from '@/lib/courses';
 import { gameInfo, gameName } from '@/lib/games';
 import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
@@ -43,6 +44,7 @@ export function EventRounds({ e }: { e: EventRecord }) {
     const date = x.date ?? (r ? new Date(r.createdAt).toISOString().slice(0, 10) : undefined);
     let course = '';
     try { if (r) course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
+    if (!r && x.setup) course = shortCourseName(getCourse(x.setup.courseId)?.name ?? '');
     const isNext = x.id === nextUp;
     const open = () => {
       if (r) router.push(status === 'final' ? `/round/${r.id}/results` : `/round/${r.id}`);
@@ -88,7 +90,17 @@ export function EventRounds({ e }: { e: EventRecord }) {
             {!r && canEdit && (
               <View style={{ justifyContent: 'center' }}>
                 {/* Only on the day it's planned for (tap the row to move it to today). */}
-                {canStartOn(x.date) ? <Button small kind={isNext ? 'primary' : 'secondary'} title="Start" onPress={open} /> : <DateLock date={x.date!} />}
+                {canStartOn(x.date) ? (
+                      <Button small kind={isNext ? 'primary' : 'secondary'} title="Start" onPress={open} />
+                    ) : x.date! < today() ? (
+                      <DateLock date={x.date!} />
+                    ) : (
+                      // A later day: it can be set up now, and started on the day.
+                      <View style={{ alignItems: 'center', gap: 3 }}>
+                        <Button small kind="secondary" title={x.setup ? 'Edit setup' : 'Set up'} onPress={open} />
+                        <Text style={{ color: c.muted, fontSize: 10, fontWeight: '700' }}>🔒 Starts {formatDate(x.date!, { month: 'short', day: 'numeric' })}</Text>
+                      </View>
+                    )}
               </View>
             )}
           </View>

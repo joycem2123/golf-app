@@ -121,6 +121,8 @@ export interface EventRound {
   roundId?: string;
   /** Matchups to be decided when the round is played. */
   matchupsLater?: boolean;
+  /** Set up ahead of the day (course, players, tees, teams, game): Start round opens straight on it. */
+  setup?: RoundSetup;
 }
 
 /** A setup that hasn't been started yet. `data` is the screen's own state; `summary` describes it ("Willow Park · 4 players"). */
@@ -256,6 +258,8 @@ interface State {
   setEventRoundId: (eventId: string, eventRoundId: string, roundId: string | undefined) => void;
   /** Move a planned event round to another day (YYYY-MM-DD). */
   setEventRoundDate: (eventId: string, eventRoundId: string, date: string) => void;
+  /** Save a round's setup ahead of its day. */
+  setEventRoundSetup: (eventId: string, eventRoundId: string, setup: RoundSetup) => void;
   removeScheduled: (eventId: string, matchId: string) => void;
   clearDirtyEvents: (ids: string[]) => void;
   setMe: (id: string | null) => void;
@@ -456,6 +460,13 @@ export const useStore = create<State>()(
       setEventRoundDate: (eventId, eventRoundId, date) =>
         set((s) => ({
           events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: e.rounds?.map((x) => (x.id === eventRoundId ? { ...x, date } : x)) } : e)),
+          dirtyEvents: dirtyEvent(s, eventId),
+        })),
+      setEventRoundSetup: (eventId, eventRoundId, setup) =>
+        set((s) => ({
+          events: s.events.map((e) => (e.id === eventId
+            ? { ...e, rounds: e.rounds?.map((x) => (x.id === eventRoundId ? { ...x, setup, draft: (setup.draft as GameDraft | null) ?? x.draft, matchupsLater: setup.draft ? false : x.matchupsLater } : x)) }
+            : e)),
           dirtyEvents: dirtyEvent(s, eventId),
         })),
       saveScheduled: (eventId, m) =>

@@ -12,6 +12,7 @@ import { formatPoints } from '@/lib/events';
 import { canStartOn } from '@/lib/event-calendar';
 import { gameInfo, gameName, gameTitle, matchLabel } from '@/lib/games';
 import { roundTeamScore } from '@/lib/results';
+import { getCourse } from '@/lib/courses';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord, type EventRound, type RoundRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
@@ -72,9 +73,10 @@ export function NextRound({ e }: { e: EventRecord }) {
   // ---- coming up
   const p = plan!;
   const fmt = p.draft ? gameInfo(p.draft.kind).name : 'Format to be decided';
+  const setupCourse = p.setup ? getCourse(p.setup.courseId)?.name : undefined;
   const when = !p.date ? 'Date to be decided' : p.date === today() ? 'Today' : formatDate(p.date, { weekday: 'long', month: 'long', day: 'numeric' });
   return (
-    <Shell accent={isToday ? c.accent : c.primary} label={`${isToday ? '📅 TODAY' : 'UP NEXT'} · ${title.toUpperCase()}`} title={fmt} sub={when}>
+    <Shell accent={isToday ? c.accent : c.primary} label={`${isToday ? '📅 TODAY' : 'UP NEXT'} · ${title.toUpperCase()}`} title={fmt} sub={[when, setupCourse ? shortCourseName(setupCourse) : null].filter(Boolean).join(' · ')}>
       {p.matchupsLater ? (
         <Text style={{ color: c.muted, fontSize: 14 }}>Matchups are decided on the day.</Text>
       ) : (
@@ -93,6 +95,9 @@ export function NextRound({ e }: { e: EventRecord }) {
       {!isToday && p.date && p.date > today() && !(e.startDate && e.startDate > today()) && <Countdown compact target={{ event: e, label: `${e.name} · ${title}`, date: p.date, kind: 'round' }} />}
       {canEdit && (isToday || !p.date) && (
         <Button title="Start round ›" onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id, eventRound: p.id } })} />
+      )}
+      {canEdit && !isToday && p.date && p.date > today() && (
+        <Button kind="secondary" title={p.setup ? 'Edit round setup ›' : 'Set up this round ahead ›'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id, eventRound: p.id } })} />
       )}
     </Shell>
   );

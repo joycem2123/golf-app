@@ -158,6 +158,9 @@ export default function EventScreen() {
 
                 <NextRound e={e} />
                 <EventStory e={e} rounds={rounds} />
+                {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
+                {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
+
                 {standingsCard}
 
                 <Card>
@@ -174,8 +177,6 @@ export default function EventScreen() {
                 </Card>
                 {canAdd && <AddEventPlayer e={e} />}
 
-                {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
-                {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
 
                 {cupMatches.length > 0 && (
                   <Card>
@@ -211,10 +212,10 @@ export default function EventScreen() {
             })()}
             <NextRound e={e} />
             <EventStory e={e} rounds={rounds} />
+            {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
+            {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             {standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
-            {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
-                {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             <Card>
               <H2>Results</H2>
               {matches.length === 0 ? <Body muted>No matches yet.</Body> : matches.map((m) => <MatchRow key={m.id} e={e} m={m} name={name} />)}
