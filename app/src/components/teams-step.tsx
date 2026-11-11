@@ -169,7 +169,7 @@ export function TeamsStep({
             </View>
             {onNames && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: space.lg, paddingTop: space.sm }}>
-                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, width: 54 }}>NAME</Text>
+                <Text numberOfLines={1} style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, width: 66 }}>NAME</Text>
                 <TextInput
                   value={names?.[L] ?? ''}
                   onChangeText={(v) => onNames({ ...(names ?? {}), [L]: v })}
@@ -186,7 +186,7 @@ export function TeamsStep({
             {onColors && (
               // Pick the team's colour (each team gets a different one).
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: c.border }}>
-                <Text style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, width: 54 }}>COLOUR</Text>
+                <Text numberOfLines={1} style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 1, width: 66 }}>COLOUR</Text>
                 {TEAM_SWATCHES.map((sw) => {
                   const mine = tc.color === sw.color;
                   const taken = !mine && letters.some((o) => o !== L && teamColor(o, colors).color === sw.color);
