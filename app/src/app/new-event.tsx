@@ -267,14 +267,14 @@ export default function NewEvent() {
   // The main button for each step, pinned to the bottom of the screen (no scrolling to find it), as in New Round.
   const nextBtn = (to: Step, title: string, problem: string | null) => <Button title={title} disabled={!!problem} onPress={() => setStep(to)} />;
   const footerMessage =
-    step === 'details' ? (name ? detailsProblem : null)
+    step === 'details' ? detailsProblem
     : step === 'players' ? playersProblem
     : step === 'rounds' ? (plans.length ? roundsProblem : null)
     : step === 'matchups' ? (matchupProblems[current] ?? (current === plans.length - 1 && matchupProblems.some((x) => x)
       ? `Finish the matchups for ${matchupProblems.map((x, i) => (x ? `Round ${i + 1}` : null)).filter(Boolean).join(', ')} first.` : null))
     : null;
   const footer =
-    step === 'details' ? nextBtn('players', 'Next: players', name ? detailsProblem : null)
+    step === 'details' ? nextBtn('players', 'Next: players', detailsProblem) // no name, no moving on
     : step === 'players' ? nextBtn('teams', 'Next: teams', playersProblem)
     : step === 'teams' ? (
       <Button
@@ -335,7 +335,7 @@ export default function NewEvent() {
             })}
           </View>
 
-          <Field label="Event name" value={name} onChangeText={setName} placeholder={isCup ? 'Palm Desert Cup 2027' : type === 'trip' ? 'Boys Trip 2027' : 'Tuesday Night League 2027'} />
+          <Field label="Event name" value={name} onChangeText={setName} placeholder={isCup ? 'e.g. Palm Desert Cup 2027' : type === 'trip' ? 'e.g. Boys Trip 2027' : 'e.g. Tuesday Night League 2027'} />
 
           <Card>
             <H2>{isSeason ? 'Season dates' : 'Dates'}</H2>

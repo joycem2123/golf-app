@@ -170,6 +170,9 @@ export function Toggle({ label, value, onChange, hint }: { label: string; value:
   );
 }
 
+/** Placeholder (example) text colour: lighter than muted text. */
+const PLACEHOLDER = '#A9AEA5';
+
 export function Field(props: TextInputProps & { label: string }) {
   const c = useColors();
   const { label, style, secureTextEntry, ...rest } = props;
@@ -177,12 +180,13 @@ export function Field(props: TextInputProps & { label: string }) {
   const [shown, setShown] = useState(false);
   const input = (
     <TextInput
-      placeholderTextColor={c.muted}
+      // Example text is light and italic, so it never looks like something already typed.
+      placeholderTextColor={PLACEHOLDER}
       {...rest}
       secureTextEntry={secureTextEntry && !shown}
       autoCapitalize={secureTextEntry ? 'none' : rest.autoCapitalize}
       autoCorrect={secureTextEntry ? false : rest.autoCorrect}
-      style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, secureTextEntry && { paddingRight: 48 }, style]}
+      style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, !rest.value && { fontStyle: 'italic' }, secureTextEntry && { paddingRight: 48 }, style]}
     />
   );
   return (
