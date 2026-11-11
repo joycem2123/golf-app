@@ -1,0 +1,24 @@
+# Send a finished iOS build to TestFlight. Runs on Expo's servers, where the App Store Connect
+# API key is kept as a secret file variable (ASC_API_KEY, "production" environment); it never
+# leaves Expo's servers. Run: eas workflow:run .eas/workflows/testflight.yml -F build_id=<id>
+name: Send to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        type: string
+        required: true
+        description: The iOS build to upload
+
+jobs:
+  submit:
+    type: submit
+    environment: production
+    params:
+      build_id: ${{ inputs.build_id }}
+      profile: production
+    hooks:
+      before_submit:
+        - name: Put the App Store Connect API key where eas.json expects it
+          run: cp "$ASC_API_KEY" ./asc-api-key.p8
