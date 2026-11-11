@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="favicon.png"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"><title>Clutch Up Golf · Join a round</title>
+<meta property="og:title" content="Follow my round live in Clutch Up"><meta property="og:description" content="Live scores, leaderboards and match results. Tap to open."><meta property="og:image" content="https://clutchupgolf.com/logo.png">
+<style>.big{font-family:Outfit,-apple-system,sans-serif;font-size:28px;margin:8px 0}.code{font-family:Outfit,-apple-system,sans-serif;font-size:40px;letter-spacing:8px;color:#1F5A3D;border:1px solid #C9A227;border-radius:10px;display:inline-block;padding:6px 18px;margin:6px 0 4px}.btn{display:block;text-align:center;background:#1F5A3D;color:#fff;text-decoration:none;font-weight:700;padding:15px;border-radius:10px;margin:18px 0 8px}.btn2{background:#EAF1EC;color:#1F5A3D}ol{text-align:left;padding-left:22px;line-height:1.6}</style></head>
+<body><header><img src="logo.png" alt=""><h1>Clutch Up</h1><p>Golf</p></header>
+<main style="text-align:center">
+  <p class="big">You’re invited to a live round</p>
+  <div class="code" id="code">––––––</div>
+  <a class="btn" id="open" href="clutchup://join">Open live scoring</a>
+  <p class="muted">Opens the round in the Clutch Up app on your iPhone.</p>
+
+  <h2 style="margin-top:28px">Don’t have Clutch Up yet?</h2>
+  <ol>
+    <li>Install <a href="https://apps.apple.com/app/testflight/id899247664">TestFlight</a> from the App Store.</li>
+    <li>Join the beta and tap <b>Install</b>.</li>
+    <li>Come back to this page and tap <b>Open live scoring</b>, or tap <b>Join with Code</b> in the app and enter the code above.</li>
+  </ol>
+  <a class="btn btn2" href="https://testflight.apple.com/join/Y28zh8d8">Get the Clutch Up beta</a>
+</main>
+<script>
+  var q = new URLSearchParams(location.search);
+  var code = (q.get('c') || q.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (code.length === 6) {
+    document.getElementById('code').textContent = code;
+    var app = 'clutchup://join?code=' + code;
+    document.getElementById('open').href = app;
+    // Try to open the app straight away; if it isn't installed, this page stays put.
+    setTimeout(function () { location.href = app; }, 300);
+  } else {
+    document.getElementById('code').style.display = 'none';
+  }
+</script>
+<footer>© 2026 Clutch Up Golf</footer></body></html>

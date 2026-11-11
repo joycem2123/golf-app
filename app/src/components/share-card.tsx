@@ -34,8 +34,8 @@ export function ShareCard({ remote, what, onShare }: { remote?: Remote; what: 'r
         <Button
           small
           kind="secondary"
-          title="Send code"
-          onPress={() => (track('share_code_shared', { what }), Share.share({ message: `Join my ${what === 'event' ? 'event' : 'round'} in Clutch Up with code ${remote.shareCode}` }))}
+          title="Send link"
+          onPress={() => (track('share_code_shared', { what }), Share.share({ message: `Follow my ${what === 'event' ? 'event' : 'round'} live in Clutch Up: https://clutchupgolf.com/join?c=${remote.shareCode}\n\nOr tap “Join with Code” in the app and enter ${remote.shareCode}` }))}
         />
       </Card>
     );
