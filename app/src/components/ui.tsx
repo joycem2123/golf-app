@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { useState, type ReactNode } from 'react';
+import { forwardRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 
 import { fonts, radius, space, useColors } from '@/theme';
@@ -173,20 +173,21 @@ export function Toggle({ label, value, onChange, hint }: { label: string; value:
 /** Placeholder (example) text colour: lighter than muted text. */
 const PLACEHOLDER = '#A9AEA5';
 
-export function Field(props: TextInputProps & { label: string }) {
+export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { label: string; error?: string | null }>(function Field(props, ref) {
   const c = useColors();
-  const { label, style, secureTextEntry, ...rest } = props;
+  const { label, style, secureTextEntry, error, ...rest } = props;
   // Password boxes get an eye button to show or hide what was typed.
   const [shown, setShown] = useState(false);
   const input = (
     <TextInput
+      ref={ref}
       // Example text is light and italic, so it never looks like something already typed.
       placeholderTextColor={PLACEHOLDER}
       {...rest}
       secureTextEntry={secureTextEntry && !shown}
       autoCapitalize={secureTextEntry ? 'none' : rest.autoCapitalize}
       autoCorrect={secureTextEntry ? false : rest.autoCorrect}
-      style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, !rest.value && { fontStyle: 'italic' }, secureTextEntry && { paddingRight: 48 }, style]}
+      style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, !rest.value && { fontStyle: 'italic' }, error ? ({ borderColor: c.danger, borderWidth: 2, outlineColor: c.danger } as object) : null, secureTextEntry && { paddingRight: 48 }, style]}
     />
   );
   return (
@@ -212,9 +213,10 @@ export function Field(props: TextInputProps & { label: string }) {
       ) : (
         input
       )}
+      {error ? <Text style={{ color: c.danger, fontSize: 13, fontWeight: '600' }}>{error}</Text> : null}
     </View>
   );
-}
+});
 
 export function OptionRow({ label, children }: { label: string; children: ReactNode }) {
   return (

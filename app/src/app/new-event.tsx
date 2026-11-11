@@ -1,7 +1,7 @@
 import { lockHandicaps, type Player } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,6 +38,9 @@ export default function NewEvent() {
   const { me, isMe } = useMe();
 
   const [step, setStep] = useState<Step>('details');
+  const [triedDetails, setTriedDetails] = useState(false);
+  const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   // Details
   // Opened from New Round's "Create a new season": start as a play-as-you-go season and go back there after.
   const params = useLocalSearchParams<{ type?: EventType; returnTo?: string }>();
@@ -267,14 +270,24 @@ export default function NewEvent() {
   // The main button for each step, pinned to the bottom of the screen (no scrolling to find it), as in New Round.
   const nextBtn = (to: Step, title: string, problem: string | null) => <Button title={title} disabled={!!problem} onPress={() => setStep(to)} />;
   const footerMessage =
-    step === 'details' ? detailsProblem
+    step === 'details' ? (triedDetails ? detailsProblem : null)
     : step === 'players' ? playersProblem
     : step === 'rounds' ? (plans.length ? roundsProblem : null)
     : step === 'matchups' ? (matchupProblems[current] ?? (current === plans.length - 1 && matchupProblems.some((x) => x)
       ? `Finish the matchups for ${matchupProblems.map((x, i) => (x ? `Round ${i + 1}` : null)).filter(Boolean).join(', ')} first.` : null))
     : null;
   const footer =
-    step === 'details' ? nextBtn('players', 'Next: players', detailsProblem) // no name, no moving on
+    step === 'details' ? (
+      // No name, no moving on: tapping Next shows where it's missing.
+      <Button title="Next: players" onPress={() => {
+        if (detailsProblem) {
+          setTriedDetails(true);
+          if (!name.trim()) { scrollRef.current?.scrollTo({ y: 0, animated: true }); nameRef.current?.focus(); }
+          return;
+        }
+        setStep('players');
+      }} />
+    )
     : step === 'players' ? nextBtn('teams', 'Next: teams', playersProblem)
     : step === 'teams' ? (
       <Button
@@ -297,7 +310,7 @@ export default function NewEvent() {
   return (
     <TeamColors picks={teamColors} names={teamNames}>
     <View style={{ flex: 1 }}>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
+    <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {stepBar}
 
       {step === 'details' && (
@@ -335,7 +348,7 @@ export default function NewEvent() {
             })}
           </View>
 
-          <Field label="Event name" value={name} onChangeText={setName} placeholder={isCup ? 'e.g. Palm Desert Cup 2027' : type === 'trip' ? 'e.g. Boys Trip 2027' : 'e.g. Tuesday Night League 2027'} />
+          <Field ref={nameRef} label="Event name" value={name} onChangeText={setName} error={triedDetails && !name.trim() ? 'Enter a name for the event' : null} placeholder={isCup ? 'e.g. Palm Desert Cup 2027' : type === 'trip' ? 'e.g. Boys Trip 2027' : 'e.g. Tuesday Night League 2027'} />
 
           <Card>
             <H2>{isSeason ? 'Season dates' : 'Dates'}</H2>
