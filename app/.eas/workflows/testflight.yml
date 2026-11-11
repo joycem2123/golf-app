@@ -19,6 +19,9 @@ jobs:
       build_id: ${{ inputs.build_id }}
       profile: production
     hooks:
-      before_submit:
+      # Before "Prepare credentials", which reads eas.json's ascApiKeyPath.
+      after_install_node_modules:
         - name: Put the App Store Connect API key where eas.json expects it
-          run: cp "$ASC_API_KEY" ./asc-api-key.p8
+          run: |
+            if [ -z "$ASC_API_KEY" ]; then echo "ASC_API_KEY is not set in the production environment on expo.dev"; exit 1; fi
+            cp "$ASC_API_KEY" ./asc-api-key.p8
