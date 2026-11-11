@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(EXPO_TOKEN=placeholder npx -y eas-cli update --channel production:*)"
+    ]
+  }
+}
