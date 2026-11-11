@@ -10,7 +10,7 @@ import { create } from 'zustand';
 
 import { space, useColors } from '@/theme';
 
-export const TUTORIAL_VIDEO = 'https://clutchupgolf.com/tutorial.mp4';
+export const TUTORIAL_VIDEO = 'https://clutchupgolf.com/tutorial.mp4?v=4';
 
 /** open: the player is showing. welcome: the first-time welcome card is showing. Tips wait while either is up. */
 export const useTutorialPlayer = create<{ open: boolean; welcome: boolean }>(() => ({ open: false, welcome: false }));
