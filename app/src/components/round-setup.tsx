@@ -44,20 +44,18 @@ export function StepPills<T extends string>({
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: compact ? 2 : 6,
                 paddingVertical: compact ? 9 : 11,
                 paddingHorizontal: compact ? 2 : 0,
                 borderRadius: radius.pill,
                 backgroundColor: active ? c.primary : done ? c.primarySoft : c.card,
                 borderWidth: 1.5,
-                borderColor: active || done ? c.primary : c.border,
+                borderColor: active ? c.primary : done ? c.primarySoft : c.border,
                 opacity: pressed ? 0.75 : canGo(s.value) || active ? 1 : 0.55,
                 shadowColor: active ? c.primary : 'transparent',
                 shadowOpacity: active ? 0.25 : 0,
                 shadowRadius: 6,
                 shadowOffset: { width: 0, height: 2 },
               })}>
-              {done && !compact && <Text style={{ color: c.primary, fontWeight: '900', fontSize: 13 }}>✓</Text>}
               <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: active ? c.onPrimary : done ? c.primary : c.muted, fontWeight: '700', fontSize: compact ? 12 : 15, letterSpacing: compact ? 0 : 0.3 }}>{s.label}</Text>
             </Pressable>
             {i < steps.length - 1 && <View style={{ width: compact ? 3 : 8, height: 2, borderRadius: 1, backgroundColor: done ? c.primary : c.border }} />}
