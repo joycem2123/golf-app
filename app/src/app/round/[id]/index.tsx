@@ -87,7 +87,7 @@ function ScoreRow({
           </Text>
         </View>
         <View style={styles.row}>
-          {!readOnly && <Pressable onPress={() => gross !== null && set(gross - 1)} style={[styles.stepBtn, { width: 36, height: 36, borderRadius: 18, backgroundColor: c.chip }]}>
+          {!readOnly && <Pressable onPress={() => set(gross === null ? par : gross - 1)} style={[styles.stepBtn, { width: 36, height: 36, borderRadius: 18, backgroundColor: c.chip }]}>
             <Text style={{ color: c.primary, fontSize: 22, fontWeight: '700' }}>−</Text>
           </Pressable>}
           <Pressable
