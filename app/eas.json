@@ -14,7 +14,7 @@
     },
     "testflight": {
       "extends": "production",
-      "credentialsSource": "local"
+      "credentialsSource": "remote"
     }
   },
   "submit": {
