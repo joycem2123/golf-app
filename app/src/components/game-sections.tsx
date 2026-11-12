@@ -30,7 +30,10 @@ export function GameSections({
   onDeleteEvent,
   firstOpenRef,
   roundsOnly,
+  hideIds,
 }: {
+  /** Rounds and events to leave out (Home: friends' ones I haven't followed, or the My games / Friends switch). */
+  hideIds?: string[];
   /** Only rounds that aren't part of an event (Scores → Rounds). */
   roundsOnly?: boolean;
   /** A round already shown elsewhere on the screen (Home's live card). */
@@ -44,8 +47,11 @@ export function GameSections({
   firstOpenRef?: TipTarget;
 }) {
   const c = useColors();
-  const rounds = useStore((s) => s.rounds);
-  const events = useStore((s) => s.events);
+  const allRounds = useStore((s) => s.rounds);
+  const allEvents = useStore((s) => s.events);
+  const hidden = new Set(hideIds ?? []);
+  const rounds = hidden.size ? allRounds.filter((r) => !hidden.has(r.id)) : allRounds;
+  const events = hidden.size ? allEvents.filter((e) => !hidden.has(e.id)) : allEvents;
 
   const phaseOf = Object.fromEntries(events.map((e) => [e.id, eventPhase(e, rounds)]));
   const openEvents = roundsOnly ? [] : events.filter((e) => phaseOf[e.id] !== 'completed');

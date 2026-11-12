@@ -31,14 +31,28 @@ function Toggle({ open, label, onPress }: { open: boolean; label: string; onPres
 }
 
 /** An event card that opens out into its rounds. */
-export function EventDrill({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+export interface DrillActions {
+  /** Open a screen (friends' rounds are brought onto the phone first). Defaults to navigating. */
+  open?: (path: string) => void;
+  /** ⋯ on a round, keyed by round. */
+  roundMore?: (r: RoundRecord) => void;
+  /** ⋯ on a match in a round. */
+  matchMore?: (r: RoundRecord, gi: number) => void;
+  /** Followed marks. */
+  isFollowing?: (r: RoundRecord, gi?: number) => boolean;
+}
+
+export function EventDrill({ e, rounds, onOpenEvent, onMore, following, nameOf, actions }: { e: EventRecord; rounds: RoundRecord[]; onOpenEvent?: () => void; onMore?: () => void; following?: boolean; nameOf?: (id: string) => string | undefined; actions?: DrillActions }) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const mine = rounds.filter((r) => r.eventId === e.id).sort((a, b) => b.createdAt - a.createdAt);
   const planned = (e.rounds ?? []).filter((x) => !x.roundId || !mine.some((r) => r.id === x.roundId)).length;
   return (
     <View style={{ gap: 0 }}>
-      <EventCard e={e} rounds={rounds} hint="Event page ›" />
+      <View>
+        <EventCard e={e} rounds={rounds} hint={following ? '★ Following · Event page ›' : 'Event page ›'} onPress={onOpenEvent} nameOf={nameOf} />
+        {onMore && <View style={{ position: 'absolute', top: space.md, right: space.md }}><MoreButton onPress={onMore} label={`Follow and notification options for ${e.name}`} /></View>}
+      </View>
       <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }}
         style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -6, paddingTop: 12, paddingBottom: 8, paddingHorizontal: space.lg, backgroundColor: pressed ? c.chip : c.primarySoft, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, zIndex: -1 })}>
         <Text style={{ color: c.primary, fontWeight: '700', fontSize: 13 }}>
@@ -48,7 +62,7 @@ export function EventDrill({ e, rounds }: { e: EventRecord; rounds: RoundRecord[
       </Pressable>
       {open && (
         <View style={{ marginLeft: space.md, paddingLeft: space.md, borderLeftWidth: 2, borderLeftColor: c.accent, gap: space.sm, paddingTop: space.sm }}>
-          {mine.map((r) => <RoundDrill key={r.id} r={r} e={e} />)}
+          {mine.map((r) => <RoundDrill key={r.id} r={r} e={e} actions={actions} />)}
           {mine.length === 0 && <Text style={{ color: c.muted, fontSize: 13, paddingVertical: space.sm }}>Rounds show here once they’re started.</Text>}
         </View>
       )}
@@ -57,7 +71,7 @@ export function EventDrill({ e, rounds }: { e: EventRecord; rounds: RoundRecord[
 }
 
 /** A round in an event: tap for its results (or live scoring), open it out for its matches. */
-export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
+export function RoundDrill({ r, e, actions }: { r: RoundRecord; e?: EventRecord; actions?: DrillActions }) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const results = evaluate(r);
@@ -69,16 +83,19 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
   let course = '';
   try { course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
   const date = new Date(r.createdAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-  const goRound = () => router.push(live ? `/round/${r.id}` : `/round/${r.id}/results`);
+  const go = actions?.open ?? ((path: string) => router.push(path as never));
+  const goRound = () => go(live ? `/round/${r.id}` : `/round/${r.id}/results`);
+  const following = actions?.isFollowing?.(r) ?? false;
   return (
     <View style={{ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md }}>
         <Pressable onPress={goRound} style={({ pressed }) => ({ flex: 1, gap: 2, opacity: pressed ? 0.6 : 1 })} accessibilityRole="button" accessibilityLabel={`${r.label ?? 'Round'} ${live ? 'live scoring' : 'results'}`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>{r.label ?? 'Unscheduled round'}</Text>
+            <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontWeight: '800', fontSize: 15 }}>{r.label ?? 'Unscheduled round'}</Text>
             <View style={{ backgroundColor: live ? c.under : c.primary, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
               <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 1 }}>{live ? 'LIVE' : 'FINAL'}</Text>
             </View>
+            {following && <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800' }}>★ FOLLOWING</Text>}
           </View>
           <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{[date, course, gameName(r.games[0]), e ? null : r.players.map((p) => p.name.split(' ')[0]).join(', ')].filter(Boolean).join(' · ')}</Text>
           {score ? (
@@ -91,6 +108,7 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
           <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>{live ? 'Live scoring ›' : 'Round results ›'}</Text>
         </Pressable>
         {matches.length > 0 && <Toggle open={open} label={open ? 'Hide matches' : 'Show matches'} onPress={() => setOpen(!open)} />}
+        {actions?.roundMore && <MoreButton onPress={() => actions.roundMore!(r)} label="Follow and notification options for this round" />}
       </View>
       {open && (
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg }}>
@@ -101,13 +119,13 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
             const winColor = m.winner === 'halved' ? c.accent : side ? (side.letter ? teamColor(side.letter, r.teamColors).color : c.primary) : undefined;
             const status = m.winner === 'halved' ? 'Halved' : m.winner ? `${(m.winner === 'a' ? m.a : m.b).names.split(' & ').map((n) => n.split(' ')[0]).join(' & ')} ${m.detail}` : res && isResult(res) && res.thru ? m.detail : 'Not started';
             return (
-              <Pressable key={m.gi} onPress={() => router.push(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`}
+              <Pressable key={m.gi} onPress={() => go(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`}
                 style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 10, paddingHorizontal: space.md, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, backgroundColor: pressed ? c.chip : 'transparent' })}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ color: c.text, fontSize: 14, fontWeight: '600' }}>{gameTitle(r.games[m.gi], r.players)}</Text>
-                  <Text numberOfLines={1} style={{ color: winColor ?? c.muted, fontSize: 13, fontWeight: m.winner ? '700' : '400' }}>{status}</Text>
+                  <Text numberOfLines={1} style={{ color: winColor ?? c.muted, fontSize: 13, fontWeight: m.winner ? '700' : '400' }}>{status}{actions?.isFollowing?.(r, m.gi) ? '  ★' : ''}</Text>
                 </View>
-                <Text style={{ color: c.primary, fontWeight: '800', fontSize: 16 }}>›</Text>
+                {actions?.matchMore && live ? <MoreButton onPress={() => actions.matchMore!(r, m.gi)} label={`Follow and notification options for ${m.title}`} /> : <Text style={{ color: c.primary, fontWeight: '800', fontSize: 16 }}>›</Text>}
               </Pressable>
             );
           })}
@@ -151,7 +169,16 @@ function liveState(r: RoundRecord, results: ReturnType<typeof evaluate>, matches
  * My rounds in three sections: in progress, coming up (planned event rounds) and completed (folded away
  * to start). Each shows four, then "Show more".
  */
-export function MyRounds({ rounds, events, onDelete }: { rounds: RoundRecord[]; events: EventRecord[]; onDelete: (id: string) => void }) {
+export function MyRounds({ rounds, events, onDelete, actions, upcomingSlot, emptyLive, emptyDone }: {
+  rounds: RoundRecord[];
+  events: EventRecord[];
+  onDelete?: (id: string) => void;
+  actions?: DrillActions;
+  /** Friends' view: its own upcoming list (with ⋯), in place of my planned event rounds. */
+  upcomingSlot?: { count: number; items: React.ReactNode };
+  emptyLive?: string;
+  emptyDone?: string;
+}) {
   const c = useColors();
   const live = rounds.filter((r) => r.status === 'active').sort((a, b) => b.createdAt - a.createdAt);
   const done = rounds.filter((r) => r.status === 'complete').sort((a, b) => (b.completedAt ?? b.createdAt) - (a.completedAt ?? a.createdAt));
@@ -162,14 +189,17 @@ export function MyRounds({ rounds, events, onDelete }: { rounds: RoundRecord[]; 
     .sort((a, b) => (a.p.date ?? '').localeCompare(b.p.date ?? ''));
   const eventOf = (r: RoundRecord) => (r.eventId ? events.find((e) => e.id === r.eventId) : undefined);
   const item = (r: RoundRecord) =>
-    canDeleteRound(r) && r.remote?.role !== 'viewer' ? (
-      <SwipeToDelete key={r.id} label="round" onDelete={() => onDelete(r.id)}><RoundDrill r={r} e={eventOf(r)} /></SwipeToDelete>
+    onDelete && canDeleteRound(r) && r.remote?.role !== 'viewer' ? (
+      <SwipeToDelete key={r.id} label="round" onDelete={() => onDelete(r.id)}><RoundDrill r={r} e={eventOf(r)} actions={actions} /></SwipeToDelete>
     ) : (
-      <RoundDrill key={r.id} r={r} e={eventOf(r)} />
+      <RoundDrill key={r.id} r={r} e={eventOf(r)} actions={actions} />
     );
   return (
     <View style={{ gap: space.md }}>
-      <ListSection title="In progress" count={live.length} empty="No rounds in play. Start one from Home.">{live.map(item)}</ListSection>
+      <ListSection title="In progress" count={live.length} empty={emptyLive ?? 'No rounds in play. Start one from Home.'}>{live.map(item)}</ListSection>
+      {upcomingSlot ? (
+        <ListSection title="Upcoming" count={upcomingSlot.count} empty="No rounds coming up.">{upcomingSlot.items}</ListSection>
+      ) : (
       <ListSection title="Upcoming" count={upcoming.length} empty="Nothing planned. Add rounds to an event to see them here.">
         {upcoming.map(({ e, p }) => (
           <Pressable key={`${e.id}:${p.id}`} onPress={() => router.push(`/event/${e.id}`)} accessibilityRole="button"
@@ -180,7 +210,8 @@ export function MyRounds({ rounds, events, onDelete }: { rounds: RoundRecord[]; 
           </Pressable>
         ))}
       </ListSection>
-      <ListSection title="Completed" count={done.length} collapsed empty="No finished rounds yet.">{done.map(item)}</ListSection>
+      )}
+      <ListSection title="Completed" count={done.length} collapsed empty={emptyDone ?? 'No finished rounds yet.'}>{done.map(item)}</ListSection>
     </View>
   );
 }
@@ -202,6 +233,16 @@ export function SoloRounds({ rounds, onDelete }: { rounds: RoundRecord[]; onDele
       {done.length > 0 && <SectionLabel text="Completed" />}
       {done.map(item)}
     </View>
+  );
+}
+
+export function MoreButton({ onPress, label }: { onPress: () => void; label: string }) {
+  const c = useColors();
+  return (
+    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.chip, opacity: pressed ? 0.7 : 1 })}>
+      <Text style={{ color: c.primary, fontSize: 18, fontWeight: '900', marginTop: -6 }}>⋯</Text>
+    </Pressable>
   );
 }
 

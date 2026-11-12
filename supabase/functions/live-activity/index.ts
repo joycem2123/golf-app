@@ -63,8 +63,16 @@ async function tellFollowers(admin: Admin, me: string, roundId: string, gi: numb
   await admin.from('match_status').upsert({ round_id: roundId, game_index: gi, state, updated_at: new Date().toISOString() });
   // Level from the first hole isn't news; a lead, a squared match or the result is.
   if (!prev && !card.done && card.lead === '') return 0;
-  const { data: fans } = await admin.from('match_follows').select('user_id').eq('round_id', roundId).eq('game_index', gi).eq('notify', true).neq('user_id', me);
-  const users = [...new Set((fans ?? []).map((f: { user_id: string }) => f.user_id as string))];
+  // Following this match, the whole round, or the event it's part of.
+  const { data: round } = await admin.from('rounds').select('event_id').eq('id', roundId).maybeSingle();
+  const [{ data: byRound }, { data: byEvent }] = await Promise.all([
+    admin.from('match_follows').select('user_id').eq('round_id', roundId).in('game_index', [gi, -1]).eq('notify', true).neq('user_id', me),
+    round?.event_id
+      ? admin.from('match_follows').select('user_id').eq('event_id', round.event_id).eq('plan_id', '').eq('notify', true).neq('user_id', me)
+      : Promise.resolve({ data: [] as { user_id: string }[] }),
+  ]);
+  const fans = [...(byRound ?? []), ...(byEvent ?? [])];
+  const users = [...new Set(fans.map((f: { user_id: string }) => f.user_id as string))];
   if (!users.length) return 0;
   const { data: tokens } = await admin.from('push_tokens').select('token').in('user_id', users);
   const title = card.done ? `Final: ${card.big}` : String(card.big);

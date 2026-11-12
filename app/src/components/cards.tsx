@@ -12,10 +12,10 @@ import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, useColors } from '@/theme';
 import { namesFor, teamName } from '@/lib/team-colors';
 
-export function EventCard({ e, rounds, hint }: { e: EventRecord; rounds: RoundRecord[]; hint?: string }) {
+export function EventCard({ e, rounds, hint, onPress, nameOf }: { e: EventRecord; rounds: RoundRecord[]; hint?: string; onPress?: () => void; nameOf?: (id: string) => string | undefined }) {
   const c = useColors();
   const players = useStore((s) => s.players);
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
+  const name = (id: string) => nameOf?.(id) ?? players.find((p) => p.id === id)?.name ?? '?';
   // The team score where there are teams (coloured by who's ahead); otherwise the leader, in plain text.
   const done = eventPhase(e, rounds) === 'completed';
   let line: React.ReactNode;
@@ -37,7 +37,7 @@ export function EventCard({ e, rounds, hint }: { e: EventRecord; rounds: RoundRe
     line = <Body muted>{top && top.played ? `${name(top.playerId)} ${done ? 'won' : 'leads'} with ${pts}` : `${e.playerIds.length} players`}</Body>;
   }
   return (
-    <Pressable onPress={() => router.push(`/event/${e.id}`)}>
+    <Pressable onPress={onPress ?? (() => router.push(`/event/${e.id}`))}>
       {({ pressed }) => (
         <Card style={{ opacity: pressed ? 0.7 : 1, borderLeftWidth: 4, borderLeftColor: c.accent }}>
           <Label>{e.type === 'cup' ? 'Ryder Cup' : e.type === 'trip' ? 'Trip' : 'Season'}</Label>

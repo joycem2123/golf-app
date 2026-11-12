@@ -1,10 +1,12 @@
 /**
  * Friends' matches: what my friends are playing (live, coming up and recently finished), following a
- * match (it joins my Home screen as a live card I can watch) and notifications when it changes.
+ * round, a match in it, an upcoming round or a whole event (it then shows on my Home screen), and alerts
+ * when it changes.
  *
- * Following joins the round (or event) as a viewer, so it then syncs like any shared round. The server
- * checks we're friends. Notification switches are kept on the server, which sends the alerts.
+ * Opening a friend's round or event joins it as a viewer, so live scoring works like any shared round.
+ * Opening isn't following: only what I follow appears on Home. The server checks we're friends.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { applyScoreEntry } from '@golf/engine';
 import { create } from 'zustand';
 
@@ -22,12 +24,17 @@ export interface FollowRow {
   notify: boolean;
 }
 
+/** What can be followed: a round (gi omitted), a match in it (gi), an event (eventId), or an upcoming event round (eventId + planId). */
+export type FollowTarget = { roundId: string; gi?: number } | { eventId: string; planId?: string };
+
 /** A friend's round as the server sends it, made into a round the app can score and show. */
 export interface FriendRound {
   round: RoundRecord;
-  /** Account ids of my friends playing in it. */
+  /** Account ids of my friends in it. */
   friends: string[];
-  /** Already on my phone (I play in it, or I follow it). */
+  /** Which player in the round is which friend (account) where the server knows. */
+  friendPlayers: { player_id: string; user_id: string }[];
+  /** Already on my phone. */
   member: boolean;
 }
 
@@ -37,29 +44,53 @@ export interface FriendEvent {
   member: boolean;
   /** Names of the event's players, by player id (not added to my own players list). */
   names: Record<string, string>;
+  /** The event's rounds (for standings). */
+  rounds: RoundRecord[];
 }
 
 interface State {
   rows: FollowRow[];
   rounds: FriendRound[];
   events: FriendEvent[];
+  /** Friends' rounds and events I've opened to look at (not followed): kept off Home. */
+  peek: string[];
   loaded: boolean;
   loading: boolean;
   error: string | null;
 }
 
-export const useFollows = create<State>(() => ({ rows: [], rounds: [], events: [], loaded: false, loading: false, error: null }));
+export const useFollows = create<State>(() => ({ rows: [], rounds: [], events: [], peek: [], loaded: false, loading: false, error: null }));
 
-const key = (r: Pick<FollowRow, 'round_id' | 'game_index' | 'event_id' | 'plan_id'>) => `${r.round_id}|${r.game_index}|${r.event_id}|${r.plan_id}`;
+const PEEK_KEY = 'follows:peek';
+void AsyncStorage.getItem(PEEK_KEY).then((v) => { if (v) useFollows.setState({ peek: JSON.parse(v) as string[] }); }).catch(() => undefined);
+function addPeek(id: string) {
+  const peek = [...new Set([...useFollows.getState().peek, id])].slice(-200);
+  useFollows.setState({ peek });
+  void AsyncStorage.setItem(PEEK_KEY, JSON.stringify(peek)).catch(() => undefined);
+}
 
-/** The follow settings for a live match, or for an upcoming event round. */
-export function followOf(rows: FollowRow[], t: { roundId?: string; gi?: number; eventId?: string; planId?: string }): FollowRow | undefined {
-  const k = key({ round_id: t.roundId ?? '', game_index: t.gi ?? -1, event_id: t.roundId ? '' : (t.eventId ?? ''), plan_id: t.roundId ? '' : (t.planId ?? '') });
+const rowOf = (t: FollowTarget): Omit<FollowRow, 'follow' | 'notify'> =>
+  'roundId' in t
+    ? { round_id: t.roundId, game_index: t.gi ?? -1, event_id: '', plan_id: '' }
+    : { round_id: '', game_index: -1, event_id: t.eventId, plan_id: t.planId ?? '' };
+const key = (r: Omit<FollowRow, 'follow' | 'notify'>) => `${r.round_id}|${r.game_index}|${r.event_id}|${r.plan_id}`;
+
+/** My follow settings for a round, match, event or upcoming round. */
+export function followOf(rows: FollowRow[], t: FollowTarget): FollowRow | undefined {
+  const k = key(rowOf(t));
   return rows.find((r) => key(r) === k);
 }
 
-type RawRound = { id: string; status: 'active' | 'complete'; event_id: string | null; data: Record<string, unknown>; friends: string[]; member: boolean; scores: { key: string; hole: number; gross: number | null }[] };
-type RawEvent = { id: string; data: Record<string, unknown> & { playerInfo?: { id: string; name: string; handicapIndex: number }[] }; friends: string[]; member: boolean };
+/** Do I follow this round (itself, a match in it, or its event)? Used to put friends' rounds on Home. */
+export function followsRound(rows: FollowRow[], r: Pick<RoundRecord, 'id' | 'eventId'>): boolean {
+  return rows.some((f) => f.follow && (f.round_id === r.id || (!!r.eventId && f.event_id === r.eventId)));
+}
+export function followsEvent(rows: FollowRow[], eventId: string): boolean {
+  return rows.some((f) => f.follow && f.event_id === eventId);
+}
+
+type RawRound = { id: string; status: 'active' | 'complete'; event_id: string | null; data: Record<string, unknown>; friends?: string[]; member?: boolean; friend_players?: { player_id: string; user_id: string }[]; scores: { key: string; hole: number; gross: number | null }[] };
+type RawEvent = { id: string; data: Record<string, unknown> & { playerInfo?: { id: string; name: string }[] }; friends: string[]; member: boolean; rounds?: RawRound[] };
 
 function toRound(x: RawRound): RoundRecord {
   let ledger: RoundRecord['ledger'] = {};
@@ -90,13 +121,13 @@ export async function loadFriendMatches() {
       supabase.from('match_follows').select('round_id, game_index, event_id, plan_id, follow, notify'),
     ]);
     if (r.error) throw new Error(r.error.message);
-    const rounds = ((r.data ?? []) as RawRound[]).map((x) => ({ round: toRound(x), friends: x.friends ?? [], member: !!x.member }));
+    const rounds = ((r.data ?? []) as RawRound[]).map((x) => ({ round: toRound(x), friends: x.friends ?? [], friendPlayers: x.friend_players ?? [], member: !!x.member }));
     const events = ((e.data ?? []) as RawEvent[]).map((x) => {
       const { playerInfo, ...rest } = x.data;
       const names = Object.fromEntries((playerInfo ?? []).map((p) => [p.id, p.name]));
-      return { event: { ...(rest as unknown as EventRecord), id: x.id }, friends: x.friends ?? [], member: !!x.member, names };
+      return { event: { ...(rest as unknown as EventRecord), id: x.id }, friends: x.friends ?? [], member: !!x.member, names, rounds: (x.rounds ?? []).map(toRound) };
     });
-    useFollows.setState({ rounds, events, rows: (f.data ?? []) as FollowRow[], loaded: true });
+    useFollows.setState({ rounds, events, rows: f.error ? useFollows.getState().rows : ((f.data ?? []) as FollowRow[]), loaded: true });
   } catch (err) {
     useFollows.setState({ error: /fetch|network/i.test(String(err)) ? 'You’re offline. Friends’ matches show when you’re back online.' : 'Couldn’t load friends’ matches.' });
   } finally {
@@ -104,7 +135,7 @@ export async function loadFriendMatches() {
   }
 }
 
-/** Just my follow settings (Home uses them to show the match I follow in a friend's round). */
+/** Just my follow settings (Home uses them). */
 export async function loadFollowRows() {
   const { data, error } = await supabase.from('match_follows').select('round_id, game_index, event_id, plan_id, follow, notify');
   if (!error) useFollows.setState({ rows: (data ?? []) as FollowRow[] });
@@ -127,50 +158,60 @@ const undelete = (id: string) => {
   useStore.setState({ deleted: rest });
 };
 
-/** Follow (or stop following) a friend's live match: it comes onto, or leaves, my Home screen. */
-export async function setFollowMatch(roundId: string, gi: number, on: boolean) {
-  const prev = followOf(useFollows.getState().rows, { roundId, gi });
-  await saveRow({ round_id: roundId, game_index: gi, event_id: '', plan_id: '', follow: on, notify: prev?.notify ?? false });
-  if (on) {
-    undelete(roundId);
-    const { error } = await supabase.rpc('follow_round', { rid: roundId });
-    if (error) throw new Error(error.message);
-    await pullRound(roundId, 'viewer');
-  } else if (!useFollows.getState().rows.some((r) => r.round_id === roundId && r.follow)) {
-    // No longer following anything in it: take it off my phone (unless I'm part of it).
-    const r = useStore.getState().rounds.find((x) => x.id === roundId);
-    if (r?.remote?.role === 'viewer') useStore.getState().deleteRound(roundId, { now: true });
-  }
+/** Wait (briefly) until the round or event is on my phone; names and the rest keep loading behind. */
+async function arrived(check: () => boolean, ms = 10_000) {
+  const t0 = Date.now();
+  while (!check() && Date.now() - t0 < ms) await new Promise((r) => setTimeout(r, 120));
+  return check();
+}
+
+/** Put a friend's round on my phone (as a viewer) so it can be opened. */
+async function bringRound(roundId: string) {
+  if (useStore.getState().rounds.some((r) => r.id === roundId)) return;
+  undelete(roundId);
+  const { error } = await supabase.rpc('follow_round', { rid: roundId });
+  if (error) throw new Error(error.message);
+  void pullRound(roundId, 'viewer').catch(() => undefined);
+  if (!(await arrived(() => useStore.getState().rounds.some((r) => r.id === roundId)))) throw new Error('Couldn’t open this round. Check your connection.');
+}
+async function bringEvent(eventId: string) {
+  if (useStore.getState().events.some((e) => e.id === eventId)) return;
+  undelete(eventId);
+  const { error } = await supabase.rpc('follow_event', { eid: eventId });
+  if (error) throw new Error(error.message);
+  void pullEvent(eventId, 'viewer').catch(() => undefined);
+  if (!(await arrived(() => useStore.getState().events.some((e) => e.id === eventId)))) throw new Error('Couldn’t open this event. Check your connection.');
+}
+
+/** Open a friend's round (live scoring or results) without following it. */
+export async function viewRound(roundId: string) {
+  const had = useStore.getState().rounds.some((r) => r.id === roundId);
+  await bringRound(roundId);
+  if (!had) addPeek(roundId);
+}
+/** Open a friend's event page without following it. */
+export async function viewEvent(eventId: string) {
+  const had = useStore.getState().events.some((e) => e.id === eventId);
+  await bringEvent(eventId);
+  if (!had) addPeek(eventId);
+}
+
+/** Follow (or stop following) a round, match, event or upcoming round: it comes onto, or leaves, my Home screen. */
+export async function setFollow(t: FollowTarget, on: boolean) {
+  const prev = followOf(useFollows.getState().rows, t);
+  await saveRow({ ...rowOf(t), follow: on, notify: prev?.notify ?? false });
+  if ('roundId' in t) {
+    if (on) await bringRound(t.roundId);
+  } else if (on) await bringEvent(t.eventId);
   markMembers();
 }
 
-export async function setNotifyMatch(roundId: string, gi: number, on: boolean) {
-  const prev = followOf(useFollows.getState().rows, { roundId, gi });
-  await saveRow({ round_id: roundId, game_index: gi, event_id: '', plan_id: '', follow: prev?.follow ?? false, notify: on });
+export async function setNotify(t: FollowTarget, on: boolean) {
+  const prev = followOf(useFollows.getState().rows, t);
+  await saveRow({ ...rowOf(t), follow: prev?.follow ?? false, notify: on });
 }
 
-/** Follow a friend's upcoming event round: the event joins my phone, and its rounds show on Home as they start. */
-export async function setFollowUpcoming(eventId: string, planId: string, on: boolean) {
-  const prev = followOf(useFollows.getState().rows, { eventId, planId });
-  await saveRow({ round_id: '', game_index: -1, event_id: eventId, plan_id: planId, follow: on, notify: prev?.notify ?? false });
-  if (on) {
-    undelete(eventId);
-    const { error } = await supabase.rpc('follow_event', { eid: eventId });
-    if (error) throw new Error(error.message);
-    await pullEvent(eventId, 'viewer');
-  } else if (!useFollows.getState().rows.some((r) => r.event_id === eventId && r.follow)) {
-    const e = useStore.getState().events.find((x) => x.id === eventId);
-    if (e?.remote?.role === 'viewer') useStore.getState().deleteEvent(eventId);
-  }
-  markMembers();
-}
-
-export async function setNotifyUpcoming(eventId: string, planId: string, on: boolean) {
-  const prev = followOf(useFollows.getState().rows, { eventId, planId });
-  await saveRow({ round_id: '', game_index: -1, event_id: eventId, plan_id: planId, follow: prev?.follow ?? false, notify: on });
-}
-
-/** Keep "on my phone" flags in step after following or unfollowing. */
+/** Keep "on my phone" flags in step after opening or following. */
 function markMembers() {
   const st = useStore.getState();
   useFollows.setState((s) => ({
@@ -179,7 +220,7 @@ function markMembers() {
   }));
 }
 
-/** Which game in a followed round to open on (the one I follow), if any. */
+/** Which game in a followed round to open on (a match I follow), if any. */
 export function followedGame(rows: FollowRow[], roundId: string): number | null {
   const f = rows.find((r) => r.round_id === roundId && r.follow && r.game_index >= 0);
   return f ? f.game_index : null;

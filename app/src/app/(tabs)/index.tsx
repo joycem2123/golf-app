@@ -13,7 +13,7 @@ import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { matchLabel } from '@/lib/games';
 import { isMeId, useMe } from '@/lib/me';
-import { followedGame, loadFollowRows, useFollows } from '@/sync/follows';
+import { followedGame, followsEvent, followsRound, loadFollowRows, useFollows } from '@/sync/follows';
 import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -90,9 +90,13 @@ export default function Home() {
   useEffect(() => { void loadFollowRows().catch(() => undefined); }, []);
   const mineRound = (r: (typeof rounds)[number]) => r.remote?.role !== 'viewer' || r.players.some((p) => p.id === me || isMeId(p.id));
   const mineEvent = (e: (typeof events)[number]) => e.remote?.role !== 'viewer' || e.playerIds.some((id) => id === me || isMeId(id));
-  const keepRound = (r: (typeof rounds)[number]) => show === 'all' || (show === 'mine') === mineRound(r);
-  const keepEvent = (e: (typeof events)[number]) => show === 'all' || (show === 'mine') === mineEvent(e);
-  const anyFriends = rounds.some((r) => r.status === 'active' && !mineRound(r)) || events.some((e) => !mineEvent(e));
+  // Friends' rounds and events I've only opened to look at stay off Home; ones I follow show.
+  const peek = useFollows((s) => s.peek);
+  const onHomeRound = (r: (typeof rounds)[number]) => mineRound(r) || followsRound(follows, r) || !peek.includes(r.id);
+  const onHomeEvent = (e: (typeof events)[number]) => mineEvent(e) || followsEvent(follows, e.id) || !peek.includes(e.id);
+  const keepRound = (r: (typeof rounds)[number]) => onHomeRound(r) && (show === 'all' || (show === 'mine') === mineRound(r));
+  const keepEvent = (e: (typeof events)[number]) => onHomeEvent(e) && (show === 'all' || (show === 'mine') === mineEvent(e));
+  const anyFriends = rounds.some((r) => r.status === 'active' && !mineRound(r) && onHomeRound(r)) || events.some((e) => !mineEvent(e) && onHomeEvent(e));
   const active = rounds.filter((r) => r.status === 'active' && keepRound(r));
   // The event calendar: rounds planned for today (Start round), and a countdown to what's next.
   const todays = plannedToday(events.filter(keepEvent), rounds);
@@ -177,7 +181,7 @@ export default function Home() {
           <Tile title="Friends" sub="Your group & handicaps" icon={glyph('☺', c.primary)} onPress={() => router.push('/friends')} />
         </View>
 
-        <GameSections skipRoundIds={active.map((x) => x.id)} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} firstOpenRef={firstOpenRef} />
+        <GameSections hideIds={[...rounds.filter((r) => !keepRound(r)).map((r) => r.id), ...events.filter((e) => !keepEvent(e)).map((e) => e.id)]} skipRoundIds={active.map((x) => x.id)} completedLimit={3} hideEventRounds onDeleteRound={deleteRound} onDeleteEvent={deleteEvent} firstOpenRef={firstOpenRef} />
 
         {rounds.length === 0 && events.length === 0 && (
           <Card>
