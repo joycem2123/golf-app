@@ -78,13 +78,21 @@ export function useLiveActivityPref(): [boolean, (on: boolean) => void] {
 
 const HOURS = 3600_000;
 
+/** When a round was last played: its newest score, or when it was started. (A round in a multi-day
+ * event can be started days before it's finished, so the start time alone isn't enough.) */
+export function lastPlayed(r: RoundRecord): number {
+  let t = r.createdAt;
+  for (const e of Object.values(r.ledger ?? {})) if (e.enteredAt > t) t = e.enteredAt;
+  return t;
+}
+
 /** The live round I'm playing in right now (most recent first), and which game in it is mine. */
 export function currentRound(rounds: RoundRecord[]): { r: RoundRecord; gi: number } | null {
   const st = useStore.getState();
   const mine = (id: string) => id === st.me || isMeId(id, st);
   const live = rounds
-    .filter((r) => r.status === 'active' && Date.now() - r.createdAt < 18 * HOURS)
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .filter((r) => r.status === 'active' && Date.now() - lastPlayed(r) < 12 * HOURS)
+    .sort((a, b) => lastPlayed(b) - lastPlayed(a));
   for (const r of live) {
     const games = r.games.map((g, gi) => ({ g, gi })).filter(({ g }) => !(g.id ?? '').startsWith('side-') && playersIn(g).some(mine));
     if (games.length) return { r, gi: games[0].gi };
@@ -253,7 +261,9 @@ async function tellOthers() {
   const st = useStore.getState();
   const mine = (id: string) => id === st.me || isMeId(id, st);
   for (const r of st.rounds) {
-    if (!r.remote || r.remote.role === 'viewer' || Date.now() - r.createdAt > 18 * HOURS) continue;
+    // Every live round is watched (so the first change in a round started days ago still goes out);
+    // finished ones only just after their last score.
+    if (!r.remote || r.remote.role === 'viewer' || (r.status !== 'active' && Date.now() - lastPlayed(r) > 12 * HOURS)) continue;
     const owner = r.remote.role === 'owner';
     for (let gi = 0; gi < r.games.length; gi++) {
       const g = r.games[gi];
