@@ -52,7 +52,14 @@
           "color": "#14352A"
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-widgets",
+        {
+          "enablePushNotifications": true,
+          "frequentUpdates": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

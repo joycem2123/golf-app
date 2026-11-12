@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useUsageTracking } from '@/lib/usage';
 import { installCrashGuard } from '@/lib/crash-guard';
+import { useLiveActivity } from '@/lib/live-activity';
 import { TutorialPlayer } from '@/components/tutorial-player';
 import { WelcomeVideo } from '@/components/welcome-video';
 import { SyncProvider } from '@/sync/sync-provider';
@@ -23,6 +24,7 @@ export default function RootLayout() {
   const ready = fontsLoaded || !!fontError;
   const pathname = usePathname();
   useUsageTracking(pathname);
+  useLiveActivity();
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();

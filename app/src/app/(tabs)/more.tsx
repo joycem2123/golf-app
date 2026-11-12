@@ -6,6 +6,7 @@ import { TabHeader } from '@/components/tab-header';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Body, Button, Card, Toggle } from '@/components/ui';
 import { useUsageSharing } from '@/lib/usage';
+import { liveActivitiesSupported, useLiveActivityPref } from '@/lib/live-activity';
 import { openTutorial } from '@/lib/tutorial';
 import { resetTips } from '@/components/tip';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
@@ -35,6 +36,7 @@ export default function More() {
   const session = useSession();
   const [asking, setAsking] = useState(false);
   const [sharingUsage, setSharingUsage] = useUsageSharing();
+  const [liveCard, setLiveCard] = useLiveActivityPref();
   const [tipsReset, setTipsReset] = useState(false);
   const c = useColors();
   const signedIn = !!session?.user && !session.user.is_anonymous;
@@ -58,6 +60,7 @@ export default function More() {
         </Card>
         {tipsReset && <Body style={{ color: c.primary, textAlign: 'center' }}>Tips are back. You’ll see each one again the next time you open that screen.</Body>}
         <Card>
+          {liveActivitiesSupported() && <Toggle label="Live score on Lock Screen" hint="While you’re playing, your match shows on the Lock Screen and in the Dynamic Island." value={liveCard} onChange={setLiveCard} />}
           <Toggle label="Share anonymous usage data" hint="Which features get used, never your name, email or scores. Helps us decide what to improve." value={sharingUsage} onChange={setSharingUsage} />
         </Card>
         {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
