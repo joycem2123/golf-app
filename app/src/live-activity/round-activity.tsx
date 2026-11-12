@@ -29,6 +29,8 @@ export type RoundActivityProps = {
   mine: string;
   /** The headline, e.g. "Matt & Dave 1 UP" or "Ben −2 thru 9". */
   big: string;
+  /** Shorter headline for the Dynamic Island, e.g. "Matt 2 UP". */
+  island?: string;
   /** "thru 6", "Not started", "Final" */
   thru: string;
   done: boolean;
@@ -45,7 +47,7 @@ export type RoundActivityProps = {
   /** Round mode: "EVENT" or "ROUND" (what the totals are). */
   scope?: string;
   /** Round mode: one line per match. */
-  lines?: { label: string; text: string; thru: string; color: string; aShort?: string; bShort?: string }[];
+  lines?: { label: string; text: string; thru: string; color: string; aShort?: string; bShort?: string; island?: string }[];
   /** Round mode: which line is my match (set per phone), or -1. */
   myLine?: number;
 };
@@ -80,7 +82,7 @@ function RoundActivity(props: RoundActivityProps, environment: LiveActivityEnvir
         <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(ahead ? '#FFFFFFDD' : text), monospacedDigit()]}>proj {proj}</Text>
       </VStack>
     );
-    const line = (l: { label: string; text: string; thru: string; color: string; aShort?: string; bShort?: string }) => (
+    const line = (l: { label: string; text: string; thru: string; color: string; aShort?: string; bShort?: string; island?: string }) => (
       <HStack spacing={6}>
         <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundStyle('#FFFFFF88')]}>{l.label}</Text>
         <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundStyle(l.color), lineLimit(1), minimumScaleFactor(0.7)]}>{l.text}</Text>
@@ -91,8 +93,9 @@ function RoundActivity(props: RoundActivityProps, environment: LiveActivityEnvir
     const projColor = aLead ? aText : bLead ? bText : GOLD;
     // My match on this card (when I'm playing): its score from my side, in my team's colour.
     const myMatch = typeof props.myLine === 'number' && props.myLine >= 0 ? (props.lines ?? [])[props.myLine] : undefined;
-    const myShort = myMatch ? ((props.mine === 'b' ? myMatch.bShort : myMatch.aShort) ?? '–') : '';
-    const myText = props.mine === 'b' ? bText : aText;
+    // The match for the Dynamic Island: mine, else the one furthest along ("thru 9" beats "thru 3").
+    const holesIn = (t: string) => (t === 'Final' ? 99 : Number(t.match(/\d+/)?.[0] ?? -1));
+    const islandLine = myMatch ?? [...lines].sort((x, y) => holesIn(y.thru) - holesIn(x.thru))[0];
     return {
       banner: (
         <VStack alignment="leading" spacing={7} modifiers={[padding({ all: 14 }), activityBackgroundTint(BG)]}>
@@ -109,19 +112,16 @@ function RoundActivity(props: RoundActivityProps, environment: LiveActivityEnvir
           {lines.map((l) => line(l))}
         </VStack>
       ),
-      // Dynamic Island: my match's score (if I'm playing) and the projected total; otherwise just the projection.
-      compactLeading: myMatch ? (
-        <Text modifiers={[font({ size: 15, weight: 'heavy' }), foregroundStyle(myText), monospacedDigit(), minimumScaleFactor(0.6)]}>{myShort}</Text>
-      ) : (
-        <Text modifiers={[font({ size: 15, weight: 'heavy' }), foregroundStyle(projColor), monospacedDigit(), minimumScaleFactor(0.6)]}>{`${props.aProj ?? '0'}–${props.bProj ?? '0'}`}</Text>
+      // Dynamic Island: a match's score on the left ("Matt 2 UP"), how far along on the right ("thru 5").
+      // My match when I'm playing; otherwise the one furthest along.
+      compactLeading: (
+        <Text modifiers={[font({ size: 14, weight: 'heavy' }), foregroundStyle(islandLine ? islandLine.color : '#FFFFFF'), lineLimit(1), minimumScaleFactor(0.55)]}>{islandLine ? (islandLine.island || islandLine.text) : `${props.aProj ?? '0'}–${props.bProj ?? '0'}`}</Text>
       ),
-      compactTrailing: myMatch ? (
-        <Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundStyle(projColor), monospacedDigit(), minimumScaleFactor(0.6)]}>{`${props.aProj ?? '0'}–${props.bProj ?? '0'}`}</Text>
-      ) : (
-        <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundStyle('#FFFFFFAA')]}>{props.done ? 'Final' : 'proj'}</Text>
+      compactTrailing: (
+        <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#FFFFFFCC'), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.7)]}>{islandLine ? (islandLine.thru === '–' ? 'Not started' : islandLine.thru) : props.done ? 'Final' : 'proj'}</Text>
       ),
       minimal: (
-        <Text modifiers={[font({ size: 11, weight: 'heavy' }), foregroundStyle(myMatch ? myText : projColor), minimumScaleFactor(0.5)]}>{myMatch ? myShort : (props.mine === 'b' ? props.bProj ?? '' : props.aProj ?? '')}</Text>
+        <Text modifiers={[font({ size: 11, weight: 'heavy' }), foregroundStyle(islandLine ? islandLine.color : projColor), minimumScaleFactor(0.5)]}>{islandLine ? (islandLine.text.match(/\d+ UP|AS|All Square/)?.[0]?.replace('All Square', 'AS') ?? '⛳') : (props.aProj ?? '')}</Text>
       ),
       expandedLeading: (
         <VStack alignment="leading" spacing={1} modifiers={[padding({ leading: 6, top: 6 })]}>
@@ -173,13 +173,12 @@ function RoundActivity(props: RoundActivityProps, environment: LiveActivityEnvir
         <Text modifiers={[font({ size: 17, weight: 'bold', design: 'serif' }), foregroundStyle('#FFFFFF'), lineLimit(1), minimumScaleFactor(0.7)]}>{props.big}</Text>
       </VStack>
     ),
-    // Dynamic Island: the match score, from my side when I'm playing it (otherwise the leader's), bright
-    // enough to read on black; how far along on the right.
+    // Dynamic Island: the match score with the leader's name ("Matt 2 UP"), in their colour; how far along on the right.
     compactLeading: (
-      <Text modifiers={[font({ size: 15, weight: 'heavy' }), foregroundStyle(islandColor), monospacedDigit(), minimumScaleFactor(0.6)]}>{sides ? short(islandStatus) : props.big}</Text>
+      <Text modifiers={[font({ size: 14, weight: 'heavy' }), foregroundStyle(props.lead === 'a' ? aText : props.lead === 'b' ? bText : '#FFFFFF'), lineLimit(1), minimumScaleFactor(0.55)]}>{props.island || props.big}</Text>
     ),
     compactTrailing: (
-      <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#FFFFFFCC'), monospacedDigit()]}>{props.done ? 'Final' : props.thru}</Text>
+      <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#FFFFFFCC'), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.7)]}>{props.done ? 'Final' : props.thru}</Text>
     ),
     minimal: (
       <Text modifiers={[font({ size: 11, weight: 'heavy' }), foregroundStyle(islandColor), minimumScaleFactor(0.5)]}>{sides ? short(islandStatus) : '⛳'}</Text>

@@ -173,7 +173,7 @@ export function roundProps(r: RoundRecord): RoundActivityProps | null {
       else if (m.winner) { aShort = leaderLetter === A.letter ? 'Won' : 'Lost'; bShort = leaderLetter === A.letter ? 'Lost' : 'Won'; }
       else if (leaderLetter && margin) { aShort = leaderLetter === A.letter ? `${margin} UP` : `${margin} DN`; bShort = leaderLetter === A.letter ? `${margin} DN` : `${margin} UP`; }
       else if (h && h.small !== 'Not started') { aShort = 'AS'; bShort = 'AS'; }
-      return { label: `M${n + 1}`, text, thru, color, aShort, bShort };
+      return { label: `M${n + 1}`, text, thru, color, aShort, bShort, island: islandText(r, m, h, mine) };
     });
 
   let course = '';
@@ -190,6 +190,21 @@ export function roundProps(r: RoundRecord): RoundActivityProps | null {
 }
 
 const firstNames = (s: string) => s.split(' & ').map((n) => n.trim().split(' ')[0]).join(' & ');
+
+/** One name for the Dynamic Island: mine if I'm on the side, otherwise the side's first player. */
+function oneName(r: RoundRecord, members: string[], isMine: (id: string) => boolean): string {
+  const id = members.find(isMine) ?? members[0];
+  return (r.players.find((p) => p.id === id)?.name ?? '').trim().split(' ')[0];
+}
+/** "Matt 2 UP", "All Square", "Matt won", "Halved" — short enough for the Dynamic Island. */
+function islandText(r: RoundRecord, m: ReturnType<typeof matchOutcomes>[number], h: { side: 0 | 1 | null; big: string } | null, isMine: (id: string) => boolean): string {
+  if (m.winner === 'halved') return 'Halved';
+  if (m.winner) return `${oneName(r, (m.winner === 'a' ? m.a : m.b).members, isMine)} won`;
+  if (!h) return '';
+  const margin = h.big.match(/(\d+) UP/)?.[1];
+  if (h.side === null || !margin) return 'All Square';
+  return `${oneName(r, (h.side === 0 ? m.a : m.b).members, isMine)} ${margin} UP`;
+}
 
 /** The card's content for game `gi` of round `r`. */
 export function activityProps(r: RoundRecord, gi: number): RoundActivityProps | null {
@@ -241,7 +256,8 @@ export function activityProps(r: RoundRecord, gi: number): RoundActivityProps | 
     bStatus = 'AS';
   }
   const big = h.leader ? `${firstNames(h.leader)} ${h.big}` : h.big;
-  return { mode: 'match', title, aName, bName, aColor, bColor, aText: lighten(aColor), bText: lighten(bColor), aStatus, bStatus, lead, mine, big, thru, done };
+  const meId = (id: string) => id === st2.me || isMeId(id, st2);
+  return { mode: 'match', title, aName, bName, aColor, bColor, aText: lighten(aColor), bText: lighten(bColor), aStatus, bStatus, lead, mine, big, island: islandText(r, m, h, meId), thru, done };
 }
 
 // ------------------------------------------------------------------ keeping the card in step

@@ -18,14 +18,14 @@ const KEY_ID = Deno.env.get('APNS_KEY_ID') ?? '23749BZUS9';
 const TEAM_ID = Deno.env.get('APPLE_TEAM_ID') ?? 'NVKSSW8ZV6';
 
 // Only these fields go on a card, as short strings (plus `done`, and up to 4 match lines for a whole-round card).
-const FIELDS = ['title', 'aName', 'bName', 'aColor', 'bColor', 'aText', 'bText', 'aStatus', 'bStatus', 'lead', 'big', 'thru', 'mode', 'aTotal', 'bTotal', 'aProj', 'bProj', 'scope'] as const;
+const FIELDS = ['title', 'aName', 'bName', 'aColor', 'bColor', 'aText', 'bText', 'aStatus', 'bStatus', 'lead', 'big', 'island', 'thru', 'mode', 'aTotal', 'bTotal', 'aProj', 'bProj', 'scope'] as const;
 const str = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : '');
 function cleanProps(p: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   for (const k of FIELDS) out[k] = str(p?.[k]);
   out.done = p?.done === true;
   if (Array.isArray(p?.lines)) {
-    out.lines = (p.lines as Record<string, unknown>[]).slice(0, 4).map((l) => ({ label: str(l?.label), text: str(l?.text), thru: str(l?.thru), color: str(l?.color), aShort: str(l?.aShort), bShort: str(l?.bShort) }));
+    out.lines = (p.lines as Record<string, unknown>[]).slice(0, 4).map((l) => ({ label: str(l?.label), text: str(l?.text), thru: str(l?.thru), color: str(l?.color), aShort: str(l?.aShort), bShort: str(l?.bShort), island: str(l?.island) }));
   }
   return out;
 }
