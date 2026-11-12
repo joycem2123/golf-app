@@ -14,6 +14,7 @@ import { gameTitle } from '@/lib/games';
 import { headline } from '@/lib/headline';
 import { playersIn } from '@/lib/edit-rights';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
+import { isMeId } from '@/lib/me';
 import { useStore } from '@/store/store';
 import { followOf, loadFriendMatches, setFollowMatch, setFollowUpcoming, setNotifyMatch, setNotifyUpcoming, useFollows, type FriendEvent, type FriendRound } from '@/sync/follows';
 import { radius, space, useColors } from '@/theme';
@@ -52,11 +53,14 @@ export function FriendMatches() {
   // One item per match a (picked) friend plays in.
   const live: LiveItem[] = [];
   const done: LiveItem[] = [];
+  const st = useStore.getState();
+  const isMine = (id: string) => id === st.me || isMeId(id, st);
   for (const fr of rounds) {
     const r = fr.round;
-    const games = r.games.map((g, gi) => ({ g, gi })).filter(({ g }) => !(g.id ?? '').startsWith('side-'));
+    // Matches I'm playing in are under My Matches, not here.
+    const games = r.games.map((g, gi) => ({ g, gi })).filter(({ g }) => !(g.id ?? '').startsWith('side-') && !playersIn(g).some(isMine));
     const withFriend = games.filter(({ g }) => playersIn(g).some((id) => fr.friends.includes(id) && picked([id])));
-    const list = withFriend.length ? withFriend : picked(fr.friends) ? games : [];
+    const list = withFriend.length ? withFriend : picked(fr.friends) && !r.players.some((p) => isMine(p.id)) ? games : [];
     for (const { gi } of list) (r.status === 'active' ? live : done).push({ kind: 'match', fr, gi, key: `${r.id}:${gi}`, at: r.createdAt });
   }
   const upcoming: PlanItem[] = [];
