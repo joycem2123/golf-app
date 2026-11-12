@@ -5,13 +5,12 @@ import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { cupScore, eventTeamTotals, formatPoints } from '@/lib/events';
-import { liveTeamScore } from '@/lib/results';
+import { formatPoints } from '@/lib/events';
+import { teamStatus } from '@/lib/event-status';
 import { evaluate } from '@/lib/round';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fetchRoundEvent } from '@/sync/sync';
-import { fonts, radius, space, teamColor, useColors } from '@/theme';
-import { namesFor, teamName as nameOf } from '@/lib/team-colors';
+import { fonts, radius, space, useColors } from '@/theme';
 
 /** pinned: compact, edge to edge, for the top of the screen. mini: one slim row (while entering scores). */
 type Props = { r: RoundRecord; results: ReturnType<typeof evaluate>; pinned?: boolean; mini?: boolean };
@@ -45,69 +44,65 @@ function Board({ r, results, pinned, mini, linked }: Props & { linked?: boolean 
   const event = localEvent ?? remote?.event;
   // This round from the phone (it's the most up to date), the event's other rounds from the server.
   const rounds = localEvent ? localRounds : remote ? [...remote.rounds.filter((x) => x.id !== r.id), r] : localRounds;
-  const score = liveTeamScore(r, results);
-  if (!score) return null;
+  const status = teamStatus(r, results, event, rounds);
+  if (!status) return null;
   const first = (id: string) => (r.players.find((p) => p.id === id)?.name ?? '').split(' ')[0];
-  const names = namesFor(r, event);
-  const teamName = (L: string) => nameOf(L, names);
-  const done = score.teams.reduce((s, t) => s + t.points, 0) > 0;
-  const changes = score.live > 0;
+  const [A, B] = status.teams;
+  const inEvent = status.scope === 'event';
+  const changes = status.live > 0;
+  const done = A.roundPoints + B.roundPoints > 0;
+  // The boxes: the event's points (or the round's), projected from the matches in play.
+  const teams = status.teams;
+  const showProj = changes || A.projected !== A.points || B.projected !== B.points;
 
-  // Live line: "Team A ahead in 2, Team B in 1, 1 all square"
-  const parts = score.teams.filter((t) => t.leading > 0).map((t) => `${teamName(t.letter)} ahead in ${t.leading}`);
-  if (score.square) parts.push(`${score.square} all square`);
-
-  // The whole event, when it's on this phone.
-  let eventLine: string | null = null;
-  if (event?.teams) {
-    const s = cupScore(event, rounds).standings;
-    eventLine = `${event.name}: ${event.teams.A.name} ${formatPoints(s.teamA)} – ${formatPoints(s.teamB)} ${event.teams.B.name}${s.toWin && !s.winner ? ` · ${formatPoints(s.toWin)} to win` : ''}`;
-  } else if (event?.teamOf && (event.teamLetters?.length ?? 0) >= 2) {
-    const { totals } = eventTeamTotals(event, rounds);
-    eventLine = `${event.name}: ${[...totals].sort((a, b) => a.letter.localeCompare(b.letter)).map((t) => `${teamName(t.letter)} ${formatPoints(t.points)}`).join(' – ')}`;
-  }
+  // This round, in words: "This round: Team A 1 – Team B 0 · Team B ahead in 1, 1 all square"
+  const parts = teams.filter((t) => t.leading > 0).map((t) => `${t.name} ahead in ${t.leading}`);
+  if (status.square) parts.push(`${status.square} all square`);
+  const roundScore = `${A.name} ${formatPoints(A.roundPoints)} – ${formatPoints(B.roundPoints)} ${B.name}`;
+  const roundLine = inEvent
+    ? `This round: ${roundScore}${changes ? ` · ${parts.join(', ')}` : done ? ' · finished' : ' · not started'}`
+    : changes ? `Live: ${parts.join(', ')}` : done ? 'All team matches finished' : 'No team matches started yet';
+  const eventLine = inEvent ? `${event!.name}${status.toWin ? ` · ${formatPoints(status.toWin)} to win` : ''}` : null;
 
   if (mini) {
     return (
       <View style={{ backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border }}>
         <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: space.sm, paddingVertical: 6 }}>
-          {score.teams.map((t) => (
-            <View key={t.letter} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter, r.teamColors).color }}>
-              <Text numberOfLines={1} style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.5, flexShrink: 1 }}>{teamName(t.letter).toUpperCase()}</Text>
+          {teams.map((t) => (
+            <View key={t.letter} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 6, borderRadius: radius.md, backgroundColor: t.color }}>
+              <Text numberOfLines={1} style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.5, flexShrink: 1 }}>{t.name.toUpperCase()}</Text>
               <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 20, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
-              {changes && <Text style={{ color: '#ffffffd0', fontSize: 11 }}>proj {formatPoints(t.projected)}</Text>}
+              {showProj && <Text style={{ color: '#ffffffd0', fontSize: 11 }}>proj {formatPoints(t.projected)}</Text>}
             </View>
           ))}
         </View>
-        {eventLine && <Text numberOfLines={1} style={{ textAlign: 'center', color: c.muted, fontSize: 11, paddingBottom: 5 }}>🏆 {eventLine}{linked ? '  ›' : ''}</Text>}
+        <Text numberOfLines={1} style={{ textAlign: 'center', color: c.muted, fontSize: 11, paddingBottom: 5, paddingHorizontal: space.sm }}>
+          {inEvent ? `🏆 ${eventLine} · ${roundLine}` : roundLine}{linked ? '  ›' : ''}
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={pinned ? { backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.border } : { backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
-      <Text style={{ textAlign: 'center', color: c.muted, fontSize: pinned ? 10 : 11, fontWeight: '800', letterSpacing: 1.5, paddingTop: pinned ? 6 : space.sm }}>TEAM MATCH · THIS ROUND</Text>
+      <Text numberOfLines={1} style={{ textAlign: 'center', color: c.muted, fontSize: pinned ? 10 : 11, fontWeight: '800', letterSpacing: 1.5, paddingTop: pinned ? 6 : space.sm, paddingHorizontal: space.md }}>
+        {inEvent ? `🏆 ${eventLine!.toUpperCase()} · EVENT${linked ? '  ›' : ''}` : 'TEAM MATCH · THIS ROUND'}
+      </Text>
       <View style={{ flexDirection: 'row', paddingHorizontal: space.sm, paddingVertical: pinned ? 6 : space.sm, gap: space.sm }}>
-        {score.teams.map((t) => {
-          const tc = teamColor(t.letter, r.teamColors);
+        {teams.map((t) => {
           return (
-            <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: pinned ? 5 : space.sm, borderRadius: radius.md, backgroundColor: tc.color }}>
-              <Text numberOfLines={1} style={{ color: '#fff', fontSize: pinned ? 11 : 12, fontWeight: '800', letterSpacing: 1 }}>{teamName(t.letter).toUpperCase()}</Text>
+            <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: pinned ? 5 : space.sm, borderRadius: radius.md, backgroundColor: t.color }}>
+              <Text numberOfLines={1} style={{ color: '#fff', fontSize: pinned ? 11 : 12, fontWeight: '800', letterSpacing: 1 }}>{t.name.toUpperCase()}</Text>
               <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: pinned ? 26 : 34, fontWeight: '700', lineHeight: pinned ? 30 : undefined }}>{formatPoints(t.points)}</Text>
-              {changes && <Text style={{ color: '#ffffffd0', fontSize: pinned ? 11 : 12 }}>Projected {formatPoints(t.projected)}</Text>}
+              {showProj && <Text style={{ color: '#ffffffd0', fontSize: pinned ? 11 : 12 }}>Projected {formatPoints(t.projected)}</Text>}
               <Text numberOfLines={pinned ? 1 : 2} style={{ color: '#ffffffc0', fontSize: pinned ? 10 : 11, textAlign: 'center', paddingHorizontal: 4, marginTop: 2 }}>{t.members.map(first).join(', ')}</Text>
             </View>
           );
         })}
       </View>
       <Text style={{ textAlign: 'center', color: c.text, fontSize: pinned ? 12 : 13, paddingHorizontal: space.md, paddingBottom: pinned ? 6 : space.sm }}>
-        {changes ? `Live: ${parts.join(', ')}` : done ? 'All team matches finished' : 'No team matches started yet'}
+        {roundLine}
       </Text>
-      {eventLine && (
-        <View style={{ backgroundColor: c.brand, paddingVertical: pinned ? 6 : 8, paddingHorizontal: space.md }}>
-          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>🏆 {eventLine}{linked ? '  ›' : ''}</Text>
-        </View>
-      )}
     </View>
   );
 }

@@ -15,8 +15,9 @@ import { AppState, Platform } from 'react-native';
 import { playersIn } from '@/lib/edit-rights';
 import { headline } from '@/lib/headline';
 import { isMeId } from '@/lib/me';
-import { cupScore, eventTeamTotals, formatPoints } from '@/lib/events';
-import { liveTeamScore, matchOutcomes } from '@/lib/results';
+import { formatPoints } from '@/lib/events';
+import { teamStatus } from '@/lib/event-status';
+import { matchOutcomes } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { namesFor, teamName } from '@/lib/team-colors';
 import type { RoundActivityProps } from '@/live-activity/round-activity';
@@ -122,42 +123,20 @@ export function cardProps(r: RoundRecord, gi: number): RoundActivityProps | null
  */
 export function roundProps(r: RoundRecord): RoundActivityProps | null {
   const results = evaluate(r);
-  const live = liveTeamScore(r, results);
-  if (!live || live.teams.length < 2) return null;
   const st = useStore.getState();
   const e = r.eventId ? st.events.find((x) => x.id === r.eventId) : undefined;
-  const [A, B] = live.teams;
-  const names = namesFor(r, e);
+  // Same numbers as live scoring's team bar.
+  const status = teamStatus(r, results, e, st.rounds);
+  if (!status) return null;
+  const [TA, TB] = status.teams;
+  const A = { letter: TA.letter };
   const picks = r.teamColors ?? e?.teamColors;
-
-  // Totals now and projected: the event's when the round is part of one, otherwise this round's.
-  let total: Record<string, number> = { [A.letter]: A.points, [B.letter]: B.points };
-  let proj: Record<string, number> = { [A.letter]: A.projected, [B.letter]: B.projected };
-  let aName = teamName(A.letter, names);
-  let bName = teamName(B.letter, names);
-  let scope = 'ROUND';
-  if (e) {
-    const evRounds = st.rounds.filter((x) => x.eventId === e.id);
-    if (e.teams) {
-      const s2 = cupScore(e, evRounds).standings;
-      total = { A: s2.teamA, B: s2.teamB };
-      proj = s2.projected ? { A: s2.projected.teamA, B: s2.projected.teamB } : { A: s2.teamA + (A.projected - A.points), B: s2.teamB + (B.projected - B.points) };
-      aName = e.teams.A.name;
-      bName = e.teams.B.name;
-    } else {
-      const { totals } = eventTeamTotals(e, evRounds);
-      const of = (L: string) => totals.find((t) => t.letter === L)?.points ?? 0;
-      total = { [A.letter]: of(A.letter), [B.letter]: of(B.letter) };
-      // What this round's live matches would add if they finished as they stand.
-      proj = { [A.letter]: of(A.letter) + (A.projected - A.points), [B.letter]: of(B.letter) + (B.projected - B.points) };
-    }
-    scope = 'EVENT';
-  }
-  const aKey = e?.teams ? 'A' : A.letter;
-  const bKey = e?.teams ? 'B' : B.letter;
-  const aColor = teamColor(A.letter, picks).color;
-  const bColor = teamColor(B.letter, picks).color;
-  const lead = proj[aKey] > proj[bKey] ? 'a' : proj[bKey] > proj[aKey] ? 'b' : '';
+  const aName = TA.name;
+  const bName = TB.name;
+  const scope = status.scope === 'event' ? 'EVENT' : 'ROUND';
+  const aColor = TA.color;
+  const bColor = TB.color;
+  const lead = TA.projected > TB.projected ? 'a' : TB.projected > TA.projected ? 'b' : '';
 
   // A line per match: "M1  Dave & Braydon 1 UP   thru 6", in the colour of the team that's ahead.
   const mine = (id: string) => id === st.me || isMeId(id, st);
@@ -183,8 +162,8 @@ export function roundProps(r: RoundRecord): RoundActivityProps | null {
   return {
     mode: 'round', title, scope, lines,
     aName, bName, aColor, bColor, aText: lighten(aColor), bText: lighten(bColor),
-    aTotal: formatPoints(total[aKey]), bTotal: formatPoints(total[bKey]),
-    aProj: formatPoints(proj[aKey]), bProj: formatPoints(proj[bKey]),
+    aTotal: formatPoints(TA.points), bTotal: formatPoints(TB.points),
+    aProj: formatPoints(TA.projected), bProj: formatPoints(TB.projected),
     aStatus: '', bStatus: '', lead, mine: side, big: '', thru: done ? 'Final' : 'live', done,
   };
 }
