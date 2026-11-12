@@ -6,7 +6,7 @@ import { teamName } from '@/lib/team-colors';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { useStore } from '@/store/store';
 import { ensureSession } from '@/sync/auth';
-import { needsProError, openPaywall } from '@/lib/pro';
+import { needsProError, openPaywall, usePro } from '@/lib/pro';
 import { supabase } from '@/sync/supabase';
 import { cupScore, eventMatches, eventStandings, eventTeamTotals, formatPoints } from './events';
 import { courseFor } from './round';
@@ -85,6 +85,8 @@ export async function refreshEventStory(e: EventRecord, rounds: RoundRecord[]): 
   const key = eventStoryKey(e, rounds);
   if (!key || e.story?.key === key || asking.has(`${e.id}:${key}`)) return null;
   if (e.remote?.role === 'viewer') return null; // the organiser's phone writes it; viewers get it synced
+  // Generating needs my own Pro (in a host's event too); everyone sees a story once it's written.
+  if (!usePro.getState().pro) { openPaywall('story'); return null; }
   asking.add(`${e.id}:${key}`);
   try {
     await ensureSession();

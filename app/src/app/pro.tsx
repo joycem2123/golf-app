@@ -22,7 +22,7 @@ const FEATURES: { icon: string; title: string; sub: string }[] = [
   { icon: '🏆', title: 'Events', sub: 'Trips, Ryder Cups and seasons with live standings, projections and schedules.' },
   { icon: '✨', title: 'Match & event stories', sub: 'A story of every match and event, written for you.' },
   { icon: '📷', title: 'Scorecard uploads', sub: 'Snap a filled-in card and get the results in seconds.' },
-  { icon: '👥', title: 'Your group plays free', sub: 'Friends in your events and rounds use these features without Pro.' },
+  { icon: '👥', title: 'Friends join free', sub: 'Anyone you bring into your events plays, scores and follows along free.' },
 ];
 
 /** Clutch Up Pro: what's included, the price and trial, subscribe and restore. */

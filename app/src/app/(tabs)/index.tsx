@@ -13,6 +13,7 @@ import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { matchLabel } from '@/lib/games';
 import { isMeId, useMe } from '@/lib/me';
+import { openPaywall, usePro } from '@/lib/pro';
 import { bringFollowed, followedGame, followedGames, followsEvent, followsRound, loadFollowRows, useFollows } from '@/sync/follows';
 import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
@@ -165,7 +166,7 @@ export default function Home() {
           <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
           {/* Upload a scorecard: the other way to start a round, so it sits right under New Round, in deep green and gold. */}
           <Pressable
-            onPress={() => router.push('/upload-scorecard')}
+            onPress={() => (usePro.getState().pro ? router.push('/upload-scorecard') : openPaywall('scorecard'))}
             accessibilityRole="button"
             accessibilityLabel="Upload a scorecard: turn a photo of a finished card into a round"
             style={({ pressed }) => ({

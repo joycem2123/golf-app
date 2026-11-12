@@ -5,7 +5,7 @@
 import type { ScoreLedger } from '@golf/engine';
 
 import { ensureSession } from '@/sync/auth';
-import { needsProError, openPaywall } from '@/lib/pro';
+import { needsProError, openPaywall, usePro } from '@/lib/pro';
 import { supabase } from '@/sync/supabase';
 import { track } from './usage';
 
@@ -47,8 +47,12 @@ export const getPendingScan = () => pending;
 
 /** Send the photo to be read. */
 export async function readRoundPhoto(base64: string, into?: { roundId?: string; eventId?: string }): Promise<ScannedRound> {
+  // Scorecard uploads need my own Pro (in events too); the server checks again.
+  if (!usePro.getState().pro) {
+    openPaywall('scorecard');
+    throw new Error('Scorecard uploads are part of Clutch Up Pro.');
+  }
   await ensureSession();
-  // Which round/event it's for, so the organiser's Pro covers it.
   const { data, error } = await supabase.functions.invoke('read-round', { body: { image: base64, mediaType: 'image/jpeg', ...into } });
   if (error && needsProError(error, data)) {
     openPaywall('scorecard');

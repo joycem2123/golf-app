@@ -1,7 +1,7 @@
 import type { GameResult } from '@golf/engine';
 
 import { useStore, type RoundRecord } from '@/store/store';
-import { needsProError, openPaywall } from '@/lib/pro';
+import { needsProError, openPaywall, usePro } from '@/lib/pro';
 import { supabase } from '@/sync/supabase';
 import { shareRound } from '@/sync/sync';
 import type { MatchOutcome } from './results';
@@ -37,6 +37,7 @@ export async function requestAiStory(r: RoundRecord, res: GameResult, m: MatchOu
       scoring: r.games[m.gi].handicap?.net === false ? 'gross' : 'net (handicap strokes applied)',
       holes: holes.filter((h) => h.outcome !== null).map((h) => ({ hole: h.hole, par: h.par, A: h.a, B: h.b, won: label(h), after: status(h.lead), birdies: h.birdies.length ? h.birdies : undefined })),
     };
+    if (!usePro.getState().pro) { asked.delete(tag); openPaywall('story'); return null; }
     const { data, error } = await supabase.functions.invoke('match-story', { body: { roundId: r.id, facts } });
     if (error && needsProError(error, data)) { asked.delete(tag); openPaywall('story'); return null; }
     if (error || !data?.story) { asked.delete(tag); return null; } // can be tried again

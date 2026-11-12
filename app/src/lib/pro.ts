@@ -1,7 +1,8 @@
 /**
  * Clutch Up Pro: $24.99/yr (7-day free trial) through the App Store, via RevenueCat.
- * Pro unlocks creating events, AI stories and scorecard uploads. The organiser pays: friends in a Pro
- * member's round or event use those features free (the server checks that).
+ * Pro unlocks creating events, generating AI stories and uploading scorecards. Friends brought into an
+ * event play, score and see everything free, but generating stories and uploading scorecards need their
+ * own Pro (the server checks that too).
  *
  * While the paywall is off (until launch), everyone has Pro. The server is the source of truth (it also
  * enforces Pro); the App Store's answer is used straight after a purchase, until the server catches up.

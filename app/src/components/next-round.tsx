@@ -2,6 +2,7 @@
  * Event page: the round that matters right now. The live round if one is being played, otherwise the next one coming up
  * (with Start round on its day, or a countdown before then).
  */
+import { openPaywall, usePro } from '@/lib/pro';
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 
@@ -69,7 +70,7 @@ export function NextRound({ e }: { e: EventRecord }) {
         <Button title={round.remote?.role === 'viewer' ? 'Follow live ›' : 'Open live scoring ›'} onPress={() => router.push(`/round/${round.id}`)} />
         {round.remote?.role !== 'viewer' && (
           // Kept score on paper: read the card straight into this round.
-          <Button kind="secondary" title="📷 Upload scorecard" onPress={() => router.push(`/round/${round.id}/upload-card`)} />
+          <Button kind="secondary" title="📷 Upload scorecard" onPress={() => (usePro.getState().pro ? router.push(`/round/${round.id}/upload-card`) : openPaywall('scorecard'))} />
         )}
       </Shell>
     );
