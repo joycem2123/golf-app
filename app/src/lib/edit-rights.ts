@@ -48,10 +48,14 @@ export function canEditGame(r: RoundRecord, gi: number, { uid, isMe, requests, c
   return requests.some((q) => q.game_id === gameId(r, gi) && q.requester === uid && q.status === 'approved');
 }
 
-/** May `uid` enter this score key? Yes if any game it's part of allows it. */
+/** May `uid` enter this score key? Yes if any main game it's part of allows it. */
 export function canEditKey(r: RoundRecord, key: string, rights: Rights): boolean {
   if (!rights.uid) return true;
-  const games = r.games.map((_, i) => i).filter((i) => gameKeys(r.games[i]).includes(key));
+  const all = r.games.map((_, i) => i).filter((i) => gameKeys(r.games[i]).includes(key));
+  // A side bet doesn't open up a player's scores: their main match decides. (Side bets count only
+  // for someone who isn't in any main match.)
+  const main = all.filter((i) => !(r.games[i].id ?? '').startsWith('side-'));
+  const games = main.length ? main : all;
   if (games.length === 0) return true;
   return games.some((i) => canEditGame(r, i, rights));
 }
