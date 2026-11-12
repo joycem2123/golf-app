@@ -17,12 +17,16 @@ const BUNDLE_ID = 'com.clutchupgolf.app';
 const KEY_ID = Deno.env.get('APNS_KEY_ID') ?? '23749BZUS9';
 const TEAM_ID = Deno.env.get('APPLE_TEAM_ID') ?? 'NVKSSW8ZV6';
 
-// Only these fields go on a card, as short strings (and `done`).
-const FIELDS = ['title', 'aName', 'bName', 'aColor', 'bColor', 'aStatus', 'bStatus', 'lead', 'big', 'thru'] as const;
+// Only these fields go on a card, as short strings (plus `done`, and up to 4 match lines for a whole-round card).
+const FIELDS = ['title', 'aName', 'bName', 'aColor', 'bColor', 'aText', 'bText', 'aStatus', 'bStatus', 'lead', 'big', 'thru', 'mode', 'aTotal', 'bTotal', 'aProj', 'bProj', 'scope'] as const;
+const str = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : '');
 function cleanProps(p: Record<string, unknown>) {
-  const out: Record<string, string | boolean> = {};
-  for (const k of FIELDS) out[k] = typeof p?.[k] === 'string' ? (p[k] as string).slice(0, 60) : '';
+  const out: Record<string, unknown> = {};
+  for (const k of FIELDS) out[k] = str(p?.[k]);
   out.done = p?.done === true;
+  if (Array.isArray(p?.lines)) {
+    out.lines = (p.lines as Record<string, unknown>[]).slice(0, 4).map((l) => ({ label: str(l?.label), text: str(l?.text), thru: str(l?.thru), color: str(l?.color) }));
+  }
   return out;
 }
 
@@ -55,7 +59,9 @@ type Admin = any;
  * Followers with notifications on hear when a match changes: someone goes ahead, it's squared, or it's
  * over. The last state announced is kept, so each change goes out once however many phones report it.
  */
-async function tellFollowers(admin: Admin, me: string, roundId: string, gi: number, card: Record<string, string | boolean>) {
+async function tellFollowers(admin: Admin, me: string, roundId: string, gi: number, card: Record<string, unknown>) {
+  // Alerts are about single matches; a whole-round card update (gi -1) isn't one.
+  if (gi < 0) return 0;
   const state = card.done ? `done|${card.big}` : `${card.lead}|${card.aStatus}`;
   if (!card.done && card.thru === 'Not started') return 0;
   const { data: prev } = await admin.from('match_status').select('state').eq('round_id', roundId).eq('game_index', gi).maybeSingle();

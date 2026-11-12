@@ -15,7 +15,8 @@ import { AppState, Platform } from 'react-native';
 import { playersIn } from '@/lib/edit-rights';
 import { headline } from '@/lib/headline';
 import { isMeId } from '@/lib/me';
-import { matchOutcomes } from '@/lib/results';
+import { cupScore, eventTeamTotals, formatPoints } from '@/lib/events';
+import { liveTeamScore, matchOutcomes } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { namesFor, teamName } from '@/lib/team-colors';
 import type { RoundActivityProps } from '@/live-activity/round-activity';
@@ -95,9 +96,97 @@ export function currentRound(rounds: RoundRecord[]): { r: RoundRecord; gi: numbe
     .sort((a, b) => lastPlayed(b) - lastPlayed(a));
   for (const r of live) {
     const games = r.games.map((g, gi) => ({ g, gi })).filter(({ g }) => !(g.id ?? '').startsWith('side-') && playersIn(g).some(mine));
-    if (games.length) return { r, gi: games[0].gi };
+    // A round between teams shows as a whole (gi -1): team totals, projections and every match.
+    if (games.length) return { r, gi: roundProps(r) ? -1 : games[0].gi };
   }
   return null;
+}
+
+/** Mix a colour with white, for text on the dark card. */
+function lighten(hex: string, by = 0.45): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (v: number) => Math.round(v + (255 - v) * by).toString(16).padStart(2, '0');
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+}
+
+/** The card for a round (gi -1) or one match in it. */
+export function cardProps(r: RoundRecord, gi: number): RoundActivityProps | null {
+  return gi < 0 ? roundProps(r) : activityProps(r, gi);
+}
+
+/**
+ * The whole round as one card: the event's team totals (or the round's, outside an event), what they'll
+ * be if the matches in play finish as they stand, and a line for each match. Null without two teams.
+ */
+export function roundProps(r: RoundRecord): RoundActivityProps | null {
+  const results = evaluate(r);
+  const live = liveTeamScore(r, results);
+  if (!live || live.teams.length < 2) return null;
+  const st = useStore.getState();
+  const e = r.eventId ? st.events.find((x) => x.id === r.eventId) : undefined;
+  const [A, B] = live.teams;
+  const names = namesFor(r, e);
+  const picks = r.teamColors ?? e?.teamColors;
+
+  // Totals now and projected: the event's when the round is part of one, otherwise this round's.
+  let total: Record<string, number> = { [A.letter]: A.points, [B.letter]: B.points };
+  let proj: Record<string, number> = { [A.letter]: A.projected, [B.letter]: B.projected };
+  let aName = teamName(A.letter, names);
+  let bName = teamName(B.letter, names);
+  let scope = 'ROUND';
+  if (e) {
+    const evRounds = st.rounds.filter((x) => x.eventId === e.id);
+    if (e.teams) {
+      const s2 = cupScore(e, evRounds).standings;
+      total = { A: s2.teamA, B: s2.teamB };
+      proj = s2.projected ? { A: s2.projected.teamA, B: s2.projected.teamB } : { A: s2.teamA + (A.projected - A.points), B: s2.teamB + (B.projected - B.points) };
+      aName = e.teams.A.name;
+      bName = e.teams.B.name;
+    } else {
+      const { totals } = eventTeamTotals(e, evRounds);
+      const of = (L: string) => totals.find((t) => t.letter === L)?.points ?? 0;
+      total = { [A.letter]: of(A.letter), [B.letter]: of(B.letter) };
+      // What this round's live matches would add if they finished as they stand.
+      proj = { [A.letter]: of(A.letter) + (A.projected - A.points), [B.letter]: of(B.letter) + (B.projected - B.points) };
+    }
+    scope = 'EVENT';
+  }
+  const aKey = e?.teams ? 'A' : A.letter;
+  const bKey = e?.teams ? 'B' : B.letter;
+  const aColor = teamColor(A.letter, picks).color;
+  const bColor = teamColor(B.letter, picks).color;
+  const lead = proj[aKey] > proj[bKey] ? 'a' : proj[bKey] > proj[aKey] ? 'b' : '';
+
+  // A line per match: "M1  Dave & Braydon 1 UP   thru 6", in the colour of the team that's ahead.
+  const mine = (id: string) => id === st.me || isMeId(id, st);
+  let side = '';
+  const lines = matchOutcomes(r, results)
+    .filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter)
+    .map((m, n) => {
+      const res = results[m.gi];
+      const h = res && isResult(res) ? headline(res, r.players) : null;
+      if (m.a.members.some(mine)) side = m.a.letter === A.letter ? 'a' : 'b';
+      else if (m.b.members.some(mine)) side = m.b.letter === A.letter ? 'a' : 'b';
+      const leaderLetter = m.winner === 'a' || (!m.winner && h?.side === 0) ? m.a.letter : m.winner === 'b' || (!m.winner && h?.side === 1) ? m.b.letter : null;
+      const color = leaderLetter ? lighten(teamColor(leaderLetter, picks).color, 0.35) : '#FFFFFF';
+      const text = m.winner === 'halved' ? `${firstNames(m.a.names)} halved` : h ? (h.leader ? `${firstNames(h.leader)} ${h.big}` : h.big) : '';
+      const thru = m.winner ? 'Final' : h ? (h.small === 'Not started' ? '–' : h.small) : '';
+      return { label: `M${n + 1}`, text, thru, color };
+    });
+
+  let course = '';
+  try { course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
+  const title = [e?.name ?? course, r.label].filter(Boolean).join(' · ') || 'Clutch Up';
+  const done = r.status === 'complete';
+  return {
+    mode: 'round', title, scope, lines,
+    aName, bName, aColor, bColor, aText: lighten(aColor), bText: lighten(bColor),
+    aTotal: formatPoints(total[aKey]), bTotal: formatPoints(total[bKey]),
+    aProj: formatPoints(proj[aKey]), bProj: formatPoints(proj[bKey]),
+    aStatus: '', bStatus: '', lead, mine: side, big: '', thru: done ? 'Final' : 'live', done,
+  };
 }
 
 const firstNames = (s: string) => s.split(' & ').map((n) => n.trim().split(' ')[0]).join(' & ');
@@ -152,7 +241,7 @@ export function activityProps(r: RoundRecord, gi: number): RoundActivityProps | 
     bStatus = 'AS';
   }
   const big = h.leader ? `${firstNames(h.leader)} ${h.big}` : h.big;
-  return { title, aName, bName, aColor, bColor, aStatus, bStatus, lead, mine, big, thru, done };
+  return { mode: 'match', title, aName, bName, aColor, bColor, aText: lighten(aColor), bText: lighten(bColor), aStatus, bStatus, lead, mine, big, thru, done };
 }
 
 // ------------------------------------------------------------------ keeping the card in step
@@ -216,14 +305,14 @@ export async function sync() {
     if (current) {
       const r = rounds.find((x) => x.id === current!.roundId);
       if (!r || off) await endCurrent();
-      else if (r.status === 'complete') await endCurrent(activityProps(r, current.gi) ?? undefined);
+      else if (r.status === 'complete') await endCurrent(cardProps(r, current.gi) ?? undefined);
     }
     if (off) return;
 
     const pick = currentRound(rounds);
     if (current && (!pick || pick.r.id !== current.roundId || pick.gi !== current.gi)) await endCurrent();
     if (!pick) return;
-    const props = activityProps(pick.r, pick.gi);
+    const props = cardProps(pick.r, pick.gi);
     if (!props) return;
     const json = JSON.stringify(props);
     const stale = new Date(Date.now() + 2 * HOURS);
@@ -265,6 +354,19 @@ async function tellOthers() {
     // finished ones only just after their last score.
     if (!r.remote || r.remote.role === 'viewer' || (r.status !== 'active' && Date.now() - lastPlayed(r) > 12 * HOURS)) continue;
     const owner = r.remote.role === 'owner';
+    // The whole-round card (gi -1), for rounds between teams.
+    if (owner || r.games.some((g) => playersIn(g).some(mine))) {
+      const rp = roundProps(r);
+      if (rp) {
+        const key = `${r.id}:-1`;
+        const json = JSON.stringify({ ...rp, mine: '' });
+        const before = told.get(key);
+        told.set(key, json);
+        if (before !== undefined && before !== json) {
+          void supabase.functions.invoke('live-activity', { body: { roundId: r.id, gi: -1, props: { ...rp, mine: '' }, end: r.status === 'complete' } }).catch(() => undefined);
+        }
+      }
+    }
     for (let gi = 0; gi < r.games.length; gi++) {
       const g = r.games[gi];
       if ((g.id ?? '').startsWith('side-') || !(owner || playersIn(g).some(mine))) continue;
@@ -305,7 +407,7 @@ export function useLiveActivity() {
       const pick = currentRound(useStore.getState().rounds);
       if (keep && pick) {
         current = { roundId: pick.r.id, gi: pick.gi, instance: keep, last: '' };
-        watchToken(pick.r.id, pick.gi, keep, activityProps(pick.r, pick.gi)?.mine ?? '');
+        watchToken(pick.r.id, pick.gi, keep, cardProps(pick.r, pick.gi)?.mine ?? '');
       } else if (keep) void keep.end('immediate').catch(() => undefined);
     } catch {
       /* nothing to recover */
