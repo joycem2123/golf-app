@@ -1,0 +1,167 @@
+/**
+ * Clutch Up Pro: $24.99/yr (7-day free trial) through the App Store, via RevenueCat.
+ * Pro unlocks creating events, AI stories and scorecard uploads. The organiser pays: friends in a Pro
+ * member's round or event use those features free (the server checks that).
+ *
+ * While the paywall is off (until launch), everyone has Pro. The server is the source of truth (it also
+ * enforces Pro); the App Store's answer is used straight after a purchase, until the server catches up.
+ *
+ * Purchases need the native part (TestFlight build 4 and later); elsewhere buying says to update.
+ */
+import Constants from 'expo-constants';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Platform } from 'react-native';
+import { create } from 'zustand';
+
+import { supabase } from '@/sync/supabase';
+
+export const PRO_ENTITLEMENT = 'pro';
+export const PRO_PRICE_FALLBACK = '$24.99/year';
+
+interface ProState {
+  /** Has Pro (or the paywall is off). */
+  pro: boolean;
+  /** The paywall is on (after launch). */
+  paywall: boolean;
+  /** Subscribed until (ISO), and the early-tester free year (ISO). */
+  until: string | null;
+  betaUntil: string | null;
+  willRenew: boolean | null;
+  loaded: boolean;
+}
+
+export const usePro = create<ProState>(() => ({ pro: true, paywall: false, until: null, betaUntil: null, willRenew: null, loaded: false }));
+
+/** Ask the server where I stand. */
+export async function loadPro() {
+  const { data, error } = await supabase.rpc('my_pro');
+  if (error || !data) return;
+  const d = data as { pro: boolean; paywall: boolean; until: string | null; beta_until: string | null; will_renew: boolean | null };
+  usePro.setState({ pro: d.pro, paywall: d.paywall, until: d.until, betaUntil: d.beta_until, willRenew: d.will_renew, loaded: true });
+}
+
+/** Load once at start, and again whenever I sign in or out. */
+export function useProStatus() {
+  useEffect(() => {
+    void loadPro();
+    const { data } = supabase.auth.onAuthStateChange(() => { void loadPro(); void identify(); });
+    return () => data.subscription.unsubscribe();
+  }, []);
+}
+
+// ------------------------------------------------------------------ the App Store (RevenueCat)
+
+type Pkg = { identifier: string; product: { priceString: string; introPrice?: { priceString: string; periodNumberOfUnits?: number; periodUnit?: string } | null } };
+type Purchases = {
+  configure(c: { apiKey: string; appUserID?: string | null }): void;
+  logIn(id: string): Promise<unknown>;
+  getOfferings(): Promise<{ current: { availablePackages: Pkg[]; annual?: Pkg | null } | null }>;
+  purchasePackage(p: Pkg): Promise<{ customerInfo: { entitlements: { active: Record<string, unknown> } } }>;
+  restorePurchases(): Promise<{ entitlements: { active: Record<string, unknown> } }>;
+};
+
+let sdk: Purchases | null | undefined;
+let configured = false;
+/** The App Store SDK, set up for me — or null where this build can't buy. */
+function purchases(): Purchases | null {
+  if (sdk === undefined) {
+    sdk = null;
+    const key = (Constants.expoConfig?.extra as { revenuecatIosKey?: string } | undefined)?.revenuecatIosKey;
+    if (Platform.OS === 'ios' && key) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { NativeModules } = require('react-native') as { NativeModules: Record<string, unknown> };
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        if (NativeModules.RNPurchases) sdk = (require('react-native-purchases') as { default: Purchases }).default;
+      } catch {
+        sdk = null;
+      }
+    }
+  }
+  if (sdk && !configured) {
+    const key = (Constants.expoConfig?.extra as { revenuecatIosKey?: string }).revenuecatIosKey!;
+    sdk.configure({ apiKey: key });
+    configured = true;
+    void identify();
+  }
+  return sdk;
+}
+
+export const canPurchase = () => purchases() !== null;
+
+/** Tell the App Store side who I am (my Clutch Up account), so a purchase follows my account. */
+async function identify() {
+  const s = sdk && configured ? sdk : null;
+  if (!s) return;
+  const { data } = await supabase.auth.getSession();
+  const id = data.session?.user.id;
+  if (id) await s.logIn(id).catch(() => undefined);
+}
+
+/** The yearly plan, with its price and trial as the App Store shows them. */
+export async function getProOffer(): Promise<{ pkg: Pkg; price: string; trial: string | null } | null> {
+  const s = purchases();
+  if (!s) return null;
+  try {
+    const o = await s.getOfferings();
+    const pkg = o.current?.annual ?? o.current?.availablePackages[0];
+    if (!pkg) return null;
+    const intro = pkg.product.introPrice;
+    const trial = intro && /0[.,]00|^Free/i.test(intro.priceString) && intro.periodNumberOfUnits ? `${intro.periodNumberOfUnits}-${(intro.periodUnit ?? 'day').toLowerCase()} free trial` : null;
+    return { pkg, price: `${pkg.product.priceString}/year`, trial };
+  } catch {
+    return null;
+  }
+}
+
+/** After buying or restoring: have the server check with the App Store, then reload. */
+async function settle(activeNow: boolean) {
+  if (activeNow) usePro.setState({ pro: true });
+  await supabase.functions.invoke('revenuecat', { body: { sync: true } }).catch(() => undefined);
+  await loadPro();
+  if (activeNow) usePro.setState({ pro: true });
+}
+
+/** Buy Pro. Resolves true when bought, false when cancelled; throws with a message otherwise. */
+export async function buyPro(pkg: Pkg): Promise<boolean> {
+  const s = purchases();
+  if (!s) throw new Error('Update Clutch Up from TestFlight to subscribe.');
+  await identify();
+  try {
+    const { customerInfo } = await s.purchasePackage(pkg);
+    const active = !!customerInfo.entitlements.active[PRO_ENTITLEMENT];
+    await settle(active);
+    return active;
+  } catch (e) {
+    if ((e as { userCancelled?: boolean }).userCancelled) return false;
+    throw new Error((e as { message?: string }).message ?? 'The purchase didn’t go through.');
+  }
+}
+
+/** Restore a subscription bought before (new phone, reinstall). Resolves whether Pro is active. */
+export async function restorePro(): Promise<boolean> {
+  const s = purchases();
+  if (!s) throw new Error('Update Clutch Up from TestFlight to restore purchases.');
+  await identify();
+  const info = await s.restorePurchases();
+  const active = !!info.entitlements.active[PRO_ENTITLEMENT];
+  await settle(active);
+  return active;
+}
+
+/** Did the server turn this down for want of Pro? (AI features answer 402.) */
+export function needsProError(error: unknown, data?: unknown): boolean {
+  const d = data as { needsPro?: boolean } | undefined;
+  const ctx = (error as { context?: { status?: number } } | null)?.context;
+  return d?.needsPro === true || ctx?.status === 402;
+}
+
+let paywalledAt = 0;
+/** Show the Pro screen (e.g. after the server said a feature needs Pro). */
+export function openPaywall(reason: 'event' | 'story' | 'scorecard') {
+  paywalledAt = Date.now();
+  router.push({ pathname: '/pro', params: { reason } });
+}
+/** Was the Pro screen just shown (so a "couldn't do it" message isn't needed)? */
+export const justPaywalled = () => Date.now() - paywalledAt < 4000;

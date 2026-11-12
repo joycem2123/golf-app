@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useUsageTracking } from '@/lib/usage';
 import { installCrashGuard } from '@/lib/crash-guard';
 import { useLiveActivity } from '@/lib/live-activity';
+import { useProStatus } from '@/lib/pro';
 import { TutorialPlayer } from '@/components/tutorial-player';
 import { WelcomeVideo } from '@/components/welcome-video';
 import { SyncProvider } from '@/sync/sync-provider';
@@ -25,6 +26,7 @@ export default function RootLayout() {
   const pathname = usePathname();
   useUsageTracking(pathname);
   useLiveActivity();
+  useProStatus();
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -59,6 +61,7 @@ export default function RootLayout() {
         <Stack.Screen name="event/[id]/edit" options={{ title: 'Edit event', presentation: 'modal' }} />
         <Stack.Screen name="head-to-head" options={{ title: 'Head to Head' }} />
         <Stack.Screen name="join" options={{ title: 'Join with Code', presentation: 'modal' }} />
+        <Stack.Screen name="pro" options={{ title: 'Clutch Up Pro', presentation: 'modal' }} />
         <Stack.Screen name="round/[id]/index" options={{ title: 'Scorecard' }} />
         <Stack.Screen name="round/[id]/results" options={{ title: 'Results' }} />
         <Stack.Screen name="round/[id]/match/[gi]" options={{ title: "Match" }} />

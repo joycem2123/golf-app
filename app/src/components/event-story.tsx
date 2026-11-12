@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { justPaywalled } from '@/lib/pro';
 import { Pressable, Text, View } from 'react-native';
 
 import { eventStoryKey, refreshEventStory } from '@/lib/event-story';
@@ -25,7 +27,7 @@ export function EventStory({ e, rounds }: { e: EventRecord; rounds: RoundRecord[
     setFailed(false);
     const text = await refreshEventStory(e, rounds);
     setWriting(false);
-    if (!text) setFailed(true);
+    if (!text && !justPaywalled()) setFailed(true);
   };
 
   return (

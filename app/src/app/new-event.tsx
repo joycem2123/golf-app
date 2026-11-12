@@ -16,6 +16,7 @@ import { Body, Button, Card, Checkbox, Field, H2, Label, OptionRow, Segmented, S
 import { addDays, daysBetween, describeRecurrence, formatDate, occurrences, today, WEEKDAYS, type Recurrence } from '@/lib/dates';
 import { draftProblem, gameInfo, isMatchFormat, newDraft, teamsSet, type GameDraft, type GameKind, type TeamOf } from '@/lib/games';
 import { meFirst, useMe } from '@/lib/me';
+import { openPaywall, usePro } from '@/lib/pro';
 import { usePickBus } from '@/store/pick';
 import { newId, useStore, type EventRecord, type EventType, type SavedPlayer } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -176,6 +177,12 @@ export default function NewEvent() {
     (s === 'matchups' && !detailsProblem && !playersProblem && teamsDone && withGame.length > 0);
 
   const create = () => {
+    // Anyone can set an event up to see what's possible; creating it is Clutch Up Pro (the setup stays here).
+    // (It's saved as a draft as you go, so nothing is lost.)
+    if (!usePro.getState().pro) {
+      openPaywall('event');
+      return;
+    }
     // Never fail silently: say what's still missing, or what went wrong.
     const firstBad = matchupProblems.findIndex((x) => x);
     const blocked =

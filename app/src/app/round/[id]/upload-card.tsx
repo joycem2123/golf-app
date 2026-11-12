@@ -49,7 +49,7 @@ export default function UploadCardIntoRound() {
       const photo = await pickScorecard(source);
       if (!photo) return;
       setPhase('reading');
-      const got = await readRoundPhoto(photo);
+      const got = await readRoundPhoto(photo, { roundId: r?.id });
       setCard(got);
       // Rows with no name are ignored, so they're never guessed.
       const named = got.rows.map((row) => (row.name?.trim() ? row : { ...row, name: '\u0000' }));

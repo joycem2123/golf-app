@@ -5,6 +5,7 @@
 import type { ScoreLedger } from '@golf/engine';
 
 import { ensureSession } from '@/sync/auth';
+import { needsProError, openPaywall } from '@/lib/pro';
 import { supabase } from '@/sync/supabase';
 import { track } from './usage';
 
@@ -45,9 +46,14 @@ export const setPendingScan = (s: ScannedRound | null) => (pending = s);
 export const getPendingScan = () => pending;
 
 /** Send the photo to be read. */
-export async function readRoundPhoto(base64: string): Promise<ScannedRound> {
+export async function readRoundPhoto(base64: string, into?: { roundId?: string; eventId?: string }): Promise<ScannedRound> {
   await ensureSession();
-  const { data, error } = await supabase.functions.invoke('read-round', { body: { image: base64, mediaType: 'image/jpeg' } });
+  // Which round/event it's for, so the organiser's Pro covers it.
+  const { data, error } = await supabase.functions.invoke('read-round', { body: { image: base64, mediaType: 'image/jpeg', ...into } });
+  if (error && needsProError(error, data)) {
+    openPaywall('scorecard');
+    throw new Error('Scorecard uploads are part of Clutch Up Pro.');
+  }
   if (error) {
     let msg = 'Couldn’t read the scorecard. Check your connection and try again.';
     try {

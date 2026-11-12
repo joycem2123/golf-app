@@ -1,5 +1,7 @@
 import type { GameResult } from '@golf/engine';
 import { useState } from 'react';
+
+import { justPaywalled } from '@/lib/pro';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { requestAiStory } from '@/lib/ai-story';
@@ -53,7 +55,7 @@ export function MatchStory({ r, res, m, holes, compact }: { r: RoundRecord; res:
     setFailed(false);
     const text = await requestAiStory(r, res, m, holes);
     setLoading(false);
-    if (!text) setFailed(true);
+    if (!text && !justPaywalled()) setFailed(true);
   };
 
   return (

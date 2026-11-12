@@ -15,11 +15,42 @@ Name players by the first names given. Mention the turning point (a comeback, a 
 a big birdie, a lead that slipped) and how and where the match ended. Plain text only, no headings,
 no lists, no emoji.`;
 
+
+// ---- Clutch Up Pro: the caller's Pro, or the organiser's (the round's or event's owner), covers it.
+// (While the paywall is off, everyone has it.)
+async function proAllowed(req: Request, ids: { roundId?: unknown; eventId?: unknown }): Promise<boolean> {
+  const url = Deno.env.get('SUPABASE_URL')!;
+  const asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
+  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const { data: who } = await asUser.auth.getUser();
+  const owners = new Set<string>([who?.user?.id ?? '00000000-0000-0000-0000-000000000000']);
+  if (typeof ids.roundId === 'string') {
+    // Only rounds I can see (read as me).
+    const { data: r } = await asUser.from('rounds').select('owner, event_id').eq('id', ids.roundId).maybeSingle();
+    if (r?.owner) owners.add(r.owner);
+    if (r?.event_id) {
+      const { data: e } = await admin.from('events').select('owner').eq('id', r.event_id).maybeSingle();
+      if (e?.owner) owners.add(e.owner);
+    }
+  }
+  if (typeof ids.eventId === 'string') {
+    const { data: e } = await asUser.from('events').select('owner').eq('id', ids.eventId).maybeSingle();
+    if (e?.owner) owners.add(e.owner);
+  }
+  for (const uid of owners) {
+    const { data } = await admin.rpc('has_pro_for', { uid });
+    if (data === true) return true;
+  }
+  return false;
+}
+const NEEDS_PRO = { error: 'This is a Clutch Up Pro feature.', needsPro: true };
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
   try {
     const { roundId, facts } = await req.json();
+    if (!(await proAllowed(req, { roundId }))) return json(NEEDS_PRO, 402);
     if (typeof roundId !== 'string' || typeof facts !== 'object' || JSON.stringify(facts).length > 20000) return json({ error: 'Bad request' }, 400);
 
     // Only people in the round can ask for its story.

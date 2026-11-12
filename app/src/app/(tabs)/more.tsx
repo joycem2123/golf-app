@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Body, Button, Card, Toggle } from '@/components/ui';
 import { useUsageSharing } from '@/lib/usage';
 import { liveActivitiesSupported, useLiveActivityPref } from '@/lib/live-activity';
+import { usePro } from '@/lib/pro';
 import { openTutorial } from '@/lib/tutorial';
 import { resetTips } from '@/components/tip';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
@@ -37,6 +38,7 @@ export default function More() {
   const [asking, setAsking] = useState(false);
   const [sharingUsage, setSharingUsage] = useUsageSharing();
   const [liveCard, setLiveCard] = useLiveActivityPref();
+  const pro = usePro();
   const [tipsReset, setTipsReset] = useState(false);
   const c = useColors();
   const signedIn = !!session?.user && !session.user.is_anonymous;
@@ -51,6 +53,11 @@ export default function More() {
           ) : (
             <Row title="Create account or sign in" sub="You’re using Clutch Up as a guest" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
           )}
+          <Row
+            title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade to Clutch Up Pro'}
+            sub={!pro.paywall ? 'Every feature is free during the beta' : pro.pro ? 'Events, stories and scorecard uploads' : 'Events, stories and scorecard uploads · 7-day free trial'}
+            onPress={() => router.push('/pro')}
+          />
           <Row title="How Clutch Up works" sub="A two-minute video tour of the app" onPress={() => openTutorial()} />
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />

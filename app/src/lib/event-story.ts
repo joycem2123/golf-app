@@ -6,6 +6,7 @@ import { teamName } from '@/lib/team-colors';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { useStore } from '@/store/store';
 import { ensureSession } from '@/sync/auth';
+import { needsProError, openPaywall } from '@/lib/pro';
 import { supabase } from '@/sync/supabase';
 import { cupScore, eventMatches, eventStandings, eventTeamTotals, formatPoints } from './events';
 import { courseFor } from './round';
@@ -87,7 +88,8 @@ export async function refreshEventStory(e: EventRecord, rounds: RoundRecord[]): 
   asking.add(`${e.id}:${key}`);
   try {
     await ensureSession();
-    const { data, error } = await supabase.functions.invoke('event-story', { body: { facts: eventFacts(e, rounds) } });
+    const { data, error } = await supabase.functions.invoke('event-story', { body: { facts: eventFacts(e, rounds), eventId: e.id } });
+    if (error && needsProError(error, data)) { openPaywall('story'); return null; }
     if (error || !data?.story) return null;
     useStore.getState().setEventStory(e.id, { text: data.story as string, key });
     track('event_story_generated', { type: e.type });
