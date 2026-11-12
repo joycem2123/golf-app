@@ -118,7 +118,7 @@ export async function autoShare(roundId: string) {
 
 // ------------------------------------------------------------------ join
 
-async function pullRound(roundId: string, role?: Remote['role']) {
+export async function pullRound(roundId: string, role?: Remote['role']) {
   const [{ data: row, error }, { data: scores }] = await Promise.all([
     supabase.from('rounds').select('id, share_code, event_id, status, data').eq('id', roundId).maybeSingle(),
     supabase.from('scores').select('*').eq('round_id', roundId),
@@ -147,7 +147,7 @@ async function pullRound(roundId: string, role?: Remote['role']) {
   await loadNames((scores as ScoreRow[] | null)?.map((s) => s.entered_by) ?? []);
 }
 
-async function pullEvent(eventId: string, role?: Remote['role']) {
+export async function pullEvent(eventId: string, role?: Remote['role']) {
   const { data: row } = await supabase.from('events').select('id, share_code, data').eq('id', eventId).maybeSingle();
   if (!row) return;
   const doc = row.data as EventDoc;

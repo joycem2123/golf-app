@@ -15,6 +15,8 @@ import type { EventRecord, RoundRecord } from '@/store/store';
 import { radius, space, teamColor, useColors } from '@/theme';
 import { namesFor, teamName } from '@/lib/team-colors';
 import { EventCard } from './cards';
+import { ListSection } from './list-section';
+import { formatDate, today } from '@/lib/dates';
 import { TeamScoreLine, type LiveOverride } from './team-score-line';
 import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
 
@@ -143,6 +145,44 @@ function liveState(r: RoundRecord, results: ReturnType<typeof evaluate>, matches
   ahead.push(`PROJ ${ls.teams.map((t) => formatPoints(t.projected)).join("–")}`);
   const leader = top.length >= 2 && top[0].projected > top[1].projected ? top[0].letter : null;
   return { values: {}, leader, caption: ahead.join(' · ') };
+}
+
+/**
+ * My rounds in three sections: in progress, coming up (planned event rounds) and completed (folded away
+ * to start). Each shows four, then "Show more".
+ */
+export function MyRounds({ rounds, events, onDelete }: { rounds: RoundRecord[]; events: EventRecord[]; onDelete: (id: string) => void }) {
+  const c = useColors();
+  const live = rounds.filter((r) => r.status === 'active').sort((a, b) => b.createdAt - a.createdAt);
+  const done = rounds.filter((r) => r.status === 'complete').sort((a, b) => (b.completedAt ?? b.createdAt) - (a.completedAt ?? a.createdAt));
+  const from = today();
+  const upcoming = events
+    .filter((e) => e.remote?.role !== 'viewer')
+    .flatMap((e) => (e.rounds ?? []).filter((p) => !p.roundId && p.date && p.date >= from).map((p) => ({ e, p })))
+    .sort((a, b) => (a.p.date ?? '').localeCompare(b.p.date ?? ''));
+  const eventOf = (r: RoundRecord) => (r.eventId ? events.find((e) => e.id === r.eventId) : undefined);
+  const item = (r: RoundRecord) =>
+    canDeleteRound(r) && r.remote?.role !== 'viewer' ? (
+      <SwipeToDelete key={r.id} label="round" onDelete={() => onDelete(r.id)}><RoundDrill r={r} e={eventOf(r)} /></SwipeToDelete>
+    ) : (
+      <RoundDrill key={r.id} r={r} e={eventOf(r)} />
+    );
+  return (
+    <View style={{ gap: space.md }}>
+      <ListSection title="In progress" count={live.length} empty="No rounds in play. Start one from Home.">{live.map(item)}</ListSection>
+      <ListSection title="Upcoming" count={upcoming.length} empty="Nothing planned. Add rounds to an event to see them here.">
+        {upcoming.map(({ e, p }) => (
+          <Pressable key={`${e.id}:${p.id}`} onPress={() => router.push(`/event/${e.id}`)} accessibilityRole="button"
+            style={({ pressed }) => ({ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, padding: space.md, gap: 2, opacity: pressed ? 0.6 : 1 })}>
+            <Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>{e.name} · Round {p.number}</Text>
+            <Text style={{ color: c.muted, fontSize: 12 }}>{p.date ? formatDate(p.date) : ''}</Text>
+            <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>Event page ›</Text>
+          </Pressable>
+        ))}
+      </ListSection>
+      <ListSection title="Completed" count={done.length} collapsed empty="No finished rounds yet.">{done.map(item)}</ListSection>
+    </View>
+  );
 }
 
 /** Rounds played outside an event: live first, then completed, each opening out into its matches. */

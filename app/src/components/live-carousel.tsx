@@ -23,8 +23,10 @@ import { fonts, radius, space, useColors } from '@/theme';
 
 type Item = { r: RoundRecord; gi: number; mine: boolean; matches: number; at: number };
 
-export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown = null }: {
+export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown = null, gameFor }: {
   rounds: RoundRecord[];
+  /** The match to show for a round (a friend's match I follow); null = the one I'm playing in. */
+  gameFor?: (r: RoundRecord) => number | null;
   onDelete: (roundId: string) => void;
   firstRef?: TipTarget;
   /** Event rounds planned for today: "Start round" cards, first. */
@@ -47,7 +49,7 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
 
   const items: Item[] = [];
   for (const r of rounds) {
-    const gi = myMatchIndex(r, isMe);
+    const gi = gameFor?.(r) ?? myMatchIndex(r, isMe);
     const matches = r.games.filter((g) => matchLabel(g)).length;
     items.push({ r, gi, mine: !!r.games[gi] && playersIn(r.games[gi]).some(isMe), matches, at: r.createdAt });
   }

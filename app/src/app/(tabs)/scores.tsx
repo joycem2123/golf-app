@@ -3,14 +3,15 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
-import { EventDrill, SoloRounds } from '@/components/score-drill';
+import { EventDrill, MyRounds } from '@/components/score-drill';
+import { FriendMatches } from '@/components/friend-matches';
 import { canDeleteEvent, eventPhase } from '@/lib/events';
 import { HeadToHeadView } from '@/components/head-to-head-view';
 import { TabHeader } from '@/components/tab-header';
 import { MeBadge, StatTiles } from '@/components/people';
 import { Body, Button, Card, H2, Label, Segmented } from '@/components/ui';
 import { toPar } from '@/lib/format';
-import { useMe } from '@/lib/me';
+import { isMeId, useMe } from '@/lib/me';
 import { playerStats, type PlayerStats } from '@/lib/player-stats';
 import { courseFor, shortCourseName } from '@/lib/round';
 import { useStore } from '@/store/store';
@@ -127,13 +128,16 @@ function EventsList({ onDeleteEvent }: { onDeleteEvent: (id: string) => void }) 
 }
 
 export default function Scores() {
-  const c = useColors();
   const rounds = useStore((s) => s.rounds);
   const [section, setSection] = useState<Section>('rounds');
   const { deleteRound, deleteEvent, bar } = useDeleteWithUndo();
   const events = useStore((s) => s.events);
-  const [games, setGames] = useState<'events' | 'solo'>(() => (events.length ? 'events' : 'solo'));
-  const solo = rounds.filter((r) => !r.eventId || !events.some((e) => e.id === r.eventId));
+  const [games, setGames] = useState<'events' | 'solo'>('solo');
+  const [whose, setWhose] = useState<'mine' | 'friends'>('mine');
+  const uid = useStore((s) => s.me);
+  // My matches: rounds I'm part of (not friends' rounds I'm only following).
+  const myRounds = rounds.filter((r) => r.remote?.role !== 'viewer' || r.players.some((p) => p.id === uid || isMeId(p.id)));
+  const myEvents = events.filter((e) => e.remote?.role !== 'viewer' || e.playerIds.some((id) => id === uid || isMeId(id)));
 
   return (
     <View style={{ flex: 1 }}>
@@ -146,19 +150,20 @@ export default function Scores() {
         />
         {section === 'rounds' && (
           <>
-            {/* Events (opening out into rounds and matches) or rounds played on their own. */}
-            <Segmented
-              compact
-              options={[{ value: 'events', label: `Events${events.length ? ` (${events.length})` : ''}` }, { value: 'solo', label: `Rounds${solo.length ? ` (${solo.length})` : ''}` }]}
-              value={games}
-              onChange={setGames}
-            />
-            {games === 'events' ? (
-              <EventsList onDeleteEvent={deleteEvent} />
+            {/* Mine or my friends'. */}
+            <Segmented compact options={[{ value: 'mine', label: 'My Matches' }, { value: 'friends', label: 'Friends’ Matches' }]} value={whose} onChange={setWhose} />
+            {whose === 'friends' ? (
+              <FriendMatches />
             ) : (
               <>
-                <SoloRounds rounds={solo} onDelete={deleteRound} />
-                {solo.length === 0 && <Body muted>No rounds outside events yet. Start one from Home.</Body>}
+                {/* Rounds (live, upcoming, completed) or events (opening out into rounds and matches). */}
+                <Segmented
+                  compact
+                  options={[{ value: 'solo', label: `Rounds${myRounds.length ? ` (${myRounds.length})` : ''}` }, { value: 'events', label: `Events${myEvents.length ? ` (${myEvents.length})` : ''}` }]}
+                  value={games}
+                  onChange={setGames}
+                />
+                {games === 'events' ? <EventsList onDeleteEvent={deleteEvent} /> : <MyRounds rounds={myRounds} events={myEvents} onDelete={deleteRound} />}
               </>
             )}
           </>

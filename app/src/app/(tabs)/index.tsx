@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -11,7 +12,8 @@ import { HandicapReminder } from '@/components/handicap-reminder';
 import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { matchLabel } from '@/lib/games';
-import { useMe } from '@/lib/me';
+import { isMeId, useMe } from '@/lib/me';
+import { followedGame, loadFollowRows, useFollows } from '@/sync/follows';
 import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -46,6 +48,35 @@ function Tile({ title, sub, icon, onPress, primary, wide }: { title: string; sub
 
 const glyph = (t: string, color: string) => <Text style={{ fontSize: 17, color, fontWeight: '700' }}>{t}</Text>;
 
+type Show = 'mine' | 'friends' | 'all';
+const SHOW_KEY = 'home:show';
+
+/** Home's live and upcoming cards: my games, friends' games I follow, or both (remembered). */
+function useShow(): [Show, (v: Show) => void] {
+  const [show, setShow] = useState<Show>('all');
+  useEffect(() => {
+    AsyncStorage.getItem(SHOW_KEY).then((v) => { if (v === 'mine' || v === 'friends' || v === 'all') setShow(v); }).catch(() => undefined);
+  }, []);
+  return [show, (v) => { setShow(v); void AsyncStorage.setItem(SHOW_KEY, v).catch(() => undefined); }];
+}
+
+function ShowPills({ value, onChange }: { value: Show; onChange: (v: Show) => void }) {
+  const opts: { v: Show; label: string }[] = [{ v: 'mine', label: 'My games' }, { v: 'friends', label: 'Friends' }, { v: 'all', label: 'All' }];
+  return (
+    <View style={{ flexDirection: 'row', gap: 6, marginTop: space.md }} accessibilityRole="tablist">
+      {opts.map((o) => {
+        const on = o.v === value;
+        return (
+          <Pressable key={o.v} onPress={() => onChange(o.v)} accessibilityRole="tab" accessibilityState={{ selected: on }}
+            style={({ pressed }) => ({ paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: on ? '#FFFFFF' : '#FFFFFF22', opacity: pressed ? 0.7 : 1 })}>
+            <Text style={{ color: on ? '#14352A' : '#FFFFFFDD', fontWeight: '700', fontSize: 13 }}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function Home() {
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -53,10 +84,19 @@ export default function Home() {
   const events = useStore((s) => s.events);
   const me = useStore((s) => s.me);
   const names = useStore((s) => s.names);
-  const active = rounds.filter((r) => r.status === 'active');
+  // My games, or friends' games I follow (rounds and events I only watch).
+  const [show, setShow] = useShow();
+  const follows = useFollows((s) => s.rows);
+  useEffect(() => { void loadFollowRows().catch(() => undefined); }, []);
+  const mineRound = (r: (typeof rounds)[number]) => r.remote?.role !== 'viewer' || r.players.some((p) => p.id === me || isMeId(p.id));
+  const mineEvent = (e: (typeof events)[number]) => e.remote?.role !== 'viewer' || e.playerIds.some((id) => id === me || isMeId(id));
+  const keepRound = (r: (typeof rounds)[number]) => show === 'all' || (show === 'mine') === mineRound(r);
+  const keepEvent = (e: (typeof events)[number]) => show === 'all' || (show === 'mine') === mineEvent(e);
+  const anyFriends = rounds.some((r) => r.status === 'active' && !mineRound(r)) || events.some((e) => !mineEvent(e));
+  const active = rounds.filter((r) => r.status === 'active' && keepRound(r));
   // The event calendar: rounds planned for today (Start round), and a countdown to what's next.
-  const todays = plannedToday(events, rounds);
-  const countdown = nextCountdown(events, rounds);
+  const todays = plannedToday(events.filter(keepEvent), rounds);
+  const countdown = nextCountdown(events.filter(keepEvent), rounds);
   const banner = active.length + todays.length + (countdown ? 1 : 0) > 0;
   const { me: myPlayer } = useMe();
   const incoming = useFriendRequests((s) => s.incoming);
@@ -81,13 +121,19 @@ export default function Home() {
         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 26, fontWeight: '700', marginTop: 2 }}>
           {todays.length ? 'It’s game day!' : active.length ? (active.length > 1 || active[0].games.filter((g) => matchLabel(g)).length > 1 ? 'Matches in play' : 'You have a round in play') : countdown ? 'Something to look forward to' : 'Ready for a match?'}
         </Text>
+        {(anyFriends || show !== 'all') && <ShowPills value={show} onChange={setShow} />}
+        {show === 'friends' && !banner && (
+          <Pressable onPress={() => router.push('/scores')} accessibilityRole="button">
+            <Text style={{ color: '#FFFFFFCC', fontSize: 13, marginTop: space.sm }}>No friends’ games followed. Find them in Scores → Friends’ Matches ›</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Live round, overlapping the banner */}
       {/* Every match in progress: swipe between them (mine first). */}
       {banner && (
         <View style={{ marginTop: -56 }}>
-          <LiveCarousel rounds={active} onDelete={deleteRound} firstRef={liveRef} today={todays} countdown={countdown} />
+          <LiveCarousel rounds={active} onDelete={deleteRound} firstRef={liveRef} today={todays} countdown={countdown} gameFor={(r) => (mineRound(r) ? null : followedGame(follows, r.id))} />
         </View>
       )}
 

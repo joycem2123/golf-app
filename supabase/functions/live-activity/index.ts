@@ -1,4 +1,5 @@
-// Updates the live score cards (iOS Live Activities) on other players' phones when a score is entered.
+// Updates the live score cards (iOS Live Activities) on other players' phones when a score is entered,
+// and tells people following the match (with notifications on) when it changes hands or finishes.
 //
 // The phone that entered the score sends the match's new card content; this checks the caller may score
 // that round, then sends it through Apple's push service to every other phone showing that match.
@@ -47,6 +48,38 @@ async function apnsToken(): Promise<string> {
   return jwt.token;
 }
 
+// deno-lint-ignore no-explicit-any
+type Admin = any;
+
+/**
+ * Followers with notifications on hear when a match changes: someone goes ahead, it's squared, or it's
+ * over. The last state announced is kept, so each change goes out once however many phones report it.
+ */
+async function tellFollowers(admin: Admin, me: string, roundId: string, gi: number, card: Record<string, string | boolean>) {
+  const state = card.done ? `done|${card.big}` : `${card.lead}|${card.aStatus}`;
+  if (!card.done && card.thru === 'Not started') return 0;
+  const { data: prev } = await admin.from('match_status').select('state').eq('round_id', roundId).eq('game_index', gi).maybeSingle();
+  if (prev?.state === state) return 0;
+  await admin.from('match_status').upsert({ round_id: roundId, game_index: gi, state, updated_at: new Date().toISOString() });
+  // Level from the first hole isn't news; a lead, a squared match or the result is.
+  if (!prev && !card.done && card.lead === '') return 0;
+  const { data: fans } = await admin.from('match_follows').select('user_id').eq('round_id', roundId).eq('game_index', gi).eq('notify', true).neq('user_id', me);
+  const users = [...new Set((fans ?? []).map((f: { user_id: string }) => f.user_id as string))];
+  if (!users.length) return 0;
+  const { data: tokens } = await admin.from('push_tokens').select('token').in('user_id', users);
+  const title = card.done ? `Final: ${card.big}` : String(card.big);
+  const body = [card.title, card.done ? null : card.thru].filter(Boolean).join(' · ');
+  const messages = (tokens ?? []).map((t: { token: string }) => ({ to: t.token, title, body, data: { kind: 'match_update', roundId, gi: String(gi) }, sound: 'default' }));
+  if (messages.length) {
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(messages),
+    }).catch((e) => console.error('push failed', e));
+  }
+  return messages.length;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -72,12 +105,14 @@ Deno.serve(async (req) => {
     const canScore = round.owner === me || mem?.role === 'owner' || mem?.role === 'scorer' || (claim ?? []).length > 0;
     if (!canScore) return json({ error: 'Not allowed.' }, 403);
 
+    const card = cleanProps(props as Record<string, unknown>);
+    const told = await tellFollowers(admin, me, roundId, gi, card);
+
     const { data: rows } = await admin.from('live_activity_tokens').select('activity_id, token, side, user_id')
       .eq('round_id', roundId).eq('game_index', gi).neq('user_id', me);
-    if (!rows?.length) return json({ sent: 0 });
+    if (!rows?.length || !Deno.env.get('APNS_KEY_P8')) return json({ sent: 0, told });
 
     const auth = await apnsToken();
-    const card = cleanProps(props as Record<string, unknown>);
     const now = Math.floor(Date.now() / 1000);
     let sent = 0;
     const gone: string[] = [];
@@ -111,7 +146,7 @@ Deno.serve(async (req) => {
     if (gone.length || end) {
       await admin.from('live_activity_tokens').delete().in('activity_id', end ? rows.map((r) => r.activity_id) : gone);
     }
-    return json({ sent });
+    return json({ sent, told });
   } catch (e) {
     console.error(e);
     return json({ error: 'Couldn’t update.' }, 500);

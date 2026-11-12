@@ -12,6 +12,36 @@ const cors = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const first = (n: string | null | undefined, fallback: string) => (n ?? '').trim().split(' ')[0] || fallback;
 
+// deno-lint-ignore no-explicit-any
+type Admin = any;
+
+async function tellEventFollowers(admin: Admin, me: string, roundId: string, eventId: string, starter?: string | null) {
+  // Once per round, however many times this is asked.
+  const { data: fresh } = await admin.from('match_status').upsert({ round_id: roundId, game_index: -2, state: 'started' }, { onConflict: 'round_id,game_index', ignoreDuplicates: true }).select('round_id');
+  if (!fresh?.length) return;
+  const { data: ev } = await admin.from('events').select('data').eq('id', eventId).maybeSingle();
+  const plan = (ev?.data?.rounds ?? []).find((x: { roundId?: string }) => x.roundId === roundId) as { id?: string; number?: number } | undefined;
+  const { data: fans } = await admin.from('match_follows').select('user_id, plan_id').eq('event_id', eventId).eq('notify', true).neq('user_id', me);
+  const users = [...new Set((fans ?? []).filter((f: { user_id: string; plan_id: string }) => !f.plan_id || f.plan_id === plan?.id).map((f: { user_id: string }) => f.user_id as string))];
+  if (!users.length) return;
+  const { data: tokens } = await admin.from('push_tokens').select('token').in('user_id', users);
+  const name = String(ev?.data?.name ?? 'An event');
+  const messages = (tokens ?? []).map((t: { token: string }) => ({
+    to: t.token,
+    title: `${name}${plan?.number ? ` · Round ${plan.number}` : ''} has started`,
+    body: `${first(starter, 'Your friends')} and the group are on the course. Tap to follow live.`,
+    data: { kind: 'round_started', roundId },
+    sound: 'default',
+  }));
+  if (messages.length) {
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(messages),
+    }).catch((e) => console.error('push failed', e));
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -54,10 +84,12 @@ Deno.serve(async (req) => {
       body = `${prof?.display_name ?? 'Someone'} wants to be friends on Clutch Up.`;
       data = { kind: 'friend_request' };
     } else if (kind === 'round' && typeof id === 'string') {
-      const { data: round } = await admin.from('rounds').select('owner, status, data').eq('id', id).maybeSingle();
+      const { data: round } = await admin.from('rounds').select('owner, status, data, event_id').eq('id', id).maybeSingle();
       if (!round || round.status !== 'active') return json({ sent: 0 });
       const { data: mem } = await admin.from('round_members').select('role').eq('round_id', id).eq('user_id', me).maybeSingle();
       if (round.owner !== me && mem?.role !== 'owner' && mem?.role !== 'scorer') return json({ sent: 0 });
+      // People following this event's upcoming round (notifications on) hear that it's started, once.
+      if (round.event_id) await tellEventFollowers(admin, me, id, round.event_id, prof?.display_name);
       // Only people who are players in the round (not those who joined by code to follow along).
       const playerIds: string[] = (round.data?.players ?? []).map((p: { id: string }) => p.id).filter((x: string) => UUID.test(x) && x !== me);
       if (!playerIds.length) return json({ sent: 0 });
@@ -76,7 +108,7 @@ Deno.serve(async (req) => {
     users = [...new Set(users)].filter((u) => u !== me);
     if (!users.length) return json({ sent: 0 });
     const { data: tokens } = await admin.from('push_tokens').select('token').in('user_id', users);
-    const messages = (tokens ?? []).map((t) => ({ to: t.token, title, body, data, sound: 'default' }));
+    const messages = (tokens ?? []).map((t: { token: string }) => ({ to: t.token, title, body, data, sound: 'default' }));
     if (messages.length) {
       await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',

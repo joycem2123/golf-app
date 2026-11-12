@@ -65,6 +65,14 @@ export function watchNotificationTaps(open: (path: string) => void) {
       await pullMine().catch(() => undefined);
       open(`/round/${data.roundId}`);
     }
+    // A friend's match I get alerts for: open it if it's on my phone (followed), otherwise Friends' Matches.
+    if ((data.kind === 'match_update' || data.kind === 'round_started') && typeof data.roundId === 'string') {
+      const { pullMine } = await import('./sync');
+      await pullMine().catch(() => undefined);
+      const { useStore } = await import('@/store/store');
+      const onPhone = useStore.getState().rounds.some((r) => r.id === data.roundId);
+      open(onPhone ? `/round/${data.roundId}${typeof data.gi === 'string' ? `?match=${data.gi}` : ''}` : '/scores');
+    }
   };
   void Notifications.getLastNotificationResponseAsync().then((r) => r && go(r.notification.request.content.data));
   const sub = Notifications.addNotificationResponseReceivedListener((r) => void go(r.notification.request.content.data));
