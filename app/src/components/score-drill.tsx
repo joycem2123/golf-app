@@ -51,7 +51,7 @@ export function EventDrill({ e, rounds, onOpenEvent, onMore, following, nameOf, 
     <View style={{ gap: 0 }}>
       <View>
         <EventCard e={e} rounds={rounds} hint={following ? '★ Following · Event page ›' : 'Event page ›'} onPress={onOpenEvent} nameOf={nameOf} />
-        {onMore && <View style={{ position: 'absolute', top: space.md, right: space.md }}><MoreButton onPress={onMore} label={`Follow and notification options for ${e.name}`} /></View>}
+        {onMore && <View style={{ position: 'absolute', top: 8, right: 8 }}><MoreButton small onPress={onMore} label={`Follow and notification options for ${e.name}`} /></View>}
       </View>
       <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }}
         style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -6, paddingTop: 12, paddingBottom: 8, paddingHorizontal: space.lg, backgroundColor: pressed ? c.chip : c.primarySoft, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, zIndex: -1 })}>
@@ -70,6 +70,24 @@ export function EventDrill({ e, rounds, onOpenEvent, onMore, following, nameOf, 
   );
 }
 
+const firstOf = (names: string) => names.split(' & ').map((n) => n.trim().split(' ')[0]).join(' & ');
+
+/**
+ * A round's title: "Round 4 · WP 2027" in an event; otherwise who's playing, "Matt vs Dave · Daily Match"
+ * (team names when there are several matches between teams, or everyone's first names).
+ */
+export function roundTitle(r: RoundRecord, e: EventRecord | undefined, matches: ReturnType<typeof matchOutcomes>, teamLabel: (letter: string) => string): string {
+  if (r.eventId) return [r.label ?? 'Round', e?.name].filter(Boolean).join(' · ');
+  const cross = matches.filter((m) => m.a.letter !== m.b.letter || matches.length === 1);
+  let who: string;
+  if (cross.length === 1) who = `${firstOf(cross[0].a.names)} vs ${firstOf(cross[0].b.names)}`;
+  else if (cross.length > 1 && r.teamOf && Object.keys(r.teamOf).length) {
+    const letters = [...new Set(cross.flatMap((m) => [m.a.letter, m.b.letter]))].sort();
+    who = letters.map(teamLabel).join(' vs ');
+  } else who = r.players.map((p) => p.name.split(' ')[0]).join(', ');
+  return `${who} · Daily Match`;
+}
+
 /** A round in an event: tap for its results (or live scoring), open it out for its matches. */
 export function RoundDrill({ r, e, actions }: { r: RoundRecord; e?: EventRecord; actions?: DrillActions }) {
   const c = useColors();
@@ -86,12 +104,14 @@ export function RoundDrill({ r, e, actions }: { r: RoundRecord; e?: EventRecord;
   const go = actions?.open ?? ((path: string) => router.push(path as never));
   const goRound = () => go(live ? `/round/${r.id}` : `/round/${r.id}/results`);
   const following = actions?.isFollowing?.(r) ?? false;
+  const title = roundTitle(r, e, matches, (L) => teamName(L, namesFor(r, e)));
+  const more = actions?.roundMore;
   return (
     <View style={{ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md }}>
-        <Pressable onPress={goRound} style={({ pressed }) => ({ flex: 1, gap: 2, opacity: pressed ? 0.6 : 1 })} accessibilityRole="button" accessibilityLabel={`${r.label ?? 'Round'} ${live ? 'live scoring' : 'results'}`}>
+        <Pressable onPress={goRound} style={({ pressed }) => ({ flex: 1, gap: 2, opacity: pressed ? 0.6 : 1, paddingRight: more ? 30 : 0 })} accessibilityRole="button" accessibilityLabel={`${r.label ?? 'Round'} ${live ? 'live scoring' : 'results'}`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontWeight: '800', fontSize: 15 }}>{r.label ?? 'Unscheduled round'}</Text>
+            <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontWeight: '800', fontSize: 15 }}>{title}</Text>
             <View style={{ backgroundColor: live ? c.under : c.primary, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
               <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 1 }}>{live ? 'LIVE' : 'FINAL'}</Text>
             </View>
@@ -108,7 +128,8 @@ export function RoundDrill({ r, e, actions }: { r: RoundRecord; e?: EventRecord;
           <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>{live ? 'Live scoring ›' : 'Round results ›'}</Text>
         </Pressable>
         {matches.length > 0 && <Toggle open={open} label={open ? 'Hide matches' : 'Show matches'} onPress={() => setOpen(!open)} />}
-        {actions?.roundMore && <MoreButton onPress={() => actions.roundMore!(r)} label="Follow and notification options for this round" />}
+        {/* Follow / alerts, tucked into the top-right corner. */}
+        {more && <View style={{ position: 'absolute', top: 6, right: 6 }}><MoreButton small onPress={() => more(r)} label="Follow and notification options for this round" /></View>}
       </View>
       {open && (
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg }}>
@@ -204,7 +225,7 @@ export function MyRounds({ rounds, events, onDelete, actions, upcomingSlot, empt
         {upcoming.map(({ e, p }) => (
           <Pressable key={`${e.id}:${p.id}`} onPress={() => router.push(`/event/${e.id}`)} accessibilityRole="button"
             style={({ pressed }) => ({ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, padding: space.md, gap: 2, opacity: pressed ? 0.6 : 1 })}>
-            <Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>{e.name} · Round {p.number}</Text>
+            <Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>Round {p.number} · {e.name}</Text>
             <Text style={{ color: c.muted, fontSize: 12 }}>{p.date ? formatDate(p.date) : ''}</Text>
             <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>Event page ›</Text>
           </Pressable>
@@ -236,12 +257,13 @@ export function SoloRounds({ rounds, onDelete }: { rounds: RoundRecord[]; onDele
   );
 }
 
-export function MoreButton({ onPress, label }: { onPress: () => void; label: string }) {
+export function MoreButton({ onPress, label, small }: { onPress: () => void; label: string; small?: boolean }) {
   const c = useColors();
+  const d = small ? 30 : 36;
   return (
     <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={label}
-      style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.chip, opacity: pressed ? 0.7 : 1 })}>
-      <Text style={{ color: c.primary, fontSize: 18, fontWeight: '900', marginTop: -6 }}>⋯</Text>
+      style={({ pressed }) => ({ width: d, height: d, borderRadius: d / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: c.chip, opacity: pressed ? 0.7 : 1 })}>
+      <Text style={{ color: c.primary, fontSize: small ? 16 : 18, fontWeight: '900', marginTop: small ? -5 : -6 }}>⋯</Text>
     </Pressable>
   );
 }
