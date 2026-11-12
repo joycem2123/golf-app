@@ -26,7 +26,11 @@ export function Wordmark({ size = 30, color, golf }: { size?: number; color?: st
   const c = useColors();
   return (
     <View style={{ alignItems: golf ? 'center' : 'flex-start' }} accessibilityLabel="Clutch Up Golf">
-      <Text style={{ fontFamily: fonts.brand, fontSize: size, color: color ?? c.brand, letterSpacing: -size * 0.02 }}>Clutch Up</Text>
+      <View>
+        <Text style={{ fontFamily: fonts.brand, fontSize: size, color: color ?? c.brand, letterSpacing: -size * 0.02 }}>Clutch Up</Text>
+        {/* Trademark: tucked top-right so it doesn't shift the centred wordmark. */}
+        <Text style={{ position: 'absolute', right: -size * 0.3, top: size * 0.08, fontFamily: fonts.brandMedium, fontSize: Math.max(8, size * 0.28), color: color ?? c.brand, opacity: 0.85 }}>™</Text>
+      </View>
       {golf && <Text style={{ fontFamily: fonts.brandMedium, color: c.brandGold, fontSize: size * 0.28, letterSpacing: size * 0.32, marginTop: -size * 0.02, marginRight: -size * 0.32 }}>GOLF</Text>}
     </View>
   );

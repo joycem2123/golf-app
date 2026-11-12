@@ -16,3 +16,5 @@ h3{font-size:17px;margin:22px 0 4px}
 a{color:#1F5A3D}
 ul{padding-left:20px}
 footer{text-align:center;color:var(--muted);font-size:13px;padding:24px 16px 40px}
+
+.tm{font-size:.42em;vertical-align:super;line-height:0;margin-left:2px;font-weight:600;opacity:.85}
