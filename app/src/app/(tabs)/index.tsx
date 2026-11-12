@@ -13,7 +13,7 @@ import { LogoMark, Wordmark } from '@/components/logo';
 import { Body, Card, H2, Label } from '@/components/ui';
 import { matchLabel } from '@/lib/games';
 import { isMeId, useMe } from '@/lib/me';
-import { followedGame, followsEvent, followsRound, loadFollowRows, useFollows } from '@/sync/follows';
+import { bringFollowed, followedGame, followedGames, followsEvent, followsRound, loadFollowRows, useFollows } from '@/sync/follows';
 import { useFriendRequests } from '@/sync/friends';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -87,16 +87,19 @@ export default function Home() {
   // My games, or friends' games I follow (rounds and events I only watch).
   const [show, setShow] = useShow();
   const follows = useFollows((s) => s.rows);
-  useEffect(() => { void loadFollowRows().catch(() => undefined); }, []);
+  useEffect(() => { void loadFollowRows().then(bringFollowed).catch(() => undefined); }, []);
   const mineRound = (r: (typeof rounds)[number]) => r.remote?.role !== 'viewer' || r.players.some((p) => p.id === me || isMeId(p.id));
   const mineEvent = (e: (typeof events)[number]) => e.remote?.role !== 'viewer' || e.playerIds.some((id) => id === me || isMeId(id));
   // Friends' rounds and events I've only opened to look at stay off Home; ones I follow show.
   const peek = useFollows((s) => s.peek);
   const onHomeRound = (r: (typeof rounds)[number]) => mineRound(r) || followsRound(follows, r) || !peek.includes(r.id);
   const onHomeEvent = (e: (typeof events)[number]) => mineEvent(e) || followsEvent(follows, e.id) || !peek.includes(e.id);
-  const keepRound = (r: (typeof rounds)[number]) => onHomeRound(r) && (show === 'all' || (show === 'mine') === mineRound(r));
+  // A friends' game: someone else's round, or a match I follow inside one of mine.
+  const hasFollowed = (r: (typeof rounds)[number]) => followedGames(follows, r.id).length > 0;
+  const keepRound = (r: (typeof rounds)[number]) =>
+    onHomeRound(r) && (show === 'all' || (show === 'mine' ? mineRound(r) : !mineRound(r) || hasFollowed(r)));
   const keepEvent = (e: (typeof events)[number]) => onHomeEvent(e) && (show === 'all' || (show === 'mine') === mineEvent(e));
-  const anyFriends = rounds.some((r) => r.status === 'active' && !mineRound(r) && onHomeRound(r)) || events.some((e) => !mineEvent(e) && onHomeEvent(e));
+  const anyFriends = rounds.some((r) => r.status === 'active' && onHomeRound(r) && (!mineRound(r) || hasFollowed(r))) || events.some((e) => !mineEvent(e) && onHomeEvent(e));
   const active = rounds.filter((r) => r.status === 'active' && keepRound(r));
   // The event calendar: rounds planned for today (Start round), and a countdown to what's next.
   const todays = plannedToday(events.filter(keepEvent), rounds);
@@ -137,7 +140,10 @@ export default function Home() {
       {/* Every match in progress: swipe between them (mine first). */}
       {banner && (
         <View style={{ marginTop: -56 }}>
-          <LiveCarousel rounds={active} onDelete={deleteRound} firstRef={liveRef} today={todays} countdown={countdown} gameFor={(r) => (mineRound(r) ? null : followedGame(follows, r.id))} />
+          <LiveCarousel rounds={active} onDelete={deleteRound} firstRef={liveRef} today={todays} countdown={countdown} gameFor={(r) => (mineRound(r) ? null : followedGame(follows, r.id))}
+            followedGames={(r) => followedGames(follows, r.id)}
+            include={(it) => show === 'all' || (show === 'mine' ? mineRound(it.r) && !it.followed : it.followed || !mineRound(it.r))}
+          />
         </View>
       )}
 

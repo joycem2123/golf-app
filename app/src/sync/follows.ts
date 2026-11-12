@@ -220,6 +220,23 @@ function markMembers() {
   }));
 }
 
+/** Make sure everything I follow is on my phone (e.g. a round I'd swiped away). */
+export async function bringFollowed() {
+  const st = useStore.getState();
+  const rows = useFollows.getState().rows.filter((f) => f.follow);
+  for (const id of new Set(rows.map((f) => f.round_id).filter(Boolean))) {
+    if (!st.rounds.some((r) => r.id === id)) await bringRound(id).catch(() => undefined);
+  }
+  for (const id of new Set(rows.map((f) => f.event_id).filter(Boolean))) {
+    if (!st.events.some((e) => e.id === id)) await bringEvent(id).catch(() => undefined);
+  }
+}
+
+/** Matches I follow in a round. */
+export function followedGames(rows: FollowRow[], roundId: string): number[] {
+  return rows.filter((f) => f.follow && f.round_id === roundId && f.game_index >= 0).map((f) => f.game_index);
+}
+
 /** Which game in a followed round to open on (a match I follow), if any. */
 export function followedGame(rows: FollowRow[], roundId: string): number | null {
   const f = rows.find((r) => r.round_id === roundId && r.follow && r.game_index >= 0);

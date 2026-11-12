@@ -21,12 +21,17 @@ import type { CountdownTarget, PlannedItem } from '@/lib/event-calendar';
 import { gameInfo } from '@/lib/games';
 import { fonts, radius, space, useColors } from '@/theme';
 
-type Item = { r: RoundRecord; gi: number; mine: boolean; matches: number; at: number };
+type Item = { r: RoundRecord; gi: number; mine: boolean; followed: boolean; matches: number; at: number };
+export type CarouselItem = Pick<Item, 'r' | 'gi' | 'mine' | 'followed'>;
 
-export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown = null, gameFor }: {
+export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown = null, gameFor, followedGames, include }: {
   rounds: RoundRecord[];
   /** The match to show for a round (a friend's match I follow); null = the one I'm playing in. */
   gameFor?: (r: RoundRecord) => number | null;
+  /** Matches I follow in a round (each gets its own card, even in a round I'm playing in). */
+  followedGames?: (r: RoundRecord) => number[];
+  /** Which cards to show (Home's My games / Friends / All switch). */
+  include?: (it: CarouselItem) => boolean;
   onDelete: (roundId: string) => void;
   firstRef?: TipTarget;
   /** Event rounds planned for today: "Start round" cards, first. */
@@ -49,9 +54,15 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
 
   const items: Item[] = [];
   for (const r of rounds) {
-    const gi = gameFor?.(r) ?? myMatchIndex(r, isMe);
+    const followed = followedGames?.(r) ?? [];
+    const pick = gameFor?.(r);
+    const gi = pick ?? myMatchIndex(r, isMe);
     const matches = r.games.filter((g) => matchLabel(g)).length;
-    items.push({ r, gi, mine: !!r.games[gi] && playersIn(r.games[gi]).some(isMe), matches, at: r.createdAt });
+    const mine = !!r.games[gi] && playersIn(r.games[gi]).some(isMe);
+    const all: Item[] = [{ r, gi, mine, followed: followed.includes(gi) || (pick != null && !mine), matches, at: r.createdAt }];
+    // Other matches I follow in this round: a card each.
+    for (const f of followed) if (f !== gi && r.games[f]) all.push({ r, gi: f, mine: playersIn(r.games[f]).some(isMe), followed: true, matches, at: r.createdAt });
+    items.push(...all.filter((it) => !include || include(it)));
   }
   // Rounds I'm playing in first; newest first within each.
   items.sort((a, b) => Number(b.mine) - Number(a.mine) || b.at - a.at);
@@ -89,10 +100,10 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
           const big = head ? (head.board ? (head.board[0] ? `${head.board[0].pos === 'T1' ? 'Tied: ' : ''}${firstNames(head.board[0].name)} ${head.board[0].value}` : '') : head.leader ? `${firstNames(head.leader)} ${head.big}` : head.big) : '';
           // How far along: "thru 7", or "not started".
           const progress = head ? (head.board?.[0] && head.board[0].thru !== '–' ? (head.board[0].thru === 'F' ? 'finished' : `thru ${head.board[0].thru}`) : head.small.toLowerCase()) : '';
-          const deletable = canDeleteRound(r) && r.remote?.role !== 'viewer';
+          const deletable = !it.followed && canDeleteRound(r) && r.remote?.role !== 'viewer';
           const asks = toAnswer(r);
           return (
-            <View key={r.id} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
+            <View key={`${r.id}:${gi}`} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
               {/* Every card as tall as the tallest, so swiping never jumps. */}
               <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/round/[id]', params: { id: r.id, match: String(gi) } })} accessibilityRole="button" accessibilityLabel={`${label ?? gameName(r.games[gi])}: ${big}. Open`}>
                 {({ pressed }) => (
@@ -114,8 +125,13 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
                         </Text>
                         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: head?.side === 1 ? c.teamB : c.primary }}>{big}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, minHeight: 20 }}>
-                          <Text style={{ color: c.primary, fontWeight: '700' }}>{r.remote?.role === 'viewer' ? 'Follow live ›' : 'Resume scoring ›'}</Text>
-                          {it.mine && it.matches > 1 && label && (
+                          <Text style={{ color: c.primary, fontWeight: '700' }}>{r.remote?.role === 'viewer' || (it.followed && !it.mine) ? 'Follow live ›' : 'Resume scoring ›'}</Text>
+                          {it.followed && (
+                            <View style={{ backgroundColor: c.accent, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>★ FOLLOWING{label && it.matches > 1 ? ` · ${label.toUpperCase()}` : ''}</Text>
+                            </View>
+                          )}
+                          {it.mine && !it.followed && it.matches > 1 && label && (
                             <View style={{ backgroundColor: c.primarySoft, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
                               <Text style={{ color: c.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>YOUR MATCH: {label.toUpperCase()}</Text>
                             </View>
