@@ -7,13 +7,15 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { gameName, gameTitle } from '@/lib/games';
-import { matchOutcomes, roundTeamScore } from '@/lib/results';
+import { headline } from '@/lib/headline';
+import { formatPoints } from '@/lib/events';
+import { liveTeamScore, matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { radius, space, teamColor, useColors } from '@/theme';
 import { namesFor, teamName } from '@/lib/team-colors';
 import { EventCard } from './cards';
-import { TeamScoreLine } from './team-score-line';
+import { TeamScoreLine, type LiveOverride } from './team-score-line';
 import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
 
 function Toggle({ open, label, onPress }: { open: boolean; label: string; onPress: () => void }) {
@@ -61,6 +63,7 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
   const score = roundTeamScore(r, results);
   const summary = !score && results[0] && isResult(results[0]) ? results[0].summary : null;
   const live = r.status === 'active';
+  const liveScore = live && score ? liveState(r, results, matches, (L) => teamName(L, namesFor(r, e))) : null;
   let course = '';
   try { course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
   const date = new Date(r.createdAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -78,7 +81,7 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
           <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{[date, course, gameName(r.games[0]), e ? null : r.players.map((p) => p.name.split(' ')[0]).join(', ')].filter(Boolean).join(' · ')}</Text>
           {score ? (
             <View style={{ marginTop: 4 }}>
-              <TeamScoreLine picks={r.teamColors ?? e?.teamColors} done={!live} teams={score.map((t) => ({ letter: t.letter, name: teamName(t.letter, namesFor(r, e)), points: t.points }))} />
+              <TeamScoreLine picks={r.teamColors ?? e?.teamColors} done={!live} live={liveScore} teams={score.map((t) => ({ letter: t.letter, name: teamName(t.letter, namesFor(r, e)), points: t.points }))} />
             </View>
           ) : summary ? (
             <Text numberOfLines={2} style={{ color: c.text, fontSize: 13 }}>{summary}</Text>
@@ -110,6 +113,36 @@ export function RoundDrill({ r, e }: { r: RoundRecord; e?: EventRecord }) {
       )}
     </View>
   );
+}
+
+/**
+ * A live round's team match as it stands now, like the live scoring screen. One match: each team's
+ * margin ("1 UP" / "1 DN") and "TEAM A 1 UP THRU 6". Several: matches won so far, and who's ahead in the rest.
+ */
+function liveState(r: RoundRecord, results: ReturnType<typeof evaluate>, matches: ReturnType<typeof matchOutcomes>, name: (L: string) => string): LiveOverride | null {
+  const cross = matches.filter((m) => m.a.letter !== m.b.letter);
+  if (cross.length === 1) {
+    const m = cross[0];
+    const res = results[m.gi];
+    if (m.winner || !res || !isResult(res)) return null;
+    const h = headline(res, r.players);
+    const thru = h.small.toLowerCase();
+    if (thru === 'not started') return { values: { [m.a.letter]: '–', [m.b.letter]: '–' }, leader: null, caption: 'NOT STARTED' };
+    const margin = h.big.match(/^(\d+) UP/)?.[1];
+    if (h.side === null || !margin) return { values: { [m.a.letter]: 'AS', [m.b.letter]: 'AS' }, leader: null, caption: `ALL SQUARE ${thru.toUpperCase()}` };
+    const up = h.side === 0 ? m.a.letter : m.b.letter;
+    const down = h.side === 0 ? m.b.letter : m.a.letter;
+    return { values: { [up]: `${margin} UP`, [down]: `${margin} DN` }, leader: up, caption: `${name(up).toUpperCase()} ${margin} UP ${thru.toUpperCase()}` };
+  }
+  // Several matches: points won so far stay in the boxes; the caption says who's ahead in the rest.
+  const ls = liveTeamScore(r, results);
+  if (!ls || ls.live === 0) return null;
+  const top = [...ls.teams].sort((x, y) => y.projected - x.projected);
+  const ahead = ls.teams.filter((t) => t.leading > 0).map((t) => `${name(t.letter).toUpperCase()} AHEAD IN ${t.leading} MATCH${t.leading === 1 ? '' : 'ES'}`);
+  if (ls.square) ahead.push(`${ls.square} ALL SQUARE`);
+  ahead.push(`PROJ ${ls.teams.map((t) => formatPoints(t.projected)).join("–")}`);
+  const leader = top.length >= 2 && top[0].projected > top[1].projected ? top[0].letter : null;
+  return { values: {}, leader, caption: ahead.join(' · ') };
 }
 
 /** Rounds played outside an event: live first, then completed, each opening out into its matches. */

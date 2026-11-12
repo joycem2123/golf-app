@@ -6,13 +6,16 @@ import { radius, teamColor, useColors, type TeamPicks } from '@/theme';
 
 export type TeamScore = { letter: string; name: string; points: number };
 
-export function TeamScoreLine({ teams, done, color, picks }: { teams: TeamScore[]; done?: boolean; color?: (letter: string) => string; picks?: TeamPicks }) {
+/** `live` swaps the points for a match in progress: what each team shows ("1 UP" / "1 DN") and the caption. */
+export interface LiveOverride { values: Record<string, string>; leader: string | null; caption: string }
+
+export function TeamScoreLine({ teams, done, color, picks, live }: { teams: TeamScore[]; done?: boolean; color?: (letter: string) => string; picks?: TeamPicks; live?: LiveOverride | null }) {
   const c = useColors();
   const col = (L: string) => color?.(L) ?? teamColor(L, picks).color;
   const sorted = [...teams].sort((a, b) => b.points - a.points);
-  const lead = sorted.length >= 2 && sorted[0].points > sorted[1].points ? sorted[0] : null;
+  const lead = live ? (teams.find((t) => t.letter === live.leader) ?? null) : sorted.length >= 2 && sorted[0].points > sorted[1].points ? sorted[0] : null;
   const played = teams.some((t) => t.points > 0);
-  const caption = !played ? (done ? 'NO RESULT' : 'NOT STARTED') : lead ? `${lead.name.toUpperCase()} ${done ? 'WON' : 'LEADS'}` : done ? 'TIED' : 'ALL SQUARE';
+  const caption = live ? live.caption : !played ? (done ? 'NO RESULT' : 'NOT STARTED') : lead ? `${lead.name.toUpperCase()} ${done ? 'WON' : 'LEADS'}` : done ? 'TIED' : 'ALL SQUARE';
   return (
     <View style={{ gap: 4 }}>
       <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -21,7 +24,7 @@ export function TeamScoreLine({ teams, done, color, picks }: { teams: TeamScore[
           return (
             <View key={t.letter} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingVertical: 5, paddingHorizontal: 10, borderRadius: radius.md, backgroundColor: win ? col(t.letter) : teamColor(t.letter, picks).soft, borderWidth: 1, borderColor: col(t.letter) }}>
               <Text numberOfLines={1} style={{ flexShrink: 1, color: win ? '#fff' : col(t.letter), fontSize: 12, fontWeight: '800' }}>{t.name}{win && done ? ' 🏆' : ''}</Text>
-              <Text style={{ color: win ? '#fff' : col(t.letter), fontSize: 18, fontWeight: '800' }}>{formatPoints(t.points)}</Text>
+              <Text style={{ color: win ? '#fff' : col(t.letter), fontSize: 18, fontWeight: '800' }}>{live?.values[t.letter] ?? formatPoints(t.points)}</Text>
             </View>
           );
         })}
