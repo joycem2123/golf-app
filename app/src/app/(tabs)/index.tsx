@@ -19,6 +19,8 @@ import { Tip, type TipTarget } from '@/components/tip';
 import { LiveCarousel } from '@/components/live-carousel';
 import { nextCountdown, plannedToday } from '@/lib/event-calendar';
 
+export { ErrorBoundary } from '@/components/error-screen';
+
 function greeting() {
   const h = new Date().getHours();
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';

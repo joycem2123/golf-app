@@ -20,6 +20,8 @@ import { Tip } from '@/components/tip';
 import { AddEventPlayer } from '@/components/add-event-player';
 import { EventStory } from '@/components/event-story';
 
+export { ErrorBoundary } from '@/components/error-screen';
+
 function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: string) => string }) {
   const c = useColors();
   const colorFor = (x: 'A' | 'B' | 'halved' | null) => (e.teams ? (x === 'A' ? teamColor('A', e?.teamColors).color : x === 'B' ? teamColor('B', e?.teamColors).color : c.muted) : c.primary);

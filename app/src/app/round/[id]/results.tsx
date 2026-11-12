@@ -27,6 +27,8 @@ import { track } from '@/lib/usage';
 import { Tip } from '@/components/tip';
 import { AddToEvent } from '@/components/add-to-event';
 
+export { ErrorBoundary } from '@/components/error-screen';
+
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BACK = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 

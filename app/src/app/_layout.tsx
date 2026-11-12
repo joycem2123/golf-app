@@ -5,12 +5,16 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useUsageTracking } from '@/lib/usage';
+import { installCrashGuard } from '@/lib/crash-guard';
 import { TutorialPlayer } from '@/components/tutorial-player';
 import { WelcomeVideo } from '@/components/welcome-video';
 import { SyncProvider } from '@/sync/sync-provider';
 import { fonts, useColors } from '@/theme';
 
+export { ErrorBoundary } from '@/components/error-screen';
+
 SplashScreen.preventAutoHideAsync();
+installCrashGuard();
 
 export default function RootLayout() {
   const c = useColors();

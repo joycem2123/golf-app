@@ -32,6 +32,8 @@ import { myMatchIndex } from '@/components/live-carousel';
 import { EditRights, canEditGame, canEditKey, useAccountId, useCanEdit, useEditRequests } from '@/lib/edit-rights';
 import { EditRequestsCard, LockedMatch } from '@/components/edit-lock';
 
+export { ErrorBoundary } from '@/components/error-screen';
+
 function scoreColor(c: ReturnType<typeof useColors>, diff: number) {
   return diff <= -1 ? c.under : c.text;
 }
