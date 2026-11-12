@@ -22,6 +22,7 @@ import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { namesFor, teamName } from '@/lib/team-colors';
 import type { RoundActivityProps } from '@/live-activity/round-activity';
 import { useStore, type RoundRecord } from '@/store/store';
+import { useFollows } from '@/sync/follows';
 import { supabase } from '@/sync/supabase';
 import { teamColor } from '@/theme';
 
@@ -100,6 +101,17 @@ export function currentRound(rounds: RoundRecord[]): { r: RoundRecord; gi: numbe
     // A round between teams shows as a whole (gi -1): team totals, projections and every match.
     if (games.length) return { r, gi: roundProps(r) ? -1 : games[0].gi };
   }
+  // Not playing: what I follow, newest first. A followed match shows that match; a followed round or
+  // event shows the whole round.
+  const rows = useFollows.getState().rows.filter((f) => f.follow);
+  for (const r of live) {
+    const match = rows.find((f) => f.round_id === r.id && f.game_index >= 0 && r.games[f.game_index]);
+    if (match) return { r, gi: match.game_index };
+    if (rows.some((f) => (f.round_id === r.id && f.game_index < 0) || (!!r.eventId && f.event_id === r.eventId))) {
+      const first = r.games.findIndex((g) => !(g.id ?? '').startsWith('side-'));
+      return { r, gi: roundProps(r) ? -1 : Math.max(0, first) };
+    }
+  }
   return null;
 }
 
@@ -141,18 +153,27 @@ export function roundProps(r: RoundRecord): RoundActivityProps | null {
   // A line per match: "M1  Dave & Braydon 1 UP   thru 6", in the colour of the team that's ahead.
   const mine = (id: string) => id === st.me || isMeId(id, st);
   let side = '';
+  let myLine = -1;
   const lines = matchOutcomes(r, results)
     .filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter)
     .map((m, n) => {
       const res = results[m.gi];
       const h = res && isResult(res) ? headline(res, r.players) : null;
-      if (m.a.members.some(mine)) side = m.a.letter === A.letter ? 'a' : 'b';
-      else if (m.b.members.some(mine)) side = m.b.letter === A.letter ? 'a' : 'b';
+      if (m.a.members.some(mine)) { side = m.a.letter === A.letter ? 'a' : 'b'; myLine = n; }
+      else if (m.b.members.some(mine)) { side = m.b.letter === A.letter ? 'a' : 'b'; myLine = n; }
       const leaderLetter = m.winner === 'a' || (!m.winner && h?.side === 0) ? m.a.letter : m.winner === 'b' || (!m.winner && h?.side === 1) ? m.b.letter : null;
       const color = leaderLetter ? lighten(teamColor(leaderLetter, picks).color, 0.35) : '#FFFFFF';
       const text = m.winner === 'halved' ? `${firstNames(m.a.names)} halved` : h ? (h.leader ? `${firstNames(h.leader)} ${h.big}` : h.big) : '';
       const thru = m.winner ? 'Final' : h ? (h.small === 'Not started' ? '–' : h.small) : '';
-      return { label: `M${n + 1}`, text, thru, color };
+      // The match's score from each team's side ("1 UP" / "1 DN"), for the Dynamic Island.
+      const margin = h?.big.match(/(\d+) UP/)?.[1];
+      let aShort = '–';
+      let bShort = '–';
+      if (m.winner === 'halved') { aShort = 'Halved'; bShort = 'Halved'; }
+      else if (m.winner) { aShort = leaderLetter === A.letter ? 'Won' : 'Lost'; bShort = leaderLetter === A.letter ? 'Lost' : 'Won'; }
+      else if (leaderLetter && margin) { aShort = leaderLetter === A.letter ? `${margin} UP` : `${margin} DN`; bShort = leaderLetter === A.letter ? `${margin} DN` : `${margin} UP`; }
+      else if (h && h.small !== 'Not started') { aShort = 'AS'; bShort = 'AS'; }
+      return { label: `M${n + 1}`, text, thru, color, aShort, bShort };
     });
 
   let course = '';
@@ -160,7 +181,7 @@ export function roundProps(r: RoundRecord): RoundActivityProps | null {
   const title = [e?.name ?? course, r.label].filter(Boolean).join(' · ') || 'Clutch Up';
   const done = r.status === 'complete';
   return {
-    mode: 'round', title, scope, lines,
+    mode: 'round', title, scope, lines, myLine,
     aName, bName, aColor, bColor, aText: lighten(aColor), bText: lighten(bColor),
     aTotal: formatPoints(TA.points), bTotal: formatPoints(TB.points),
     aProj: formatPoints(TA.projected), bProj: formatPoints(TB.projected),
@@ -229,13 +250,13 @@ let current: { roundId: string; gi: number; instance: Instance; last: string } |
 let tokenSub: { remove(): void } | null = null;
 let busy = false;
 
-async function saveToken(roundId: string, gi: number, activityId: string, token: string | null, side: string) {
+async function saveToken(roundId: string, gi: number, activityId: string, token: string | null, side: string, line = -1) {
   if (!token) return;
   try {
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
     await supabase.from('live_activity_tokens').upsert(
-      { activity_id: activityId, user_id: data.session.user.id, round_id: roundId, game_index: gi, side, token, updated_at: new Date().toISOString() },
+      { activity_id: activityId, user_id: data.session.user.id, round_id: roundId, game_index: gi, side, line_index: line, token, updated_at: new Date().toISOString() },
       { onConflict: 'activity_id' },
     );
   } catch {
@@ -243,12 +264,12 @@ async function saveToken(roundId: string, gi: number, activityId: string, token:
   }
 }
 
-function watchToken(roundId: string, gi: number, instance: Instance, side: string) {
+function watchToken(roundId: string, gi: number, instance: Instance, side: string, line = -1) {
   tokenSub?.remove();
   tokenSub = null;
   try {
-    void instance.getPushToken().then((t) => saveToken(roundId, gi, instance.getId(), t, side)).catch(() => undefined);
-    tokenSub = instance.addPushTokenListener((ev) => void saveToken(roundId, gi, ev.activityId, ev.pushToken, side));
+    void instance.getPushToken().then((t) => saveToken(roundId, gi, instance.getId(), t, side, line)).catch(() => undefined);
+    tokenSub = instance.addPushTokenListener((ev) => void saveToken(roundId, gi, ev.activityId, ev.pushToken, side, line));
   } catch {
     /* push updates not available */
   }
@@ -307,7 +328,7 @@ export async function sync() {
     if (AppState.currentState !== 'active') return;
     const instance = f.start(props, `clutchup://round/${pick.r.id}`, stale);
     current = { roundId: pick.r.id, gi: pick.gi, instance, last: json };
-    watchToken(pick.r.id, pick.gi, instance, props.mine);
+    watchToken(pick.r.id, pick.gi, instance, props.mine, props.myLine ?? -1);
   } catch {
     /* Live Activities turned off in Settings, or too many running: carry on without */
   } finally {
@@ -338,11 +359,11 @@ async function tellOthers() {
       const rp = roundProps(r);
       if (rp) {
         const key = `${r.id}:-1`;
-        const json = JSON.stringify({ ...rp, mine: '' });
+        const json = JSON.stringify({ ...rp, mine: '', myLine: -1 });
         const before = told.get(key);
         told.set(key, json);
         if (before !== undefined && before !== json) {
-          void supabase.functions.invoke('live-activity', { body: { roundId: r.id, gi: -1, props: { ...rp, mine: '' }, end: r.status === 'complete' } }).catch(() => undefined);
+          void supabase.functions.invoke('live-activity', { body: { roundId: r.id, gi: -1, props: { ...rp, mine: '', myLine: -1 }, end: r.status === 'complete' } }).catch(() => undefined);
         }
       }
     }
@@ -386,7 +407,7 @@ export function useLiveActivity() {
       const pick = currentRound(useStore.getState().rounds);
       if (keep && pick) {
         current = { roundId: pick.r.id, gi: pick.gi, instance: keep, last: '' };
-        watchToken(pick.r.id, pick.gi, keep, cardProps(pick.r, pick.gi)?.mine ?? '');
+        watchToken(pick.r.id, pick.gi, keep, cardProps(pick.r, pick.gi)?.mine ?? '', cardProps(pick.r, pick.gi)?.myLine ?? -1);
       } else if (keep) void keep.end('immediate').catch(() => undefined);
     } catch {
       /* nothing to recover */
@@ -397,8 +418,9 @@ export function useLiveActivity() {
       timer = setTimeout(() => { timer = null; void sync(); }, 800);
     };
     const unsub = useStore.subscribe((s, prev) => { if (s.rounds !== prev.rounds) soon(); });
+    const unsubF = useFollows.subscribe((s, prev) => { if (s.rows !== prev.rows) soon(); });
     const app = AppState.addEventListener('change', (s) => { if (s === 'active') soon(); });
     soon();
-    return () => { unsub(); app.remove(); if (timer) clearTimeout(timer); };
+    return () => { unsub(); unsubF(); app.remove(); if (timer) clearTimeout(timer); };
   }, []);
 }

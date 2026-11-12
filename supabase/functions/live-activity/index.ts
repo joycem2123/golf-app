@@ -25,7 +25,7 @@ function cleanProps(p: Record<string, unknown>) {
   for (const k of FIELDS) out[k] = str(p?.[k]);
   out.done = p?.done === true;
   if (Array.isArray(p?.lines)) {
-    out.lines = (p.lines as Record<string, unknown>[]).slice(0, 4).map((l) => ({ label: str(l?.label), text: str(l?.text), thru: str(l?.thru), color: str(l?.color) }));
+    out.lines = (p.lines as Record<string, unknown>[]).slice(0, 4).map((l) => ({ label: str(l?.label), text: str(l?.text), thru: str(l?.thru), color: str(l?.color), aShort: str(l?.aShort), bShort: str(l?.bShort) }));
   }
   return out;
 }
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     const card = cleanProps(props as Record<string, unknown>);
     const told = await tellFollowers(admin, me, roundId, gi, card);
 
-    const { data: rows } = await admin.from('live_activity_tokens').select('activity_id, token, side, user_id')
+    const { data: rows } = await admin.from('live_activity_tokens').select('activity_id, token, side, line_index, user_id')
       .eq('round_id', roundId).eq('game_index', gi).neq('user_id', me);
     if (!rows?.length || !Deno.env.get('APNS_KEY_P8')) return json({ sent: 0, told });
 
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       const aps: Record<string, unknown> = {
         timestamp: now,
         event: end ? 'end' : 'update',
-        'content-state': { name: 'RoundActivity', props: JSON.stringify({ ...card, mine: row.side ?? '' }) },
+        'content-state': { name: 'RoundActivity', props: JSON.stringify({ ...card, mine: row.side ?? '', myLine: row.line_index ?? -1 }) },
         'stale-date': now + 2 * 3600,
       };
       if (end) aps['dismissal-date'] = now + 30 * 60;
