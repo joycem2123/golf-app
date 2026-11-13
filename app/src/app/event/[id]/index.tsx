@@ -2,6 +2,7 @@ import { Countdown } from '@/components/countdown';
 import { NextRound } from '@/components/next-round';
 import { eventCountdown } from '@/lib/event-calendar';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { EventRounds } from '@/components/event-rounds';
@@ -13,8 +14,11 @@ import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { shareEvent } from '@/sync/sync';
 import { describeRecurrence, formatDate } from '@/lib/dates';
 import { canDeleteEvent, cupScore, eventMatches, eventStandings, eventTeamTotals, formatPoints, type EventMatch } from '@/lib/events';
+import { headline } from '@/lib/headline';
+import { liveTeamScore } from '@/lib/results';
+import { evaluate, isResult } from '@/lib/round';
 import { formatIndex } from '@/lib/format';
-import { useEvent, useStore, type EventRecord } from '@/store/store';
+import { useEvent, useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { namesFor, teamName } from '@/lib/team-colors';
 import { Tip } from '@/components/tip';
@@ -23,25 +27,90 @@ import { EventStory } from '@/components/event-story';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
-function MatchRow({ e, m, name }: { e: EventRecord; m: EventMatch; name: (id: string) => string }) {
+/** When a finished match was decided: the latest score entered for any of its players (else when its round started). */
+function finishedAt(m: EventMatch, r: RoundRecord | undefined): number {
+  if (!r) return 0;
+  const who = new Set([...m.sideA, ...m.sideB]);
+  let t = 0;
+  for (const [slot, entry] of Object.entries(r.ledger)) if (who.has(slot.split('#')[0])) t = Math.max(t, entry.enteredAt || 0);
+  return t || r.createdAt;
+}
+
+/** The short result for the coloured block: "3&2", "1 UP", "AS", or a Nassau's points. */
+function resultText(m: EventMatch, r: RoundRecord | undefined): string {
+  if (m.result === 'halved') return 'AS';
+  if (m.points) return `${formatPoints(m.points.A)}–${formatPoints(m.points.B)}`;
+  if (!r) return 'WIN';
+  const gi = Number(m.id.slice(m.id.lastIndexOf('-') + 1));
+  const res = evaluate(r)[gi];
+  const big = res && isResult(res) ? headline(res, r.players).big : '';
+  return big.match(/Win (.+)$/)?.[1] ?? (/UP/.test(big) ? big : 'WIN');
+}
+
+/** Finished matches, newest first: the winner stands out, and the result sits on the right in the winning team's colour. */
+function MatchResults({ e, matches, rounds, name }: { e: EventRecord; matches: EventMatch[]; rounds: RoundRecord[]; name: (id: string) => string }) {
   const c = useColors();
-  const colorFor = (x: 'A' | 'B' | 'halved' | null) => (e.teams ? (x === 'A' ? teamColor('A', e?.teamColors).color : x === 'B' ? teamColor('B', e?.teamColors).color : c.muted) : c.primary);
-  const state = m.result ?? m.leader;
+  const [all, setAll] = useState(false);
+  const roundOf = (id: string) => rounds.find((r) => r.id === id);
+  const done = matches.filter((m) => m.result !== null).map((m) => ({ m, r: roundOf(m.roundId) })).sort((x, y) => finishedAt(y.m, y.r) - finishedAt(x.m, x.r));
+  const shown = all ? done : done.slice(0, 5);
+  // Each side's colour: the cup's teams, else the player's team in the event, else the app's green.
+  const sideColor = (ids: string[], side: 'A' | 'B') => {
+    if (e.teams) return teamColor(side, e.teamColors).color;
+    const L = e.teamOf?.[ids[0]];
+    return L ? teamColor(L, e.teamColors).color : c.primary;
+  };
   return (
-    <Pressable onPress={() => router.push(m.result === null ? `/round/${m.roundId}` : `/round/${m.roundId}/results`)}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: c.border, gap: space.sm }}>
-        <View style={{ width: 4, alignSelf: 'stretch', backgroundColor: colorFor(state), borderRadius: 2 }} />
-        <View style={{ flex: 1 }}>
-          <Label style={{ letterSpacing: 1 }}>{m.name}{m.result === null ? (m.thru ? ` · thru ${m.thru}` : ' · not started') : ' · final'}</Label>
-          <Text style={{ color: c.text, fontSize: 15 }}>
-            <Text style={{ color: e.teams ? teamColor('A', e?.teamColors).color : c.text, fontWeight: m.result === 'A' ? '800' : '500' }}>{m.sideA.map(name).join(' & ')}</Text>
-            <Text style={{ color: c.muted }}>  v  </Text>
-            <Text style={{ color: e.teams ? teamColor('B', e?.teamColors).color : c.text, fontWeight: m.result === 'B' ? '800' : '500' }}>{m.sideB.map(name).join(' & ')}</Text>
-          </Text>
-          <Text style={{ color: c.muted, fontSize: 13 }}>{m.summary}</Text>
-        </View>
+    <Card>
+      <H2>Match results</H2>
+      {done.length === 0 ? <Body muted>No finished matches yet.</Body> : null}
+      <View style={{ gap: 8 }}>
+        {shown.map(({ m, r }) => {
+          const winColor = m.result === 'A' ? sideColor(m.sideA, 'A') : m.result === 'B' ? sideColor(m.sideB, 'B') : '#14261E';
+          const winnerTeam = e.teams && (m.result === 'A' || m.result === 'B') ? e.teams[m.result].name : null;
+          const line = (ids: string[], side: 'A' | 'B') => {
+            const won = m.result === side;
+            const lost = m.result !== 'halved' && !won;
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sideColor(ids, side), opacity: lost ? 0.45 : 1 }} />
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: won ? 16 : 15, fontWeight: won ? '900' : '500', color: lost ? c.muted : sideColor(ids, side) }}>{ids.map(name).join(' & ')}</Text>
+                {won ? <Text style={{ color: sideColor(ids, side), fontSize: 14, fontWeight: '900' }}>✓</Text> : null}
+              </View>
+            );
+          };
+          return (
+            <Pressable key={m.id} onPress={() => router.push(`/round/${m.roundId}/results`)} accessibilityRole="button"
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'stretch', borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: pressed ? c.bg : c.card, overflow: 'hidden' })}>
+              <View style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 10, gap: 3 }}>
+                <Text numberOfLines={1} style={{ color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>{[m.name, r?.label].filter(Boolean).join(' · ').toUpperCase()}</Text>
+                {line(m.sideA, 'A')}
+                {line(m.sideB, 'B')}
+              </View>
+              <View style={{ width: 84, backgroundColor: winColor, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 20 }}>{resultText(m, r)}</Text>
+                <Text numberOfLines={1} style={{ color: '#ffffffd0', fontWeight: '800', fontSize: 9, letterSpacing: 1 }}>{m.result === 'halved' ? 'HALVED' : (winnerTeam ?? 'FINAL').toUpperCase()}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
-    </Pressable>
+      {done.length > 5 ? (
+        <Button small kind="ghost" title={all ? 'Show fewer ▴' : `Show all ${done.length} match results ▾`} onPress={() => setAll((x) => !x)} />
+      ) : null}
+    </Card>
+  );
+}
+
+/** Under the event score: where the teams are heading if the matches in play finish as they stand. */
+function ProjectedLine({ items }: { items: { letter: string; value: number; color: string }[] }) {
+  const c = useColors();
+  const num = (x: (typeof items)[number]) => <Text key={x.letter} style={{ color: x.color, fontFamily: fonts.serif, fontWeight: '700', fontSize: 24, minWidth: 44, textAlign: 'center' }}>{formatPoints(x.value)}</Text>;
+  const label = <Text key="label" style={{ color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 2.5 }}>PROJECTED</Text>;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, paddingTop: space.sm }}>
+      {items.length === 2 ? [num(items[0]), label, num(items[1])] : [label, ...items.map(num)]}
+    </View>
   );
 }
 
@@ -58,6 +127,7 @@ export default function EventScreen() {
   const name = (pid: string) => saved.find((p) => p.id === pid)?.name ?? '?';
   const eventRounds = rounds.filter((r) => r.eventId === e.id);
   const matches = eventMatches(e, rounds);
+  const live = eventRounds.filter((r) => r.status === 'active');
   // Anyone who can edit the event can add a player while it's under way.
   const canAdd = e.remote?.role !== 'viewer' && e.status !== 'complete';
 
@@ -151,12 +221,10 @@ export default function EventScreen() {
                       <View key={t} style={{ flex: 1, alignItems: 'center', paddingVertical: space.lg, backgroundColor: t === 'A' ? teamColor('A', e?.teamColors).color : teamColor('B', e?.teamColors).color }}>
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 }}>{e.teams![t].name.toUpperCase()}</Text>
                         <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 48, fontWeight: '700' }}>{formatPoints(t === 'A' ? s.teamA : s.teamB)}</Text>
-                        {proj && (proj.teamA !== s.teamA || proj.teamB !== s.teamB) ? (
-                          <Text style={{ color: '#ffffffcc', fontSize: 12 }}>Projected {formatPoints(t === 'A' ? proj.teamA : proj.teamB)}</Text>
-                        ) : null}
                       </View>
                     ))}
                   </View>
+                  {proj && live.length ? <ProjectedLine items={[{ letter: 'A', value: proj.teamA, color: teamColor('A', e?.teamColors).color }, { letter: 'B', value: proj.teamB, color: teamColor('B', e?.teamColors).color }]} /> : null}
                   <Text style={{ textAlign: 'center', padding: space.sm, color: c.text, fontWeight: '600' }}>{status}</Text>
                 </View>
 
@@ -182,12 +250,7 @@ export default function EventScreen() {
                 {canAdd && <AddEventPlayer e={e} />}
 
 
-                {cupMatches.length > 0 && (
-                  <Card>
-                    <H2>Results</H2>
-                    {cupMatches.map((m) => <MatchRow key={m.id} e={e} m={m} name={name} />)}
-                  </Card>
-                )}
+                {cupMatches.length > 0 && <MatchResults e={e} matches={cupMatches} rounds={rounds} name={name} />}
               </>
             );
           })()
@@ -196,6 +259,10 @@ export default function EventScreen() {
             {e.teamOf && (e.teamLetters?.length ?? 0) >= 2 && (() => {
               const { totals, roundsCounted } = eventTeamTotals(e, rounds);
               const lead = totals[0] && totals[1] && totals[0].points > totals[1].points ? totals[0].letter : null;
+              // Projected: add what each team would pick up if the matches in play finished as they stand.
+              const extra: Record<string, number> = {};
+              for (const r of live) for (const t of liveTeamScore(r, evaluate(r))?.teams ?? []) extra[t.letter] = (extra[t.letter] ?? 0) + (t.projected - t.points);
+              const sorted = [...totals].sort((x, y) => x.letter.localeCompare(y.letter));
               return (
                 <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
                   <View style={{ height: 3, backgroundColor: c.accent }} />
@@ -208,6 +275,7 @@ export default function EventScreen() {
                       </View>
                     ))}
                   </View>
+                  {live.length ? <ProjectedLine items={sorted.map((t) => ({ letter: t.letter, value: t.points + (extra[t.letter] ?? 0), color: teamColor(t.letter, e?.teamColors).color }))} /> : null}
                   <Text style={{ textAlign: 'center', padding: space.sm, color: c.text, fontWeight: '600' }}>
                     {roundsCounted === 0 ? 'No rounds played yet' : `${lead ? `${teamName(lead, namesFor(undefined, e))} leads` : 'All square'} after ${roundsCounted} round${roundsCounted === 1 ? '' : 's'}`}
                   </Text>
@@ -220,20 +288,16 @@ export default function EventScreen() {
             {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             {standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
-            <Card>
-              <H2>Results</H2>
-              {matches.length === 0 ? <Body muted>No matches yet.</Body> : matches.map((m) => <MatchRow key={m.id} e={e} m={m} name={name} />)}
-            </Card>
+            <MatchResults e={e} matches={matches} rounds={rounds} name={name} />
           </>
         )}
 
         {e.remote?.role !== 'viewer' && !e.rounds && (
           <Button small kind="ghost" title={e.teams ? 'Start an unscheduled match' : 'Start an unscheduled round'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id } })} />
         )}
-        <TvButton e={e} />
         <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />
 
-
+        <TvButton e={e} />
         <Button title="Head-to-head records" kind="secondary" onPress={() => router.push('/head-to-head')} />
         {canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' && <Button
           title="Delete event"

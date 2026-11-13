@@ -8,6 +8,7 @@ import { Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
 import { Countdown } from '@/components/countdown';
+import { boardMatches, LiveMatchRow } from '@/components/match-strip';
 import { formatDate, today } from '@/lib/dates';
 import { formatPoints } from '@/lib/events';
 import { canStartOn } from '@/lib/event-calendar';
@@ -49,6 +50,9 @@ export function NextRound({ e }: { e: EventRecord }) {
     let course = '';
     try { course = shortCourseName(courseFor(round).name); } catch { /* course missing */ }
     const matches = round.games.map((g, i) => ({ g, res: results[i] })).filter(({ g }) => matchLabel(g) || round.games.length === 1);
+    const teamMatches = boardMatches(round, results);
+    // Team A (or the event's first team) on the left, as on the TV board.
+    const leftLetter = e.teams ? 'A' : e.teamLetters?.[0];
     return (
       <Shell accent={c.under} label={`● LIVE NOW · ${title.toUpperCase()}`} title={gameName(round.games[0])} sub={course}>
         {score && (
@@ -61,7 +65,14 @@ export function NextRound({ e }: { e: EventRecord }) {
             ))}
           </View>
         )}
-        {matches.slice(0, 6).map(({ g, res }, i) => (
+        {/* Team matches in the scoreboard look (as on the TV board); other formats keep the simple list. */}
+        {teamMatches.length ? (
+          <View style={{ gap: 6 }}>
+            {teamMatches.map((m) => (
+              <LiveMatchRow key={m.gi} r={round} results={results} m={m} leftLetter={leftLetter} picks={round.teamColors ?? e.teamColors} onPress={() => router.push(`/round/${round.id}`)} />
+            ))}
+          </View>
+        ) : matches.slice(0, 6).map(({ g, res }, i) => (
           <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderTopColor: c.border }}>
             <Text numberOfLines={1} style={{ flex: 1, color: c.text, fontSize: 14 }}>{gameTitle(g, round.players)}</Text>
             <Text style={{ color: c.primary, fontWeight: '700', fontSize: 14 }}>{res && isResult(res) ? (res.thru ? res.summary : 'Not started') : ''}</Text>

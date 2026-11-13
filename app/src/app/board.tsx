@@ -12,14 +12,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/logo';
+import { boardMatches, matchView } from '@/components/match-strip';
 import { QrCode } from '@/components/qr-code';
 import { getCourse } from '@/lib/courses';
 import { formatDate } from '@/lib/dates';
 import { formatIndex } from '@/lib/format';
 import { cupScore, eventStandings, eventTeamTotals, formatPoints } from '@/lib/events';
 import { gameInfo, gameName } from '@/lib/games';
-import { headline } from '@/lib/headline';
-import { liveTeamScore, matchOutcomes, roundTeamScore, type MatchOutcome } from '@/lib/results';
+import { liveTeamScore, roundTeamScore, type MatchOutcome } from '@/lib/results';
 import { courseFor, evaluate, grossAt, isResult, shortCourseName } from '@/lib/round';
 import { storyHoles } from '@/lib/story';
 import { namesFor, teamName } from '@/lib/team-colors';
@@ -300,10 +300,11 @@ function Panel({ u, title, children }: { u: number; title: string; children: Rea
 }
 
 /** A triangle pointing left or right (the scoreboard's arrows). */
-function Arrow({ dir, color, h }: { dir: 'left' | 'right'; color: string; h: number }) {
+function Arrow({ dir, color, h, overlay }: { dir: 'left' | 'right'; color: string; h: number; overlay?: boolean }) {
   const w = h * 0.32;
   return (
     <View style={{
+      ...(overlay ? { position: 'absolute' as const, top: 0, zIndex: 2, ...(dir === 'left' ? { left: -w } : { right: -w }) } : null),
       width: 0, height: 0, borderTopWidth: h / 2, borderBottomWidth: h / 2, borderTopColor: 'transparent', borderBottomColor: 'transparent',
       ...(dir === 'right' ? { borderLeftWidth: w, borderLeftColor: color } : { borderRightWidth: w, borderRightColor: color }),
     }} />
@@ -323,7 +324,8 @@ function TeamBar({ sides, u }: { sides: [Side, Side]; u: number }) {
     </View>
   );
   const score = (s: Side) => (
-    <View style={{ width: 210 * u, height: h, backgroundColor: s.color, alignItems: 'center', justifyContent: 'center', ...sheen(s.color) }}>
+    <View style={{ width: 210 * u, height: h, backgroundColor: s.color, alignItems: 'center', justifyContent: 'center', zIndex: 1, overflow: 'visible', ...sheen(s.color) }}>
+      {lead === s.letter ? <Arrow overlay dir={s.letter === A.letter ? 'left' : 'right'} color={s.color} h={h} /> : null}
       <Text style={{ fontFamily: fonts.serif, color: '#fff', fontWeight: '700', fontSize: 88 * u, ...TABULAR, ...css({ textShadow: '0 2px 10px rgba(0,0,0,0.25)' }) }}>{formatPoints(s.points)}</Text>
     </View>
   );
@@ -331,10 +333,8 @@ function TeamBar({ sides, u }: { sides: [Side, Side]; u: number }) {
     <View style={{ gap: 10 * u }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 22 * u, overflow: 'hidden', ...SHADOW }}>
         {name(A, 'right')}
-        {lead === 'A' ? <Arrow dir="left" color={A.color} h={h} /> : null}
         {score(A)}
         {score(B)}
-        {lead === 'B' ? <Arrow dir="right" color={B.color} h={h} /> : null}
         {name(B, 'left')}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40 * u }}>
@@ -371,28 +371,6 @@ type Picks = EventRecord['teamColors'];
 const hov = (st: object) => !!(st as { hovered?: boolean; pressed?: boolean }).hovered || !!(st as { pressed?: boolean }).pressed;
 
 /** One match's facts for the board: who's on each side (Team A left), who's ahead, and the status text. */
-function matchView(r: RoundRecord, results: ReturnType<typeof evaluate>, m: MatchOutcome, leftLetter: string | undefined, picks: Picks) {
-  // Put Team A on the left whichever way round the match was set up.
-  const flip = !!leftLetter && m.a.letter !== leftLetter && m.b.letter === leftLetter;
-  const left = flip ? m.b : m.a;
-  const right = flip ? m.a : m.b;
-  const res = results[m.gi];
-  const h = res && isResult(res) ? headline(res, r.players) : null;
-  const done = !!m.winner;
-  const aheadA = m.winner === 'a' || (!m.winner && h?.side === 0);
-  const aheadB = m.winner === 'b' || (!m.winner && h?.side === 1);
-  const ahead: 'L' | 'R' | null = aheadA ? (flip ? 'R' : 'L') : aheadB ? (flip ? 'L' : 'R') : null;
-  const margin = h?.big.match(/(\d+) UP/)?.[1];
-  const win = h?.big.match(/Win (.+)$/)?.[1];
-  const big = m.winner === 'halved' ? 'AS' : done ? (win ?? 'WON') : margin ? `${margin} UP` : h && h.small !== 'Not started' ? 'AS' : '—';
-  const small = done ? 'FINAL' : h && h.small !== 'Not started' ? h.small.toUpperCase() : 'NOT STARTED';
-  const lc = teamColor(left.letter, picks).color;
-  const rc = teamColor(right.letter, picks).color;
-  const cellColor = ahead === 'L' ? lc : ahead === 'R' ? rc : done ? INK : '#fff';
-  const cellText = ahead || done ? '#fff' : INK;
-  return { flip, left, right, ahead, big, small, lc, rc, cellColor, cellText, done };
-}
-
 /** The scoreboard row: players either side, the status block in the leader's colour pointing at them. */
 function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress, open }: { r: RoundRecord; results: ReturnType<typeof evaluate>; m: MatchOutcome; leftLetter?: string; names: Names; u: number; picks: Picks; h: number; onPress?: () => void; open?: boolean }) {
   const v = matchView(r, results, m, leftLetter, picks);
@@ -410,19 +388,15 @@ function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress, open
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? (open ? 'Close this match’s scorecard' : 'Open this match’s scorecard') : undefined} accessibilityState={{ expanded: !!open }}
       style={(st) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: hov(st) ? '#F3F7F4' : '#fff', borderRadius: 18 * u, borderBottomLeftRadius: open ? 0 : 18 * u, borderBottomRightRadius: open ? 0 : 18 * u, overflow: 'hidden', ...(open ? {} : SHADOW), ...css({ transition: 'background-color 150ms ease' }) })}>
       {people(v.left.members, 'left', v.lc)}
-      {v.ahead === 'L' ? <Arrow dir="left" color={v.cellColor} h={h} /> : null}
-      <View style={{ width: 150 * u, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: '#E3E8E5', ...(v.ahead || v.done ? sheen(v.cellColor) : css({ backgroundImage: 'linear-gradient(180deg, #F7F9F8 0%, #E9EEEB 100%)' })) }}>
+      <View style={{ width: 150 * u, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: '#E3E8E5', ...(v.ahead || v.done ? sheen(v.cellColor) : css({ backgroundImage: 'linear-gradient(180deg, #F7F9F8 0%, #E9EEEB 100%)' })) , zIndex: 1, overflow: 'visible' }}>
+        {v.ahead ? <Arrow overlay dir={v.ahead === 'L' ? 'left' : 'right'} color={v.cellColor} h={h} /> : null}
         <Text style={{ fontFamily: SANS, color: v.cellText, fontWeight: '800', fontSize: 32 * u, ...TABULAR }}>{v.big}</Text>
         <Text style={{ fontFamily: SANS, color: v.cellText, opacity: 0.85, fontWeight: '700', fontSize: 12 * u, letterSpacing: 2 * u }}>{v.small}</Text>
       </View>
-      {v.ahead === 'R' ? <Arrow dir="right" color={v.cellColor} h={h} /> : null}
       {people(v.right.members, 'right', v.rc)}
     </Pressable>
   );
 }
-
-const boardMatches = (r: RoundRecord, results: ReturnType<typeof evaluate>) =>
-  matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter);
 
 /** Every match in the round: Team A's players left, Team B's right. Tap one to open its scorecard underneath. */
 function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRecord; leftLetter?: string; names: Names; u: number; picks: Picks; open: number | null; onMatch: (gi: number) => void }) {
