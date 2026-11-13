@@ -188,8 +188,8 @@ export default function NewRound() {
       : [];
   const plannedDraftSet = useRef(false);
   useEffect(() => {
-    // A round added to a Points Race season: always Stableford, with whoever is playing.
-    if (event?.fedex && !planned && addingRound) {
+    // A round in a Points Race season with no game set yet: always Stableford, with whoever is playing.
+    if (event?.fedex && (planned ? !planned.draft : addingRound)) {
       if (draft || players.length === 0) return;
       setDraft({ ...newDraft('stableford', players, undefined), stablefordSystem: event.fedex.system });
       return;

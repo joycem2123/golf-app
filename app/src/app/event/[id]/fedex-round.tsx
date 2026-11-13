@@ -61,6 +61,9 @@ export default function FedexRound() {
           </Text>
         </Card>
 
+        {r.round.imported ? (
+          <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Imported from the league’s spreadsheet: Stableford totals only, no scorecard.</Text>
+        ) : null}
         <Card style={{ gap: 6 }}>
           <Label>What it did to the season standings</Label>
           {impact.map(({ row, g }) => (

@@ -17,6 +17,9 @@ import { QrCode } from '@/components/qr-code';
 import { getCourse } from '@/lib/courses';
 import { formatDate } from '@/lib/dates';
 import { formatIndex } from '@/lib/format';
+import { fedexStandings, scoreRound, type FedexPart, type FedexRoundResult } from '@golf/engine';
+import { currentHalf, fedexResults } from '@/lib/fedex';
+import { fmtPts } from '@/components/fedex-standings';
 import { cupScore, eventStandings, eventTeamTotals, formatPoints, planName } from '@/lib/events';
 import { gameInfo, gameName } from '@/lib/games';
 import { liveTeamScore, roundTeamScore, type MatchOutcome } from '@/lib/results';
@@ -205,10 +208,15 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
     }
   }
 
+  // Points Race seasons: standings from every round's Stableford points and finishing bonus.
+  const race = e.fedex ? fedexResults(e, rounds) : null;
+
   let course = '';
   try { if (featured) course = shortCourseName(courseFor(featured).name); } catch { /* no course */ }
   const isLive = live.length > 0;
-  const subtitle = [featured?.label, course, isLive ? null : featured ? 'Final' : null].filter(Boolean).join(' · ');
+  const subtitle = race
+    ? ['Points Race', currentHalf(e, race) === 2 ? '2nd half' : '1st half', `${race.length} round${race.length === 1 ? '' : 's'} played`, isLive ? `${featured?.label ?? 'Round'} in play` : null].filter(Boolean).join(' · ')
+    : [featured?.label, course, isLive ? null : featured ? 'Final' : null].filter(Boolean).join(' · ');
   const joinUrl = `https://clutchupgolf.com/join?c=${code}`;
 
   return (
@@ -245,6 +253,8 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
         <View style={{ flex: 7, gap: 18 * u }}>
           {screenRound ? (
             <RoundDetail e={e} r={screenRound} sides={sides} names={names} u={u} picks={picks} onBack={() => go({ k: 'board' })} open={open?.id === screenRound.id ? open.gi : null} onMatch={(gi) => toggle(screenRound.id, gi)} />
+          ) : race ? (
+            <RaceStandings e={e} results={race} names={names} u={u} />
           ) : sides ? (
             <>
               <TeamBar sides={sides} u={u} />
@@ -257,9 +267,16 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
 
         {/* Side panel: rounds, what's next, everyone's points, follow on your phone */}
         <View style={{ flex: 3, gap: 14 * u }}>
-          <Panel u={u} title="ROUNDS">
-            <RoundsList e={e} rounds={rounds} sides={sides} u={u} selected={screenRound?.id} onRound={(id) => go({ k: 'round', id })} />
-          </Panel>
+          {race ? (
+            <>
+              {live[0] ? <RaceLive e={e} r={live[0]} names={names} u={u} /> : null}
+              <RaceLastRound results={race} names={names} u={u} />
+            </>
+          ) : (
+            <Panel u={u} title="ROUNDS">
+              <RoundsList e={e} rounds={rounds} sides={sides} u={u} selected={screenRound?.id} onRound={(id) => go({ k: 'round', id })} />
+            </Panel>
+          )}
           <NextUp e={e} names={names} u={u} picks={picks} />
           {sides ? <Contributions e={e} rounds={rounds} names={names} u={u} picks={picks} /> : null}
           <View style={{ flexGrow: 1 }} />
@@ -682,7 +699,7 @@ function NextUp({ e, names, u, picks }: { e: EventRecord; names: Names; u: numbe
           {matches.length > 6 ? <Text style={{ fontFamily: SANS, color: MUTED, fontSize: 15 * u, textAlign: 'center' }}>+{matches.length - 6} more</Text> : null}
         </View>
       ) : (
-        <Text style={{ fontFamily: SANS, color: MUTED, fontSize: 17 * u }}>{d?.kind || next.matchupsLater ? 'Matchups to be set on the day.' : 'Format and matchups to be set.'}</Text>
+        <Text style={{ fontFamily: SANS, color: MUTED, fontSize: 17 * u }}>{e.fedex ? 'Stableford · whoever plays that day' : d?.kind || next.matchupsLater ? 'Matchups to be set on the day.' : 'Format and matchups to be set.'}</Text>
       )}
     </Panel>
   );
@@ -778,5 +795,130 @@ function AutoScroll({ u, style, maxHeight, gap, children }: { u: number; style?:
     >
       {children}
     </ScrollView>
+  );
+}
+
+// ------------------------------------------------------------------ Points Race seasons
+
+const PART_LABEL: Record<FedexPart, string> = { first: '1ST HALF', second: '2ND HALF', season: 'SEASON' };
+
+/**
+ * Points Race standings, rotating between the half being played, the season, and the other half (when it has
+ * rounds) every 20 seconds. Tap a tab to pick one. Arrows show who moved up or down in the latest round.
+ */
+function RaceStandings({ e, results, names, u }: { e: EventRecord; results: FedexRoundResult[]; names: Names; u: number }) {
+  const cfg = e.fedex!;
+  const now = currentHalf(e, results) === 2 ? 'second' : 'first';
+  const other = now === 'second' ? 'first' : 'second';
+  const parts: FedexPart[] = [now, 'season', ...(results.some((r) => r.half === (other === 'first' ? 1 : 2)) ? [other as FedexPart] : [])];
+  const [i, setI] = useState(0);
+  const [touch, setTouch] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((x) => (x + 1) % parts.length), 20000);
+    return () => clearInterval(t);
+  }, [parts.length, touch]);
+  const part = parts[i % parts.length];
+  const n = part === 'first' ? cfg.best.first : part === 'second' ? cfg.best.second : cfg.best.season;
+  const rows = fedexStandings(results, cfg, part, e.playerIds).filter((r) => r.played > 0);
+  const before = new Map(fedexStandings(results.slice(0, -1), cfg, part, e.playerIds).filter((r) => r.played > 0).map((r) => [r.playerId, r.position]));
+  const last = results.at(-1);
+  const lastPts = (id: string) => last?.rows.find((x) => x.playerId === id)?.cup;
+  const fs = rows.length > 14 ? 24 : rows.length > 10 ? 28 : 32;
+  const head = (t: string, flex: number, align: 'left' | 'center' = 'center') => (
+    <Text key={t} style={{ fontFamily: SANS, flex, color: '#7A8A82', fontWeight: '800', fontSize: 16 * u, letterSpacing: 2 * u, textAlign: align }}>{t}</Text>
+  );
+  return (
+    <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 18 * u, padding: 20 * u, gap: 6 * u, ...SHADOW }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 * u, marginBottom: 6 * u }}>
+        {parts.map((p, j) => (
+          <Pressable key={p} onPress={() => { setI(j); setTouch((x) => x + 1); }} accessibilityRole="tab"
+            style={(st) => ({ paddingHorizontal: 18 * u, paddingVertical: 8 * u, borderRadius: 999, backgroundColor: p === part ? PRIMARY : hov(st) ? 'rgba(31,90,61,0.08)' : 'rgba(31,90,61,0.04)' })}>
+            <Text style={{ fontFamily: SANS, color: p === part ? '#fff' : PRIMARY, fontWeight: '800', fontSize: 18 * u, letterSpacing: 2 * u }}>{PART_LABEL[p]}</Text>
+          </Pressable>
+        ))}
+        <View style={{ flex: 1 }} />
+        <Text style={{ fontFamily: SANS, color: MUTED, fontWeight: '700', fontSize: 18 * u }}>Best {n} rounds count</Text>
+      </View>
+      <View style={{ flexDirection: 'row', paddingHorizontal: 12 * u }}>
+        {head('POS', 1.1)}{head('PLAYER', 4.4, 'left')}{head('PTS', 1.5)}{head('RDS', 1)}{head('AVG', 1.2)}{head(`${n}TH BEST`, 1.5)}{head('LAST', 1.2)}
+      </View>
+      {rows.length === 0 ? (
+        <Text style={{ fontFamily: SANS, color: '#4A5A52', fontSize: 24 * u, padding: 12 * u }}>{part === 'second' ? 'The 2nd half hasn’t started yet.' : 'No rounds played yet.'}</Text>
+      ) : (
+        <AutoScroll u={u} style={{ flexShrink: 1 }} gap={3 * u}>
+          {rows.map((r, j) => {
+            const was = before.get(r.playerId);
+            const move = was ? was - r.position : 0;
+            const lp = lastPts(r.playerId);
+            return (
+              <View key={r.playerId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7 * u, paddingHorizontal: 12 * u, borderRadius: 10 * u, backgroundColor: j === 0 ? '#F6EFD9' : j % 2 ? '#F4F6F5' : '#fff' }}>
+                <View style={{ flex: 1.1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 * u }}>
+                  <Text style={{ fontFamily: SANS, color: INK, fontWeight: '800', fontSize: fs * u }}>{r.position}</Text>
+                  {move ? <Text style={{ fontFamily: SANS, color: move > 0 ? '#2E7D4F' : '#C0392B', fontWeight: '800', fontSize: 14 * u }}>{move > 0 ? '▲' : '▼'}{Math.abs(move)}</Text> : null}
+                </View>
+                <Text numberOfLines={1} style={{ fontFamily: SANS, flex: 4.4, color: INK, fontWeight: '700', fontSize: fs * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
+                <Text style={{ fontFamily: SANS, flex: 1.5, textAlign: 'center', color: INK, fontWeight: '800', fontSize: (fs + 2) * u, ...TABULAR }}>{fmtPts(r.points)}</Text>
+                <Text style={{ fontFamily: SANS, flex: 1, textAlign: 'center', color: '#4A5A52', fontWeight: '700', fontSize: (fs - 6) * u, ...TABULAR }}>{r.played}</Text>
+                <Text style={{ fontFamily: SANS, flex: 1.2, textAlign: 'center', color: '#4A5A52', fontWeight: '700', fontSize: (fs - 6) * u, ...TABULAR }}>{r.average.toFixed(1)}</Text>
+                <Text style={{ fontFamily: SANS, flex: 1.5, textAlign: 'center', color: MUTED, fontWeight: '700', fontSize: (fs - 6) * u, ...TABULAR }}>{r.cutoff !== null ? fmtPts(r.cutoff) : '–'}</Text>
+                <Text style={{ fontFamily: SANS, flex: 1.2, textAlign: 'center', color: lp !== undefined ? PRIMARY : MUTED, fontWeight: '800', fontSize: (fs - 6) * u, ...TABULAR }}>{lp !== undefined && (part === 'season' || last?.half === (part === 'first' ? 1 : 2)) ? fmtPts(lp) : '–'}</Text>
+              </View>
+            );
+          })}
+        </AutoScroll>
+      )}
+    </View>
+  );
+}
+
+/** The latest finished round: places, Stableford, bonus and race points. */
+function RaceLastRound({ results, names, u }: { results: FedexRoundResult[]; names: Names; u: number }) {
+  const last = results.at(-1);
+  if (!last) return null;
+  const rows = last.rows;
+  return (
+    <Panel u={u} title={`LAST ROUND · ${formatDate(last.round.date, { month: 'short', day: 'numeric' }).toUpperCase()}`}>
+      <AutoScroll u={u} maxHeight={rows.length > 6 ? 30 * u * 6 + 3 * u * 5 : undefined} gap={3 * u}>
+        {rows.map((x) => (
+          <View key={x.playerId} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * u, height: 30 * u }}>
+            <Text style={{ fontFamily: SANS, width: 40 * u, color: INK, fontWeight: '800', fontSize: 18 * u }}>{x.tied ? 'T' : ''}{x.place}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: SANS, flex: 1, color: INK, fontWeight: '700', fontSize: 19 * u }}>{names.get(x.playerId)?.name ?? '?'}</Text>
+            <Text style={{ fontFamily: SANS, width: 40 * u, textAlign: 'right', color: MUTED, fontWeight: '700', fontSize: 17 * u, ...TABULAR }}>{x.stableford}</Text>
+            <Text style={{ fontFamily: SANS, width: 54 * u, textAlign: 'right', color: '#2E7D4F', fontWeight: '700', fontSize: 17 * u, ...TABULAR }}>{x.bonus ? `+${fmtPts(x.bonus)}` : ''}</Text>
+            <Text style={{ fontFamily: SANS, width: 56 * u, textAlign: 'right', color: PRIMARY, fontWeight: '800', fontSize: 20 * u, ...TABULAR }}>{fmtPts(x.cup)}</Text>
+          </View>
+        ))}
+      </AutoScroll>
+    </Panel>
+  );
+}
+
+/** A round being played: Stableford so far, and the bonus each player would get if it finished now. */
+function RaceLive({ e, r, names, u }: { e: EventRecord; r: RoundRecord; names: Names; u: number }) {
+  let totals: Record<string, number> = {};
+  const thru: Record<string, number> = {};
+  try {
+    const res = evaluate(r).find((x) => x && 'type' in x && x.type === 'stableford');
+    if (res && 'totals' in res) {
+      totals = res.totals as Record<string, number>;
+      for (const s of res.standings) thru[s.id] = s.thru ?? 0;
+    }
+  } catch { /* not scored yet */ }
+  const rows = scoreRound(totals, e.fedex!.bonus);
+  if (!rows.length) return null;
+  return (
+    <Panel u={u} title="LIVE ROUND · IF IT ENDED NOW">
+      <AutoScroll u={u} maxHeight={rows.length > 6 ? 30 * u * 6 + 3 * u * 5 : undefined} gap={3 * u}>
+        {rows.map((x) => (
+          <View key={x.playerId} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * u, height: 30 * u }}>
+            <Text style={{ fontFamily: SANS, width: 40 * u, color: INK, fontWeight: '800', fontSize: 18 * u }}>{x.tied ? 'T' : ''}{x.place}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: SANS, flex: 1, color: INK, fontWeight: '700', fontSize: 19 * u }}>{names.get(x.playerId)?.name ?? '?'}</Text>
+            <Text style={{ fontFamily: SANS, width: 52 * u, textAlign: 'right', color: MUTED, fontWeight: '700', fontSize: 14 * u }}>{thru[x.playerId] >= 18 ? 'F' : `thru ${thru[x.playerId] ?? 0}`}</Text>
+            <Text style={{ fontFamily: SANS, width: 40 * u, textAlign: 'right', color: INK, fontWeight: '800', fontSize: 18 * u, ...TABULAR }}>{x.stableford}</Text>
+            <Text style={{ fontFamily: SANS, width: 54 * u, textAlign: 'right', color: '#2E7D4F', fontWeight: '700', fontSize: 17 * u, ...TABULAR }}>{x.bonus ? `+${fmtPts(x.bonus)}` : ''}</Text>
+          </View>
+        ))}
+      </AutoScroll>
+    </Panel>
   );
 }

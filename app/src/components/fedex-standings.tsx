@@ -10,7 +10,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Card, Label, Segmented } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
-import { currentHalf, fedexResults } from '@/lib/fedex';
+import { currentHalf, fedexResults, importedGuests } from '@/lib/fedex';
 import { useMe } from '@/lib/me';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, space, useColors } from '@/theme';
@@ -30,14 +30,27 @@ export function FedexStandings({ e, rounds }: { e: EventRecord; rounds: RoundRec
   const [part, setPart] = useState<FedexPart>(() => (currentHalf(e, results) === 2 ? 'second' : 'first'));
   const name = usePlayerName();
   const { isMe } = useMe();
+  const players = useStore((s) => s.players);
   const rows = fedexStandings(results, cfg, part, e.playerIds);
   const n = part === 'first' ? cfg.best.first : part === 'second' ? cfg.best.second : cfg.best.season;
   const halfRounds = results.filter((r) => part === 'season' || r.half === (part === 'first' ? 1 : 2));
   const range = halfRounds.length ? `${formatDate(halfRounds[0].round.date, { month: 'short', day: 'numeric' })} – ${formatDate(halfRounds.at(-1)!.round.date, { month: 'short', day: 'numeric' })}` : '';
   const col = (w: number) => ({ width: w, textAlign: 'right' as const });
 
+  const guests = e.remote?.role === 'viewer' ? [] : importedGuests(e, players);
   return (
     <>
+      {guests.length ? (
+        <Pressable onPress={() => router.push({ pathname: '/event/[id]/match-players', params: { id: e.id } })} accessibilityRole="button"
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: c.primarySoft, borderWidth: 1, borderColor: c.primary, borderRadius: 10, padding: space.md, opacity: pressed ? 0.7 : 1 })}>
+          <Text style={{ fontSize: 20 }}>🔗</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }}>Match players to your friends</Text>
+            <Text style={{ color: c.muted, fontSize: 12 }}>{guests.length} imported player{guests.length === 1 ? '' : 's'} aren’t linked to anyone on Clutch Up yet.</Text>
+          </View>
+          <Text style={{ color: c.primary, fontSize: 20 }}>›</Text>
+        </Pressable>
+      ) : null}
       <Segmented<FedexPart> options={[{ value: 'first', label: '1st Half' }, { value: 'second', label: '2nd Half' }, { value: 'season', label: 'Season' }]} value={part} onChange={setPart} />
       <Card style={{ paddingVertical: space.sm, gap: 0 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -81,7 +94,7 @@ export function FedexStandings({ e, rounds }: { e: EventRecord; rounds: RoundRec
                 style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, marginTop: i ? 0 : 6, opacity: pressed ? 0.6 : 1 })}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>Round {results.indexOf(r) + 1} · {formatDate(r.round.date, { month: 'short', day: 'numeric' })}</Text>
-                  <Text style={{ color: c.muted, fontSize: 12 }}>{r.half === 1 ? '1st' : '2nd'} half · {r.rows.length} players · won by {top.map((x) => name(x.playerId).split(' ')[0]).join(' & ')} ({top[0]?.stableford} pts)</Text>
+                  <Text style={{ color: c.muted, fontSize: 12 }}>{r.half === 1 ? '1st' : '2nd'} half{r.round.imported ? ' · imported' : ''} · {r.rows.length} players · won by {top.map((x) => name(x.playerId).split(' ')[0]).join(' & ')} ({top[0]?.stableford} pts)</Text>
                 </View>
                 <Text style={{ color: c.primary, fontSize: 18 }}>›</Text>
               </Pressable>

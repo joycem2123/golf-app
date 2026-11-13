@@ -40,6 +40,14 @@ describe('FedEx Cup Stableford', () => {
     expect(scoreRound({ a: 1, b: 2 }, [5])[1]).toMatchObject({ playerId: 'a', bonus: 0 });
   });
 
+  it('counts imported rounds (totals only) with the ones played in the app', () => {
+    const half = Math.floor(rounds.length / 2);
+    const r = fedexRounds(rounds.slice(half), { ...cfg, imported: rounds.slice(0, half) });
+    expect(r.length).toBe(rounds.length);
+    expect(r.filter((x) => x.round.imported).length).toBe(half);
+    expect(fedexStandings(r, cfg, 'season')[0].points).toBe(689.5);
+  });
+
   it('can split the halves by number of rounds', () => {
     const r = fedexRounds(rounds, { ...cfg, half: { kind: 'rounds', count: 10 } });
     expect(r.filter((x) => x.half === 1).length).toBe(10);

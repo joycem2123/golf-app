@@ -16,6 +16,8 @@ export interface FedexConfig {
   bonus: number[];
   /** Stableford points table for every round. */
   system: 'standard' | 'modified';
+  /** Rounds brought in from before the season was in the app (e.g. a league spreadsheet): totals only. */
+  imported?: FedexRound[];
 }
 
 /** 1st +12, 2nd +11 … 12th +1 (the Willow Park bonus). */
@@ -36,6 +38,8 @@ export interface FedexRound {
   /** Tie-break for rounds on the same date (e.g. when it was started). */
   order?: number;
   points: Record<string, number>;
+  /** Brought in from outside the app (totals only, no scorecard). */
+  imported?: boolean;
 }
 
 /** A round's results: each player's place, Stableford, bonus and Cup points. */
@@ -63,7 +67,8 @@ export function scoreRound(points: Record<string, number>, bonus: number[]) {
 
 /** Rounds in play order, each marked 1st or 2nd half, with every player's Cup points. */
 export function fedexRounds(rounds: FedexRound[], cfg: FedexConfig): FedexRoundResult[] {
-  const ordered = [...rounds].sort((a, b) => a.date.localeCompare(b.date) || (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
+  const all = [...(cfg.imported ?? []).map((r) => ({ ...r, imported: true })), ...rounds];
+  const ordered = all.sort((a, b) => a.date.localeCompare(b.date) || (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
   return ordered.map((round, i) => ({
     round,
     half: (cfg.half.kind === 'date' ? round.date >= cfg.half.date : i >= cfg.half.count) ? 2 : 1,

@@ -66,6 +66,7 @@ export default function RootLayout() {
         <Stack.Screen name="event/[id]/edit" options={{ title: 'Edit event', presentation: 'modal' }} />
         <Stack.Screen name="event/[id]/fedex-round" options={{ title: "Round" }} />
         <Stack.Screen name="event/[id]/fedex-player" options={{ title: "Player" }} />
+        <Stack.Screen name="event/[id]/match-players" options={{ title: "Match Players", presentation: "modal" }} />
         <Stack.Screen name="event/[id]/expense" options={{ title: "Add Expense", presentation: "modal" }} />
         <Stack.Screen name="head-to-head" options={{ title: 'Head to Head' }} />
         <Stack.Screen name="join" options={{ title: 'Join with Code', presentation: 'modal' }} />

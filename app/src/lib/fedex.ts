@@ -42,3 +42,12 @@ export function currentHalf(e: EventRecord, results: FedexRoundResult[]): 1 | 2 
   if (e.fedex.half.kind === 'date') return toISODate(new Date()) >= e.fedex.half.date ? 2 : 1;
   return results.length >= e.fedex.half.count ? 2 : 1;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Imported players who aren't on Clutch Up yet (guests from the spreadsheet). */
+export function importedGuests(e: { playerIds: string[]; fedex?: { imported?: { points: Record<string, number> }[] } }, players: { id: string; userId?: string }[]) {
+  const inImport = new Set((e.fedex?.imported ?? []).flatMap((r) => Object.keys(r.points)));
+  return e.playerIds.filter((id) => inImport.has(id) && !UUID.test(id) && !players.find((p) => p.id === id)?.userId);
+}
+

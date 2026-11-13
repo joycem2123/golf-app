@@ -89,7 +89,7 @@ export function NextRound({ e }: { e: EventRecord }) {
 
   // ---- coming up
   const p = plan!;
-  const fmt = p.draft ? gameInfo(p.draft.kind).name : 'Format to be decided';
+  const fmt = p.draft ? gameInfo(p.draft.kind).name : e.fedex ? (e.fedex.system === 'modified' ? 'Modified Stableford' : 'Stableford') : 'Format to be decided';
   const setupCourse = p.setup ? getCourse(p.setup.courseId)?.name : undefined;
   const when = !p.date ? 'Date to be decided' : p.date === today() ? 'Today' : formatDate(p.date, { weekday: 'long', month: 'long', day: 'numeric' });
   return (
