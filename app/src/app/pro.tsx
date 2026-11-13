@@ -72,6 +72,7 @@ export default function ProScreen() {
     }
   };
 
+  const subscribed = !!until && new Date(until) > new Date();
   // Already Pro: how and until when.
   const status = !paywall
     ? 'Everyone has every feature during the beta.'
@@ -102,12 +103,15 @@ export default function ProScreen() {
         ))}
       </Card>
 
-      {pro ? (
+      {/* Pro already (paid, early-tester year, or the beta when everyone has it). */}
+      {pro && (
         <Card style={{ alignItems: 'center', gap: 4, borderColor: c.accent, borderWidth: 1.5 }}>
           <Text style={{ color: c.primary, fontWeight: '800', fontSize: 17 }}>★ You have Clutch Up Pro</Text>
           {status ? <Body muted style={{ textAlign: 'center' }}>{status}</Body> : null}
         </Card>
-      ) : (
+      )}
+      {/* Buy: whenever I don't have a paid subscription of my own — during the beta too, to test or to support the app. */}
+      {!subscribed && (
         <View style={{ gap: space.sm }}>
           <View style={{ alignItems: 'center', backgroundColor: c.primarySoft, borderRadius: radius.lg, padding: space.md }}>
             {trial ? <Text style={{ color: c.primary, fontWeight: '800', fontSize: 18 }}>{trial}</Text> : null}
@@ -117,7 +121,6 @@ export default function ProScreen() {
           {loading ? <ActivityIndicator color={c.primary} /> : <Button title={busy ? 'Working…' : trial ? 'Start free trial' : 'Subscribe'} disabled={busy} onPress={() => void subscribe()} />}
         </View>
       )}
-
       {msg ? <Body style={{ textAlign: 'center', color: msg.startsWith('Restored') ? c.primary : c.danger }}>{msg}</Body> : null}
       <Button small kind="secondary" title="Restore purchases" disabled={busy} onPress={() => void restore()} />
 
