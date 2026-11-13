@@ -9,6 +9,7 @@
  *
  * Purchases need the native part (TestFlight build 4 and later); elsewhere buying says to update.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
@@ -30,16 +31,34 @@ interface ProState {
   betaUntil: string | null;
   willRenew: boolean | null;
   loaded: boolean;
+  /** Beta testers: see the app as a free user would (this phone only). */
+  previewFree: boolean;
 }
 
-export const usePro = create<ProState>(() => ({ pro: true, paywall: false, until: null, betaUntil: null, willRenew: null, loaded: false }));
+export const usePro = create<ProState>(() => ({ pro: true, paywall: false, until: null, betaUntil: null, willRenew: null, loaded: false, previewFree: false }));
+
+// What the server said, before any "preview as a free user".
+let serverPro = true;
+const PREVIEW_KEY = 'pro:previewFree';
+void AsyncStorage.getItem(PREVIEW_KEY).then((v) => {
+  if (v === '1') usePro.setState({ previewFree: true, pro: false });
+}).catch(() => undefined);
+
+/** Beta testers: preview the app as a free (non-Pro) user on this phone, or go back. */
+export function setPreviewFree(on: boolean) {
+  void AsyncStorage.setItem(PREVIEW_KEY, on ? '1' : '0').catch(() => undefined);
+  usePro.setState({ previewFree: on, pro: on ? false : serverPro });
+}
 
 /** Ask the server where I stand. */
 export async function loadPro() {
   const { data, error } = await supabase.rpc('my_pro');
   if (error || !data) return;
   const d = data as { pro: boolean; paywall: boolean; until: string | null; beta_until: string | null; will_renew: boolean | null };
-  usePro.setState({ pro: d.pro, paywall: d.paywall, until: d.until, betaUntil: d.beta_until, willRenew: d.will_renew, loaded: true });
+  serverPro = d.pro;
+  // Previewing as free only makes sense during the beta; a real subscription always counts.
+  const preview = usePro.getState().previewFree && !d.paywall && !(d.until && new Date(d.until) > new Date());
+  usePro.setState({ pro: preview ? false : d.pro, paywall: d.paywall, until: d.until, betaUntil: d.beta_until, willRenew: d.will_renew, loaded: true });
 }
 
 /** Load once at start, and again whenever I sign in or out. */
@@ -120,6 +139,7 @@ export async function getProOffer(): Promise<{ pkg: Pkg; price: string; trial: s
 
 /** After buying or restoring: have the server check with the App Store, then reload. */
 async function settle(activeNow: boolean) {
+  if (activeNow) setPreviewFree(false);
   if (activeNow) usePro.setState({ pro: true });
   await supabase.functions.invoke('revenuecat', { body: { sync: true } }).catch(() => undefined);
   await loadPro();

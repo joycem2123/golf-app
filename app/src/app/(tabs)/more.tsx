@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Body, Button, Card, Toggle } from '@/components/ui';
 import { useUsageSharing } from '@/lib/usage';
 import { liveActivitiesSupported, useLiveActivityPref } from '@/lib/live-activity';
-import { usePro } from '@/lib/pro';
+import { setPreviewFree, usePro } from '@/lib/pro';
 import { openTutorial } from '@/lib/tutorial';
 import { resetTips } from '@/components/tip';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
@@ -55,7 +55,7 @@ export default function More() {
           )}
           <Row
             title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade to Clutch Up Pro'}
-            sub={!pro.paywall ? 'Every feature is free during the beta' : pro.pro ? 'Events, stories and scorecard uploads' : 'Events, stories and scorecard uploads · 7-day free trial'}
+            sub={!pro.paywall && !pro.previewFree ? 'Every feature is free during the beta' : pro.pro ? 'Events, stories and scorecard uploads' : 'Events, stories and scorecard uploads · 7-day free trial'}
             onPress={() => router.push('/pro')}
           />
           <Row title="How Clutch Up works" sub="A two-minute video tour of the app" onPress={() => openTutorial()} />
@@ -67,6 +67,7 @@ export default function More() {
         </Card>
         {tipsReset && <Body style={{ color: c.primary, textAlign: 'center' }}>Tips are back. You’ll see each one again the next time you open that screen.</Body>}
         <Card>
+          {!pro.paywall && <Toggle label="Preview as a free user (beta)" hint="See the app as someone without Clutch Up Pro would. Only on this phone; turn off to get everything back." value={pro.previewFree} onChange={setPreviewFree} />}
           {liveActivitiesSupported() && <Toggle label="Live score on Lock Screen" hint="While you’re playing, your match shows on the Lock Screen and in the Dynamic Island." value={liveCard} onChange={setLiveCard} />}
           <Toggle label="Share anonymous usage data" hint="Which features get used, never your name, email or scores. Helps us decide what to improve." value={sharingUsage} onChange={setSharingUsage} />
         </Card>

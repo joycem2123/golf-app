@@ -29,7 +29,7 @@ const FEATURES: { icon: string; title: string; sub: string }[] = [
 export default function ProScreen() {
   const c = useColors();
   const { reason } = useLocalSearchParams<{ reason?: string }>();
-  const { pro, paywall, until, betaUntil, willRenew } = usePro();
+  const { pro, paywall, until, betaUntil, willRenew, previewFree } = usePro();
   const [offer, setOffer] = useState<Awaited<ReturnType<typeof getProOffer>>>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -89,6 +89,7 @@ export default function ProScreen() {
         <LogoMark size={56} />
         <Text style={{ fontFamily: fonts.serif, fontSize: 28, fontWeight: '700', color: c.primary }}>Clutch Up Pro</Text>
         {reason && REASONS[reason] && !pro ? <Body muted style={{ textAlign: 'center' }}>{REASONS[reason]}</Body> : null}
+        {previewFree ? <Text style={{ color: c.accent, fontSize: 12, fontWeight: '800', textAlign: 'center' }}>PREVIEWING AS A FREE USER · turn off in More</Text> : null}
       </View>
 
       <Card style={{ gap: space.md }}>
