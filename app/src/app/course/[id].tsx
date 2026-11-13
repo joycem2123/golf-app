@@ -1,7 +1,7 @@
 import { validateTee, type Course, type Tee } from '@golf/engine';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Sheet } from '@/components/round-setup';
 import { ShareCourseSheet } from '@/components/share-course';
@@ -12,9 +12,11 @@ import { getCourse, isAddedCourse, originalCourse } from '@/lib/courses';
 import { useStore } from '@/store/store';
 import { fonts, radius, space, useColors } from '@/theme';
 import { track } from '@/lib/usage';
+import { pickScorecard, readScorecard } from '@/lib/scan';
+import { reportCourseChange } from '@/sync/course-audit';
 
 /** A number box that lets you type freely ("70." on the way to "70.6") and reports valid numbers. */
-function NumField({ value, onChange, decimal, width, label, bad }: { value: number | undefined; onChange: (n: number | undefined) => void; decimal?: boolean; width: number; label: string; bad?: boolean }) {
+function NumField({ value, onChange, decimal, width, label, bad, tall }: { value: number | undefined; onChange: (n: number | undefined) => void; decimal?: boolean; width: number | '100%'; label: string; bad?: boolean; tall?: boolean }) {
   const c = useColors();
   const [text, setText] = useState(value === undefined ? '' : String(value));
   useEffect(() => {
@@ -33,12 +35,14 @@ function NumField({ value, onChange, decimal, width, label, bad }: { value: numb
       }}
       keyboardType={decimal ? 'decimal-pad' : 'number-pad'}
       selectTextOnFocus
-      style={{ width, textAlign: 'center', fontSize: 15, color: c.text, paddingVertical: 6, borderWidth: bad ? 2 : 1, borderColor: bad ? c.danger : c.border, borderRadius: radius.sm, backgroundColor: bad ? '#FBEDEC' : c.card }}
+      style={{ width, textAlign: 'center', fontSize: tall ? 17 : 15, color: c.text, paddingVertical: tall ? 0 : 6, height: tall ? BOX_H : undefined, borderWidth: bad ? 2 : 1, borderColor: bad ? c.danger : c.border, borderRadius: radius.sm, backgroundColor: bad ? '#FBEDEC' : c.card }}
     />
   );
 }
 
 const clone = (co: Course): Course => JSON.parse(JSON.stringify(co));
+/** Rating, slope and par boxes share one height so they line up. */
+const BOX_H = 44;
 
 /** Shared empty list (a new [] in a store selector would redraw forever). */
 const NONE: string[] = [];
@@ -67,7 +71,50 @@ export default function CourseEditor() {
   const [newRating, setNewRating] = useState<number | undefined>();
   const [newSlope, setNewSlope] = useState<number | undefined>();
   const [copyFrom, setCopyFrom] = useState<string | null>(null);
+  // Updating the card from a photo of the scorecard.
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanMsg, setScanMsg] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [fromPhoto, setFromPhoto] = useState(false);
   if (!current || !draft) return <Body>Course not found.</Body>;
+
+  /** Read a photo of the card and put its numbers into my copy: matching tees are updated, new ones added. */
+  const updateFromPhoto = async (source: 'camera' | 'library') => {
+    setScanMsg(null);
+    try {
+      const image = await pickScorecard(source);
+      if (!image) return;
+      setScanBusy(true);
+      const { course: read, notes: readNotes } = await readScorecard(image, { id: draft.id, name: draft.name, city: draft.city, region: draft.region });
+      let updated = 0;
+      let added = 0;
+      const tees = draft.tees.map((t) => ({ ...t }));
+      for (const r of read.tees) {
+        const i = tees.findIndex((t) => t.name.trim().toLowerCase() === r.name.trim().toLowerCase() && (t.gender ?? 'M') === (r.gender ?? 'M'));
+        if (i >= 0) {
+          const t = tees[i];
+          tees[i] = {
+            ...t,
+            courseRating: r.courseRating || t.courseRating,
+            slope: r.slope || t.slope,
+            holes: r.holes.length === t.holes.length ? r.holes.map((h, k) => ({ ...t.holes[k], par: h.par, strokeIndex: h.strokeIndex, ...(h.yards ? { yards: h.yards } : {}) })) : t.holes,
+            par: r.holes.length === t.holes.length ? r.par : t.par,
+          };
+          updated++;
+        } else {
+          tees.push({ ...r, id: `${draft.id}-${r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${(r.gender ?? 'M').toLowerCase()}-${Date.now().toString(36)}` });
+          added++;
+        }
+      }
+      setDraft({ ...draft, tees });
+      setFromPhoto(true);
+      track('course_photo_update', { updated, added });
+      setScanMsg({ text: `Read from your photo: ${updated} tee${updated === 1 ? '' : 's'} updated${added ? `, ${added} added` : ''}. Check them against the card, then tap Save changes.${readNotes ? ` ${readNotes}` : ''}` });
+    } catch (e) {
+      setScanMsg({ text: e instanceof Error ? e.message : String(e), bad: true });
+    } finally {
+      setScanBusy(false);
+    }
+  };
 
   const tees = draft.tees.filter((t) => (t.gender ?? 'M') === gender);
   const tee = tees.find((t) => t.id === teeId) ?? tees[0];
@@ -133,7 +180,9 @@ export default function CourseEditor() {
   const save = () => {
     if (problems.length) return Alert.alert('Check the scorecard', problems.slice(0, 4).map((p) => p.replace(/stroke indexes must be [^(]*\(got[^)]*\)/, 'hole handicaps must use each number once')).join('\n'));
     saveCourse(draft, current);
-    track('course_edited');
+    track('course_edited', { fromPhoto });
+    // The change is only for me, but the Clutch Up team is told what changed so the card can be reviewed.
+    void reportCourseChange(current, draft, fromPhoto ? 'photo' : 'manual');
     void resendSharedCourse(draft); // friends I've shared it with get the new version
     router.back();
   };
@@ -222,6 +271,17 @@ export default function CourseEditor() {
           </View>
         )}
 
+        <Card style={{ gap: space.sm }}>
+          <Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }}>Update from a scorecard photo</Text>
+          <Text style={{ color: c.muted, fontSize: 13 }}>Take or choose a photo of the card. Ratings, slopes, pars, hole handicaps and yards are filled in for you to check.</Text>
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <View style={{ flex: 1 }}><Button small kind="secondary" title="📷 Take photo" disabled={scanBusy} onPress={() => void updateFromPhoto('camera')} /></View>
+            <View style={{ flex: 1 }}><Button small kind="secondary" title="🖼️ Choose photo" disabled={scanBusy} onPress={() => void updateFromPhoto('library')} /></View>
+          </View>
+          {scanBusy ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}><ActivityIndicator color={c.primary} /><Text style={{ color: c.muted }}>Reading the scorecard…</Text></View> : null}
+          {scanMsg ? <Text style={{ color: scanMsg.bad ? c.danger : c.text, fontSize: 13 }}>{scanMsg.text}</Text> : null}
+        </Card>
+
         {(
           <Segmented options={genders.map((g) => ({ value: g, label: g === 'M' ? 'Men’s tees' : 'Ladies’ tees' }))} value={gender} onChange={(g) => { setGender(g); setTeeId(null); }} />
         )}
@@ -260,18 +320,22 @@ export default function CourseEditor() {
               </Pressable>
             )}
           </View>
+          {/* Three equal columns, one-line labels and boxes of one height, so they line up. */}
           <View style={{ flexDirection: 'row', gap: space.md }}>
             <View style={{ flex: 1, gap: 4 }}>
-              <Label>Course rating</Label>
-              <NumField label="Course rating" decimal value={tee.courseRating} width={100} onChange={(n) => updateTee((t) => ({ ...t, courseRating: n ?? 0 }))} />
+              <Label>Rating</Label>
+              <NumField label="Course rating" decimal tall value={tee.courseRating} width="100%" onChange={(n) => updateTee((t) => ({ ...t, courseRating: n ?? 0 }))} />
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Label>Slope</Label>
-              <NumField label="Slope" value={tee.slope} width={100} onChange={(n) => updateTee((t) => ({ ...t, slope: n ?? 0 }))} />
+              <NumField label="Slope" tall value={tee.slope} width="100%" onChange={(n) => updateTee((t) => ({ ...t, slope: n ?? 0 }))} />
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Label>Par</Label>
-              <Text style={{ fontSize: 20, fontFamily: fonts.serif, fontWeight: '700', color: c.text, paddingVertical: 4 }}>{tee.par}</Text>
+              {/* Par is the holes added up, so it's shown, not typed. */}
+              <View style={{ height: BOX_H, borderRadius: radius.sm, backgroundColor: c.chip, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18, fontFamily: fonts.serif, fontWeight: '700', color: c.text }}>{tee.par}</Text>
+              </View>
             </View>
           </View>
         </Card>
@@ -330,12 +394,12 @@ export default function CourseEditor() {
           <Field label="Tee name" value={newName} onChangeText={setNewName} placeholder="Black" autoFocus />
           <View style={{ flexDirection: 'row', gap: space.md }}>
             <View style={{ flex: 1, gap: 4 }}>
-              <Label>Course rating</Label>
-              <NumField label="New tee course rating" decimal value={newRating} width={110} onChange={setNewRating} />
+              <Label>Rating</Label>
+              <NumField label="New tee course rating" decimal tall value={newRating} width="100%" onChange={setNewRating} />
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Label>Slope</Label>
-              <NumField label="New tee slope" value={newSlope} width={110} onChange={setNewSlope} />
+              <NumField label="New tee slope" tall value={newSlope} width="100%" onChange={setNewSlope} />
             </View>
           </View>
           {tees.length > 0 && (
