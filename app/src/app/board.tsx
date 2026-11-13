@@ -42,11 +42,8 @@ const css = (o: Record<string, string>): object => (Platform.OS === 'web' ? o : 
 const PAGE_BG = css({ backgroundImage: 'radial-gradient(1400px 700px at 12% -10%, #1E5A40 0%, rgba(30,90,64,0) 60%), radial-gradient(1000px 600px at 105% 115%, #154A33 0%, rgba(21,74,51,0) 60%), linear-gradient(180deg, #0E2A1F 0%, #071710 100%)' });
 const GLASS = css({ backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' });
 const SHADOW = css({ boxShadow: '0 18px 40px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.25)' });
-/**
- * The board's text font: Inter on every screen (a close match for the iPhone's own font), so a Windows PC, a smart TV
- * and a Mac all show the same letters. Georgia is kept only for the event name and the team names and scores.
- */
-const SANS = Platform.OS === 'web' ? 'Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif' : undefined;
+/** One font for the whole board: Georgia, the font of the team names and scores (and the app's headings). */
+const SANS = fonts.serif;
 const TABULAR = { fontVariant: ['tabular-nums' as const] };
 /** A team colour with a little depth: lighter top-left to darker bottom-right. */
 const sheen = (c: string) => css({ backgroundImage: `linear-gradient(180deg, ${lighten(c, 0.14)} 0%, ${c} 50%, ${darken(c, 0.14)} 100%)` });
@@ -70,19 +67,7 @@ function toRound(x: NonNullable<Raw>['rounds'][number], eventId: string): RoundR
 
 const lastPlayed = (r: RoundRecord) => Math.max(r.createdAt ?? 0, ...Object.values(r.ledger).map((e) => e.enteredAt || 0));
 
-function useInterFont() {
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined' || document.getElementById('tv-inter')) return;
-    const link = document.createElement('link');
-    link.id = 'tv-inter';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap';
-    document.head.appendChild(link);
-  }, []);
-}
-
 export default function Board() {
-  useInterFont();
   const { c: codeParam, code: codeAlt } = useLocalSearchParams<{ c?: string; code?: string }>();
   const code = String(codeParam ?? codeAlt ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   const [raw, setRaw] = useState<Raw | undefined>(undefined);
