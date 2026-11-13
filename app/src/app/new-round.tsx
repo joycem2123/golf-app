@@ -9,7 +9,7 @@ import { GamePicker, GameRulesButton, PlayerPicker, Sheet, StepPills } from '@/c
 import { HandicapCheck } from '@/components/handicap-check';
 import { TeamsStep } from '@/components/teams-step';
 import { usePickBus } from '@/store/pick';
-import { Body, Button, Card, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
+import { Body, Button, Card, Checkbox, Chip, Field, H2, Label, Segmented, Toggle, styles } from '@/components/ui';
 import { formatIndex, shuffle } from '@/lib/format';
 import { meFirst, useMe } from '@/lib/me';
 import { HolesSetup } from '@/components/holes-setup';
@@ -555,6 +555,26 @@ export default function NewRound() {
               </Label>
             </Card>
           )}
+          {/* Select all, as on New Event: everyone in my friends list (or in this event). */}
+          {(() => {
+            const everyone = saved.filter((p) => !p.pending && (!event || event.playerIds.includes(p.id)));
+            const all = everyone.length > 0 && everyone.every((p) => roster.some((r) => r.id === p.id));
+            return (
+              <Checkbox
+                label="Select all"
+                hint={event ? `Everyone in this event (${everyone.length})` : `Everyone in your friends list (${everyone.length})`}
+                value={all}
+                onChange={(v) => {
+                  setDraft(null);
+                  setSideMatches([]);
+                  // On: everyone (keeping the tees already picked). Off: just me.
+                  setRoster((r) => (v
+                    ? everyone.map((p) => r.find((x) => x.id === p.id) ?? { id: p.id, teeId: defaultTee(course, p) })
+                    : me && r.some((x) => x.id === me.id) ? r.filter((x) => x.id === me.id) : []));
+                }}
+              />
+            );
+          })()}
           <PlayerPicker
             people={meFirst(saved, isMe)}
             selected={roster.map((r) => r.id)}
