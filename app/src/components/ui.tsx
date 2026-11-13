@@ -57,7 +57,7 @@ export function Button({
         small && styles.buttonSmall,
         { backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.75 : 1 },
       ]}>
-      <Text style={[styles.buttonText, small && { fontSize: 14 }, { color: fg }]}>{title}</Text>
+      <Text style={[styles.buttonText, small && { fontSize: 15 }, { color: fg }]}>{title}</Text>
     </Pressable>
   );
 }
@@ -235,7 +235,7 @@ export const styles = StyleSheet.create({
   body: { fontSize: 16 },
   button: { borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: space.lg, alignItems: 'center' },
   buttonSmall: { paddingVertical: 8, paddingHorizontal: space.md },
-  buttonText: { fontSize: 16, fontWeight: '600', letterSpacing: 0.5 },
+  buttonText: { fontSize: 17, fontFamily: fonts.serif, fontWeight: '700' },
   chip: { borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1 },
   segmented: { flexDirection: 'row', borderRadius: radius.md, padding: 3, borderWidth: StyleSheet.hairlineWidth },
   segment: { flex: 1, paddingVertical: 8, borderRadius: radius.sm },
