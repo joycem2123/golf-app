@@ -8,12 +8,12 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
-import { shortNamer } from '@/components/trip-expenses';
+import { addedByMe, adderName, shortNamer } from '@/components/trip-expenses';
 import { Button, Card, Field, Label } from '@/components/ui';
 import { today } from '@/lib/dates';
 import { useMe } from '@/lib/me';
 import { newId, useEvent, useStore } from '@/store/store';
-import { removeEntry, saveEntry, useTripLedger } from '@/sync/trip-ledger';
+import { removeEntry, saveEntry, useTripLedger, type LedgerEntry } from '@/sync/trip-ledger';
 import { fonts, radius, space, useColors } from '@/theme';
 
 export { ErrorBoundary } from '@/components/error-screen';
@@ -38,7 +38,7 @@ export default function ExpenseScreen() {
   const c = useColors();
   const { id, expense } = useLocalSearchParams<{ id: string; expense?: string }>();
   const e = useEvent(id);
-  const existing = useTripLedger((s) => s.byEvent[id]?.find((x) => x.id === expense && x.kind === 'expense')) as TripExpense | undefined;
+  const existing = useTripLedger((s) => s.byEvent[id]?.find((x) => x.id === expense && x.kind === 'expense')) as (LedgerEntry & TripExpense) | undefined;
   const players = useStore((s) => s.players);
   const { isMe } = useMe();
   const money = (e?.expenses ?? { on: true, currency: 'CAD' }) as TripMoney;
@@ -87,6 +87,14 @@ export default function ExpenseScreen() {
               : null;
 
   if (!e || !e.expenses) return null;
+  // Only the person who added a bill can change it.
+  if (existing && !addedByMe(existing, useStore.getState().me))
+    return (
+      <View style={{ padding: space.lg, gap: space.md }}>
+        <Stack.Screen options={{ title: existing.title }} />
+        <Card><Text style={{ color: c.text, fontSize: 15 }}>Only {adderName((existing as LedgerEntry).addedBy)}, who added this expense, can change or delete it.</Text></Card>
+      </View>
+    );
 
   const toggleShare = (pid: string) => setShares((s) => ({ ...s, [pid]: s[pid] ? 0 : 1 }));
   const double = (pid: string) => setShares((s) => ({ ...s, [pid]: s[pid] === 2 ? 1 : 2 }));

@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { PlayerDropdown } from '@/components/head-to-head-view';
 import { Body, Button, Card, Label, Segmented } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { useMe } from '@/lib/me';
@@ -45,6 +46,16 @@ export function shortNamer(ids: string[], players: { id: string; name: string }[
   };
 }
 
+/** Did I add this bill? (Only the person who added a bill can change it. Bills not yet saved anywhere are mine.) */
+export const addedByMe = (x: LedgerEntry, me: string | null | undefined) => !x.addedBy || x.addedBy === me;
+
+/** Who added a bill, by account id. */
+export function adderName(uid: string | null | undefined): string {
+  const st = useStore.getState();
+  if (!uid) return 'someone';
+  return st.players.find((p) => p.userId === uid || p.id === uid)?.name ?? st.names[uid] ?? 'someone else';
+}
+
 /** Players' names in this trip ("You" for me). */
 function useNames(e: EventRecord) {
   const players = useStore((s) => s.players);
@@ -64,6 +75,7 @@ export function TripExpenses({ e }: { e: EventRecord }) {
   const { name, short, isMe } = useNames(e);
   const canEdit = e.remote?.role !== 'viewer';
   const me = e.playerIds.find(isMe);
+  const myUid = useStore((s) => s.me);
 
   const expenses = entries.filter((x): x is LedgerEntry & TripExpense => x.kind === 'expense');
   const payments = entries.filter((x): x is LedgerEntry & TripPayment => x.kind === 'payment');
@@ -108,8 +120,10 @@ export function TripExpenses({ e }: { e: EventRecord }) {
                   const guests = Object.values(x.shares).reduce((a, w) => a + w, 0) - n;
                   const split = n === 1 ? `for ${name(Object.keys(x.shares)[0])} only` : guests > 0 ? `${n} people, ${guests} guest${guests === 1 ? '' : 's'}` : `split ${n} ways`;
                   return (
-                    <Pressable key={x.id} disabled={!canEdit} onPress={() => router.push({ pathname: '/event/[id]/expense', params: { id: e.id, expense: x.id } })}
-                      accessibilityRole="button" accessibilityLabel={`${x.title}, ${formatMoney(x.amount, x.currency)}. Tap to change.`}
+                    <Pressable key={x.id} disabled={!canEdit} onPress={() => (addedByMe(x, myUid)
+                      ? router.push({ pathname: '/event/[id]/expense', params: { id: e.id, expense: x.id } })
+                      : Alert.alert(x.title, `${formatMoney(x.amount, x.currency)} · added by ${adderName(x.addedBy)}.\n\nOnly ${adderName(x.addedBy)} can change or delete it. If something’s wrong, let them know.`))}
+                      accessibilityRole="button" accessibilityLabel={`${x.title}, ${formatMoney(x.amount, x.currency)}.${addedByMe(x, myUid) ? ' Tap to change.' : ` Added by ${adderName(x.addedBy)}.`}`}
                       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, opacity: pressed ? 0.6 : 1 })}>
                       <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontSize: 17 }}>{expenseIcon(x.title)}</Text>
@@ -237,17 +251,7 @@ function SettleMethod({ e, money, name, canEdit }: { e: EventRecord; money: Trip
       {method === 'organizer' && canEdit ? (
         <View style={{ gap: 6 }}>
           <Text style={{ color: c.text, fontWeight: '600', fontSize: 14 }}>Organizer</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {e.playerIds.map((pid) => {
-              const on = pid === organizer;
-              return (
-                <Pressable key={pid} onPress={() => set({ organizer: pid })} accessibilityRole="radio" accessibilityState={{ selected: on }}
-                  style={({ pressed }) => ({ paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: on ? c.primary : c.border, backgroundColor: on ? c.primarySoft : c.card, opacity: pressed ? 0.7 : 1 })}>
-                  <Text style={{ color: on ? c.primary : c.text, fontWeight: '700', fontSize: 13 }}>{name(pid)}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <PlayerDropdown label="Organizer" value={organizer ?? null} options={e.playerIds.map((pid) => ({ id: pid, name: name(pid) }))} onChange={(pid) => set({ organizer: pid })} />
         </View>
       ) : null}
     </Card>

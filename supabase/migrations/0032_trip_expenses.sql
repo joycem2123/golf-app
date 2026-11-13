@@ -1,6 +1,8 @@
 -- Trip expenses: shared bills on a trip (who paid, who shares it) and the payments people make to settle up.
--- Everyone in the trip can see them; anyone in it who can score (not viewers) can add or change them, as long as the
--- trip has expenses turned on and its organiser has Clutch Up Pro. The app never moves money: payments are records.
+-- Everyone in the trip can see them, and anyone in it who can score (not viewers) can add a bill, Pro or not, as long
+-- as the trip has expenses turned on and its organiser has Clutch Up Pro. A bill can only be changed or deleted by the
+-- person who added it. Settle-up payments can be marked by anyone in the trip (so players without the app can be
+-- marked paid). The app never moves money: payments are records.
 --
 -- No foreign key to events on purpose: if a trip is deleted, its expenses wait with it in Recently deleted and come
 -- back when it's restored. They're cleared once the trip is gone for good.
@@ -35,11 +37,11 @@ create policy "trip ledger add" on public.trip_ledger for insert to authenticate
   with check (public.is_event_member(event_id, true) and public.trip_expenses_on(event_id));
 drop policy if exists "trip ledger change" on public.trip_ledger;
 create policy "trip ledger change" on public.trip_ledger for update to authenticated
-  using (public.is_event_member(event_id, true) and public.trip_expenses_on(event_id))
+  using (public.is_event_member(event_id, true) and public.trip_expenses_on(event_id) and (kind = 'payment' or created_by = auth.uid()))
   with check (public.is_event_member(event_id, true) and public.trip_expenses_on(event_id));
 drop policy if exists "trip ledger remove" on public.trip_ledger;
 create policy "trip ledger remove" on public.trip_ledger for delete to authenticated
-  using (public.is_event_member(event_id, true) and public.trip_expenses_on(event_id));
+  using (public.is_event_member(event_id, true) and public.trip_expenses_on(event_id) and (kind = 'payment' or created_by = auth.uid()));
 
 -- Who added and last changed each entry is set by the server, not the phone. An entry can't move to another trip.
 create or replace function public.trip_ledger_stamp() returns trigger
