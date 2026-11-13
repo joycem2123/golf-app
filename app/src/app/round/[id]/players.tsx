@@ -53,7 +53,7 @@ export default function ChangeRoundPlayer() {
             <Text style={{ fontWeight: '800' }}>Who played instead of {out.name}?</Text> Their scores so far, matches{r.teamOf?.[out.id] ? ' and team' : ''} move to the person you pick.
           </Text>
         </View>
-        <Field label="Search" value={query} onChangeText={setQuery} placeholder="Name" />
+        <Field label="Search" value={query} onChangeText={setQuery} onClear={() => setQuery('')} placeholder="Name" />
         <Card style={{ paddingVertical: space.xs }}>
           {pool.length === 0 && <Body muted>No one else to pick. Add them below.</Body>}
           {pool.map((p, i) => (

@@ -29,7 +29,7 @@ export function PlayerDropdown({ label, value, options, onChange, placeholder = 
       </Pressable>
       <Sheet visible={open} onClose={() => { setOpen(false); setQ(''); }} title={label}>
         <View style={{ gap: space.sm }}>
-          {options.length > 8 && <Field label="Search" value={q} onChangeText={setQ} placeholder="Name" />}
+          {options.length > 8 && <Field label="Search" value={q} onChangeText={setQ} onClear={() => setQ('')} placeholder="Name" />}
           {list.map((p) => {
             const sel = p.id === value;
             return (

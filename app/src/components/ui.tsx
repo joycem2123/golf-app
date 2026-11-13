@@ -173,9 +173,10 @@ export function Toggle({ label, value, onChange, hint }: { label: string; value:
 /** Placeholder (example) text colour: lighter than muted text. */
 const PLACEHOLDER = '#A9AEA5';
 
-export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { label: string; error?: string | null }>(function Field(props, ref) {
+export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { label: string; error?: string | null; /** Show an ✕ that empties the box (search boxes). */ onClear?: () => void }>(function Field(props, ref) {
   const c = useColors();
-  const { label, style, secureTextEntry, error, ...rest } = props;
+  const { label, style, secureTextEntry, error, onClear, ...rest } = props;
+  const clearable = !!onClear && !secureTextEntry && !!rest.value;
   // Password boxes get an eye button to show or hide what was typed.
   const [shown, setShown] = useState(false);
   const input = (
@@ -187,7 +188,7 @@ export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps &
       secureTextEntry={secureTextEntry && !shown}
       autoCapitalize={secureTextEntry ? 'none' : rest.autoCapitalize}
       autoCorrect={secureTextEntry ? false : rest.autoCorrect}
-      style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, !rest.value && { fontStyle: 'italic' }, error ? ({ borderColor: c.danger, borderWidth: 2, outlineColor: c.danger } as object) : null, secureTextEntry && { paddingRight: 48 }, style]}
+      style={[styles.input, { color: c.text, backgroundColor: c.chip, borderColor: c.border }, !rest.value && { fontStyle: 'italic' }, error ? ({ borderColor: c.danger, borderWidth: 2, outlineColor: c.danger } as object) : null, (secureTextEntry || onClear) && { paddingRight: 48 }, style]}
     />
   );
   return (
@@ -208,6 +209,21 @@ export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps &
             ) : (
               <Text style={{ color: c.muted, fontSize: 13, fontWeight: '600' }}>{shown ? 'Hide' : 'Show'}</Text>
             )}
+          </Pressable>
+        </View>
+      ) : clearable ? (
+        <View style={{ justifyContent: 'center' }}>
+          {input}
+          <Pressable
+            onPress={onClear}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear"
+            style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 48, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.muted, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: c.card, fontSize: 13, fontWeight: '800', lineHeight: 15 }}>✕</Text>
+            </View>
           </Pressable>
         </View>
       ) : (

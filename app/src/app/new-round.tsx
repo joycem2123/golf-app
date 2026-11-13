@@ -507,7 +507,7 @@ export default function NewRound() {
               onEdit={(su) => applySetup(su, 'game')}
             />
           )}
-          <Field label="Search courses" value={query} onChangeText={setQuery} placeholder="Course name or city" />
+          <Field label="Search courses" value={query} onChangeText={setQuery} onClear={() => setQuery('')} placeholder="Course name or city" />
           {/* Course not in the list: add it (scan the card or type it in). */}
           <Button title="Upload New Course" onPress={() => router.push('/course/new')} />
           {/* Favourites and previously played; typing searches (with a star to keep a course in Favourites). */}
@@ -773,7 +773,7 @@ export default function NewRound() {
 
           <Sheet visible={seasonSheet} onClose={() => setSeasonSheet(false)} title="Choose a season">
             <View style={{ gap: space.sm }}>
-              {seasons.length > 4 && <Field label="Search" value={seasonQuery} onChangeText={setSeasonQuery} placeholder="Season name" />}
+              {seasons.length > 4 && <Field label="Search" value={seasonQuery} onChangeText={setSeasonQuery} onClear={() => setSeasonQuery('')} placeholder="Season name" />}
               {seasons
                 .filter((e) => !seasonQuery.trim() || e.name.toLowerCase().includes(seasonQuery.trim().toLowerCase()))
                 .map((e) => {

@@ -244,7 +244,7 @@ export default function UploadScorecard() {
                 />
                 {r.who === 'friend' && (
                   <View style={{ gap: space.sm }}>
-                    {people.length > 8 && <Field label="Search" value={friendQuery[i] ?? ''} onChangeText={(t) => setFriendQuery({ ...friendQuery, [i]: t })} placeholder="Name" />}
+                    {people.length > 8 && <Field label="Search" value={friendQuery[i] ?? ''} onChangeText={(t) => setFriendQuery({ ...friendQuery, [i]: t })} onClear={() => setFriendQuery({ ...friendQuery, [i]: '' })} placeholder="Name" />}
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                       {choices.map((p) => (
                         <Chip key={p.id} label={who(p)} onPress={() => setRow(i, { playerId: p.id, who: undefined })} />
@@ -309,7 +309,7 @@ export default function UploadScorecard() {
 
       <Sheet visible={courseSheet} onClose={() => setCourseSheet(false)} title="Choose the course">
         <View style={{ gap: space.sm }}>
-          <Field label="Search courses" value={courseQuery} onChangeText={setCourseQuery} placeholder="Course name or city" />
+          <Field label="Search courses" value={courseQuery} onChangeText={setCourseQuery} onClear={() => setCourseQuery('')} placeholder="Course name or city" />
           <Button title="Upload New Course" onPress={() => { setCourseSheet(false); router.push('/course/new'); }} />
           {searchCourses(courseQuery, courses).slice(0, 30).map((co) => (
             <Pressable

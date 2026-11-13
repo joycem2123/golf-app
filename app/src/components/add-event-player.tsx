@@ -90,7 +90,7 @@ export function AddEventPlayer({ e }: { e: EventRecord }) {
           <Segmented options={[{ value: 'pick', label: 'Friends & players' }, { value: 'new', label: 'Someone new' }]} value={mode} onChange={setMode} />
           {mode === 'pick' ? (
             <View style={{ gap: space.sm }}>
-              {saved.length > 8 && <Field label="Search" value={query} onChangeText={setQuery} placeholder="Name or @username" autoCapitalize="none" />}
+              {saved.length > 8 && <Field label="Search" value={query} onChangeText={setQuery} onClear={() => setQuery('')} placeholder="Name or @username" autoCapitalize="none" />}
               {choices.length === 0 ? (
                 <Body muted>Everyone you play with is already in this event. Choose “Someone new”.</Body>
               ) : (
