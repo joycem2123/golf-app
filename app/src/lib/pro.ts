@@ -53,7 +53,7 @@ export function useProStatus() {
 
 // ------------------------------------------------------------------ the App Store (RevenueCat)
 
-type Pkg = { identifier: string; product: { priceString: string; introPrice?: { priceString: string; periodNumberOfUnits?: number; periodUnit?: string } | null } };
+type Pkg = { identifier: string; product: { priceString: string; currencyCode?: string; introPrice?: { priceString: string; periodNumberOfUnits?: number; periodUnit?: string } | null } };
 type Purchases = {
   configure(c: { apiKey: string; appUserID?: string | null }): void;
   logIn(id: string): Promise<unknown>;
@@ -110,7 +110,9 @@ export async function getProOffer(): Promise<{ pkg: Pkg; price: string; trial: s
     if (!pkg) return null;
     const intro = pkg.product.introPrice;
     const trial = intro && /0[.,]00|^Free/i.test(intro.priceString) && intro.periodNumberOfUnits ? `${intro.periodNumberOfUnits}-${(intro.periodUnit ?? 'day').toLowerCase()} free trial` : null;
-    return { pkg, price: `${pkg.product.priceString}/year`, trial };
+    // "$24.99 CAD/year" — iPhone writes CAD and USD both as "$", so name the currency.
+    const cur = pkg.product.currencyCode && !/[A-Z]{3}/.test(pkg.product.priceString) ? ` ${pkg.product.currencyCode}` : '';
+    return { pkg, price: `${pkg.product.priceString}${cur}/year`, trial };
   } catch {
     return null;
   }
