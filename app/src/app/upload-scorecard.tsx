@@ -309,6 +309,7 @@ export default function UploadScorecard() {
       <Sheet visible={courseSheet} onClose={() => setCourseSheet(false)} title="Choose the course">
         <View style={{ gap: space.sm }}>
           <Field label="Search courses" value={courseQuery} onChangeText={setCourseQuery} placeholder="Course name or city" />
+          <Button title="Upload New Course" onPress={() => { setCourseSheet(false); router.push('/course/new'); }} />
           {searchCourses(courseQuery, courses).slice(0, 30).map((co) => (
             <Pressable
               key={co.id}
@@ -319,7 +320,6 @@ export default function UploadScorecard() {
               <Text style={{ color: c.muted, fontSize: 12 }}>{[co.city, co.region].filter(Boolean).join(', ')}</Text>
             </Pressable>
           ))}
-          <Button small kind="ghost" title="Course not listed? Add it in More → Courses" onPress={() => { setCourseSheet(false); router.push('/course/new'); }} />
         </View>
       </Sheet>
     </ScrollView>

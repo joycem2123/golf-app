@@ -486,6 +486,8 @@ export default function NewRound() {
             />
           )}
           <Field label="Search courses" value={query} onChangeText={setQuery} placeholder="Course name or city" />
+          {/* Course not in the list: add it (scan the card or type it in). */}
+          <Button title="Upload New Course" onPress={() => router.push('/course/new')} />
           {searchCourses(query, courses).map((co) => {
             const unfinished = validateCourse(co).length > 0;
             return (
@@ -519,7 +521,6 @@ export default function NewRound() {
             </Pressable>
             );
           })}
-          <Button small kind="ghost" title="Course not listed? Add it in More → Courses" onPress={() => router.push('/course/new')} />
         </>
       )}
 
