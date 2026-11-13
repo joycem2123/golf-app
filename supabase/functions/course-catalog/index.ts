@@ -14,7 +14,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 type ApiHole = { par: number; yardage?: number; handicap?: number | null };
 type ApiTee = { tee_name: string; course_rating?: number; slope_rating?: number; par_total?: number; holes?: ApiHole[] };
-type ApiCourse = { id: string | number; club_name?: string; course_name?: string; location?: { city?: string; state?: string; country?: string }; tees?: { male?: ApiTee[]; female?: ApiTee[] } | Record<string, number> };
+type ApiCourse = { id: string | number; club_name?: string; course_name?: string; distance?: number; location?: { city?: string; state?: string; country?: string; latitude?: number; longitude?: number }; tees?: { male?: ApiTee[]; female?: ApiTee[] } | Record<string, number> };
 
 const COUNTRY: Record<string, string> = { canada: 'CA', 'united states': 'US', usa: 'US' };
 const country = (c?: string) => (c ? COUNTRY[c.toLowerCase()] ?? c : 'US');
@@ -44,6 +44,34 @@ function toAppCourse(c: ApiCourse) {
   return { id: appId(c.id), name: title(c), city: c.location?.city, region: c.location?.state, country: country(c.location?.country), tees, source: 'Online course database (GolfCourseAPI)' };
 }
 
+const sameText = (a?: string | null, b?: string | null) => !!a && !!b && a.toLowerCase().replace(/[^a-z]/g, '') === b.toLowerCase().replace(/[^a-z]/g, '');
+
+/** Where a town or city is: from a name result that's in it, else OpenStreetMap's place search (Canada and the US). */
+async function placeOf(q: string, byName: ApiCourse[]): Promise<{ lat: number; lng: number } | null> {
+  const inTown = byName.find((c) => sameText(c.location?.city, q) && c.location?.latitude && c.location?.longitude);
+  if (inTown) return { lat: inTown.location!.latitude!, lng: inTown.location!.longitude! };
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ca,us&featureType=city&q=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': 'ClutchUpGolf/1.0 (+https://clutchupgolf.com)', 'Accept-Language': 'en' },
+    });
+    if (!res.ok) return null;
+    const [hit] = (await res.json()) as { lat: string; lon: string; name?: string; addresstype?: string }[];
+    if (!hit || !sameText(hit.name, q) || !['city', 'town', 'village', 'municipality', 'hamlet'].includes(hit.addresstype ?? '')) return null;
+    return { lat: Number(hit.lat), lng: Number(hit.lon) };
+  } catch {
+    return null;
+  }
+}
+
+/** Courses within 25 km of a town or city the words name (none if they don't name one). */
+async function nearbyCourses(q: string, byName: ApiCourse[]): Promise<{ courses: ApiCourse[]; partial: boolean }> {
+  const at = await placeOf(q, byName);
+  if (!at) return { courses: [], partial: false };
+  const r = await provider(`/proximity?latitude=${at.lat}&longitude=${at.lng}&radius=25&unit=km&limit=25`);
+  if (!r.ok) return { courses: [], partial: true }; // e.g. 403 on the free plan
+  return { courses: ((r.body as { courses?: ApiCourse[] }).courses ?? []).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)), partial: false };
+}
+
 async function provider(path: string): Promise<{ ok: true; body: unknown } | { ok: false; status: number }> {
   const key = Deno.env.get('GOLFCOURSEAPI_KEY');
   if (!key) return { ok: false, status: 503 };
@@ -67,14 +95,23 @@ Deno.serve(async (req) => {
   if (body.action === 'search') {
     const q = String(body.q ?? '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 60);
     if (q.length < 3) return json({ courses: [] });
-    const { data: hit } = await admin.from('catalog_searches').select('results, searched_at').eq('q', q).maybeSingle();
+    // v2: searches now include towns and cities, so results saved before that are fetched again.
+    const key = `v2:${q}`;
+    const { data: hit } = await admin.from('catalog_searches').select('results, searched_at').eq('q', key).maybeSingle();
     if (hit && Date.now() - new Date(hit.searched_at).getTime() < SEARCH_TTL_DAYS * 864e5) return json({ courses: hit.results, cached: true });
     const r = await provider(`/search?search_query=${encodeURIComponent(q)}`);
     if (!r.ok) return json({ error: r.status === 429 ? 'The online course search is busy. Try again later.' : 'Online course search isn’t available right now.', status: r.status }, 502);
-    const list = ((r.body as { courses?: ApiCourse[] }).courses ?? []).slice(0, 25).map((c) => ({
+    const byName = (r.body as { courses?: ApiCourse[] }).courses ?? [];
+    // The provider's search only matches course and club names. If the words are a town or city, also find the
+    // courses around it (Pro plan only; on the free plan this quietly finds nothing).
+    const near = await nearbyCourses(q, byName);
+    const seen = new Set<string>();
+    const list = [...byName, ...near.courses].filter((c) => !seen.has(String(c.id)) && seen.add(String(c.id))).slice(0, 30).map((c) => ({
       sourceId: String(c.id), id: appId(c.id), name: title(c), city: c.location?.city ?? null, region: c.location?.state ?? null, country: country(c.location?.country),
     }));
-    await admin.from('catalog_searches').upsert({ q, results: list, searched_at: new Date().toISOString() });
+    // A town search that couldn't look around the town (e.g. before the Pro plan) is kept for a day, not 30.
+    const searchedAt = near.partial ? new Date(Date.now() - (SEARCH_TTL_DAYS - 1) * 864e5) : new Date();
+    await admin.from('catalog_searches').upsert({ q: key, results: list, searched_at: searchedAt.toISOString() });
     return json({ courses: list });
   }
 
