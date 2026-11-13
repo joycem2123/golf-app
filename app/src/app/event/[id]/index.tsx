@@ -8,6 +8,7 @@ import { EventRounds } from '@/components/event-rounds';
 import { ScheduleSection } from '@/components/schedule';
 import { useAutoIdentity } from '@/components/people';
 import { ShareCard } from '@/components/share-card';
+import { TvButton } from '@/components/tv-button';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
 import { shareEvent } from '@/sync/sync';
 import { describeRecurrence, formatDate } from '@/lib/dates';
@@ -229,6 +230,7 @@ export default function EventScreen() {
         {e.remote?.role !== 'viewer' && !e.rounds && (
           <Button small kind="ghost" title={e.teams ? 'Start an unscheduled match' : 'Start an unscheduled round'} onPress={() => router.push({ pathname: '/new-round', params: { eventId: e.id } })} />
         )}
+        <TvButton e={e} />
         <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />
 
 

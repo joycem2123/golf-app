@@ -1,5 +1,5 @@
 import { Outfit_600SemiBold, Outfit_700Bold, useFonts } from '@expo-google-fonts/outfit';
-import { DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
+import { DefaultTheme, Redirect, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -18,6 +18,9 @@ export { ErrorBoundary } from '@/components/error-screen';
 SplashScreen.preventAutoHideAsync();
 installCrashGuard();
 
+/** The website copy at clutchupgolf.com/tv/ is only the TV board (set when that copy is built). */
+const TV_ONLY = process.env.EXPO_PUBLIC_TV_ONLY === '1';
+
 export default function RootLayout() {
   const c = useColors();
   // The wordmark font; keep the splash screen up until it's ready (or failed, then fall back).
@@ -32,6 +35,8 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
   if (!ready) return null;
+  // The TV board's website: nothing but the board (no sign-in, no syncing, no tours).
+  if (TV_ONLY && !pathname.startsWith('/board')) return <Redirect href="/board" />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -62,6 +67,7 @@ export default function RootLayout() {
         <Stack.Screen name="head-to-head" options={{ title: 'Head to Head' }} />
         <Stack.Screen name="join" options={{ title: 'Join with Code', presentation: 'modal' }} />
         <Stack.Screen name="pro" options={{ title: 'Clutch Up Pro', presentation: 'modal' }} />
+        <Stack.Screen name="board" options={{ headerShown: false, title: 'Clutch Up TV' }} />
         <Stack.Screen name="round/[id]/index" options={{ title: 'Scorecard' }} />
         <Stack.Screen name="round/[id]/results" options={{ title: 'Results' }} />
         <Stack.Screen name="round/[id]/match/[gi]" options={{ title: "Match" }} />
@@ -71,10 +77,10 @@ export default function RootLayout() {
         <Stack.Screen name="course/[id]" options={{ title: "Course" }} />
         <Stack.Screen name="course/new" options={{ title: "Add a course", presentation: "modal" }} />
       </Stack>
-      <SyncProvider />
+      {!TV_ONLY && <SyncProvider />}
     </ThemeProvider>
-    <WelcomeVideo onHome={pathname === '/'} />
-    <TutorialPlayer />
+    {!TV_ONLY && <WelcomeVideo onHome={pathname === '/'} />}
+    {!TV_ONLY && <TutorialPlayer />}
     </GestureHandlerRootView>
   );
 }
