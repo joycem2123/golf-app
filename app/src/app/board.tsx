@@ -80,7 +80,7 @@ function useInterFont() {
 
 export default function Board() {
   useInterFont();
-  const { c: codeParam, code: codeAlt } = useLocalSearchParams<{ c?: string; code?: string }>();
+  const { c: codeParam, code: codeAlt, layout } = useLocalSearchParams<{ c?: string; code?: string; layout?: string }>();
   const code = String(codeParam ?? codeAlt ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   const [raw, setRaw] = useState<Raw | undefined>(undefined);
   const [stale, setStale] = useState(false);
@@ -116,7 +116,7 @@ export default function Board() {
       ) : raw === null ? (
         <Message u={u} title="No event with that code" sub={`Check the code (${code}) and try again.`} />
       ) : (
-        <BoardView raw={raw} u={u} code={code} stale={stale} updated={updated} />
+        <BoardView raw={raw} u={u} code={code} stale={stale} updated={updated} scroll={layout === 'scroll'} />
       )}
     </View>
   );
@@ -134,7 +134,7 @@ function Message({ u, title, sub }: { u: number; title: string; sub: string }) {
 
 type Side = { letter: string; name: string; color: string; points: number; projected: number };
 
-function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u: number; code: string; stale: boolean; updated: Date | null }) {
+function BoardView({ raw, u, code, stale, updated, scroll }: { raw: NonNullable<Raw>; u: number; code: string; stale: boolean; updated: Date | null; scroll?: boolean }) {
   const model = useMemo(() => {
     const { playerInfo, ...rest } = raw.event.data;
     const e = { ...(rest as unknown as EventRecord), id: raw.event.id };
@@ -220,6 +220,10 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
         )}
       </View>
 
+    {scroll ? (
+      <ScrollPage e={e} rounds={rounds} names={names} u={u} picks={picks} sides={sides} featured={featured} code={code} joinUrl={joinUrl}
+        screenRound={screenRound} open={open} go={go} toggle={toggle} />
+    ) : (
     <View style={{ flex: 1, padding: 26 * u, gap: 22 * u }}>
       <View style={{ flex: 1, flexDirection: 'row', gap: 26 * u }}>
         {/* Main: team score and matches (or the leaderboard), a round's details, or one match's scorecard */}
@@ -257,6 +261,7 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
         </View>
       </View>
     </View>
+    )}
     </View>
   );
 }
@@ -425,7 +430,7 @@ const boardMatches = (r: RoundRecord, results: ReturnType<typeof evaluate>) =>
   matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter);
 
 /** Every match in the round: Team A's players left, Team B's right. Tap one to open its scorecard underneath. */
-function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRecord; leftLetter?: string; names: Names; u: number; picks: Picks; open: number | null; onMatch: (gi: number) => void }) {
+function Matches({ r, leftLetter, names, u, picks, open, onMatch, inline }: { r: RoundRecord; leftLetter?: string; names: Names; u: number; picks: Picks; open: number | null; onMatch: (gi: number) => void; inline?: boolean }) {
   const results = evaluate(r);
   const rows = boardMatches(r, results);
   const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
@@ -442,6 +447,19 @@ function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRe
   const perCol = Math.ceil(rows.length / cols);
   const rowH = Math.max(72, Math.min(100, 560 / Math.ceil(rows.length / (rows.length > 6 ? 2 : 1)))) * u;
   const columns = Array.from({ length: cols }, (_, i) => rows.slice(i * perCol, (i + 1) * perCol));
+  if (inline) {
+    // Scrolling page: every match at full size, one under another; the page itself scrolls.
+    return (
+      <View style={{ gap: 12 * u }}>
+        {rows.map((m) => (
+          <View key={m.gi}>
+            <MatchRow r={r} results={results} m={m} leftLetter={leftLetter} names={names} u={u} picks={picks} h={96 * u} open={open === m.gi} onPress={() => onMatch(m.gi)} />
+            {open === m.gi ? <Scorecard r={r} results={results} m={m} leftLetter={leftLetter} names={names} u={u} picks={picks} /> : null}
+          </View>
+        ))}
+      </View>
+    );
+  }
   return (
     <View style={{ flex: 1, minHeight: 0, gap: 8 * u }}>
       <ScrollView ref={scroller} style={{ flex: 1, marginHorizontal: -14 * u }} contentContainerStyle={{ flexDirection: 'row', gap: 16 * u, paddingHorizontal: 14 * u, paddingTop: 4 * u, paddingBottom: 30 * u }}>
@@ -484,7 +502,7 @@ function roundCourse(r: RoundRecord) {
 }
 
 /** One round: its date, course, format and team score, then every match (tap for the scorecard). */
-function RoundDetail({ e, r, sides, names, u, picks, onBack, open, onMatch }: { e: EventRecord; r: RoundRecord; sides: [Side, Side] | null; names: Names; u: number; picks: Picks; onBack: () => void; open: number | null; onMatch: (gi: number) => void }) {
+function RoundDetail({ e, r, sides, names, u, picks, onBack, open, onMatch, inline }: { e: EventRecord; r: RoundRecord; sides: [Side, Side] | null; names: Names; u: number; picks: Picks; onBack: () => void; open: number | null; onMatch: (gi: number) => void; inline?: boolean }) {
   const results = evaluate(r);
   const plan = (e.rounds ?? []).find((p) => p.roundId === r.id);
   const formats = [...new Set(r.games.filter((g) => !(g.id ?? '').startsWith('side-')).map(gameName))].join(' + ');
@@ -502,7 +520,7 @@ function RoundDetail({ e, r, sides, names, u, picks, onBack, open, onMatch }: { 
     <>
       <BackBar u={u} back="Main board" onBack={onBack} title={r.label ?? (plan ? `Round ${plan.number}` : 'Round')} sub={sub} />
       {bar ? <TeamBar sides={bar} u={u * 0.8} /> : null}
-      <Matches r={r} leftLetter={sides?.[0].letter} names={names} u={u} picks={picks} open={open} onMatch={onMatch} />
+      <Matches r={r} leftLetter={sides?.[0].letter} names={names} u={u} picks={picks} open={open} onMatch={onMatch} inline={inline} />
     </>
   );
 }
@@ -731,7 +749,7 @@ function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds:
  * it waits a few seconds at the top, glides to the bottom, waits, then goes back to the top and starts again.
  * Anyone can still scroll it by hand; it carries on from wherever they leave it.
  */
-function AutoScroll({ u, style, maxHeight, gap, children }: { u: number; style?: object; maxHeight?: number; gap?: number; children: React.ReactNode }) {
+function AutoScroll({ u, style, maxHeight, gap, contentStyle, children }: { u: number; style?: object; maxHeight?: number; gap?: number; contentStyle?: object; children: React.ReactNode }) {
   const ref = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [box, setBox] = useState(0);
   const [content, setContent] = useState(0);
@@ -772,7 +790,7 @@ function AutoScroll({ u, style, maxHeight, gap, children }: { u: number; style?:
     <ScrollView
       ref={ref}
       style={[style, maxHeight !== undefined ? { maxHeight } : null]}
-      contentContainerStyle={{ gap }}
+      contentContainerStyle={[{ gap }, contentStyle]}
       showsVerticalScrollIndicator={false}
       scrollEventThrottle={100}
       onScroll={(ev) => {
@@ -785,5 +803,86 @@ function AutoScroll({ u, style, maxHeight, gap, children }: { u: number; style?:
     >
       {children}
     </ScrollView>
+  );
+}
+
+/**
+ * PREVIEW ONLY (?layout=scroll): the board as one long page instead of everything on one screen.
+ * Big sections stacked top to bottom; on a TV the whole page glides down slowly, pauses, and goes back to the top.
+ */
+function ScrollPage({ e, rounds, names, u, picks, sides, featured, code, joinUrl, screenRound, open, go, toggle }: {
+  e: EventRecord; rounds: RoundRecord[]; names: Names; u: number; picks: Picks; sides: [Side, Side] | null; featured?: RoundRecord; code: string; joinUrl: string;
+  screenRound?: RoundRecord; open: Open; go: (s: Screen) => void; toggle: (id: string, gi: number) => void;
+}) {
+  const title = (text: string, right?: string) => (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16 * u, marginTop: 18 * u }}>
+      <View style={{ width: 6 * u, height: 28 * u, borderRadius: 3 * u, backgroundColor: GOLD, alignSelf: 'center' }} />
+      <Text style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 40 * u }}>{text}</Text>
+      {right ? <Text style={{ fontFamily: SANS, color: 'rgba(255,255,255,0.6)', fontWeight: '700', fontSize: 18 * u, letterSpacing: 2 * u }}>{right.toUpperCase()}</Text> : null}
+    </View>
+  );
+  const played = (e.rounds ?? []).map((p) => ({ p, r: p.roundId ? rounds.find((x) => x.id === p.roundId) : undefined })).filter((x) => x.r) as { p: NonNullable<EventRecord['rounds']>[number]; r: RoundRecord }[];
+  const extra = rounds.filter((r) => !(e.rounds ?? []).some((p) => p.roundId === r.id)).map((r) => ({ p: undefined, r }));
+  const all = [...played, ...extra];
+  const card = { backgroundColor: PANEL, borderRadius: 22 * u, padding: 22 * u, borderWidth: 1, borderColor: PANEL_LINE, ...SHADOW };
+  return (
+    <AutoScroll u={u} style={{ flex: 1 }} gap={18 * u} contentStyle={{ paddingHorizontal: 60 * u, paddingTop: 30 * u, paddingBottom: 60 * u, width: '100%', maxWidth: 1700 * u, alignSelf: 'center' }}>
+      {screenRound ? (
+        <RoundDetail e={e} r={screenRound} sides={sides} names={names} u={u} picks={picks} onBack={() => go({ k: 'board' })} open={open?.id === screenRound.id ? open.gi : null} onMatch={(gi) => toggle(screenRound.id, gi)} inline />
+      ) : (
+        <>
+          {sides ? <TeamBar sides={sides} u={u * 1.1} /> : null}
+          {featured ? (
+            <>
+              {title(featured.label ?? 'Matches', featured.status === 'active' ? 'Live now · tap a match for its scorecard' : 'Final')}
+              <Matches r={featured} leftLetter={sides?.[0].letter} names={names} u={u} picks={picks} open={open?.id === featured.id ? open.gi : null} onMatch={(gi) => toggle(featured.id, gi)} inline />
+            </>
+          ) : null}
+        </>
+      )}
+
+      {all.length ? title('Rounds', `${all.length} played`) : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 * u }}>
+        {all.map(({ p, r }) => {
+          const score = sides ? roundTeamScore(r, evaluate(r)) : null;
+          const of = (L: string) => score?.find((t) => t.letter === L)?.points ?? 0;
+          const date = p?.date ? formatDate(p.date, { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+          return (
+            <Pressable key={r.id} onPress={() => go({ k: 'round', id: r.id })} accessibilityRole="button" accessibilityLabel={`Open ${r.label ?? 'round'}`}
+              style={(st) => ({ ...card, width: 300 * u, gap: 8 * u, backgroundColor: screenRound?.id === r.id ? '#EFEAD8' : hov(st) ? '#FFFFFF' : PANEL })}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ flex: 1, color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 26 * u }}>{r.label ?? (p ? `Round ${p.number}` : 'Round')}</Text>
+                <Text style={{ fontFamily: SANS, color: r.status === 'active' ? '#D63A2A' : MUTED, fontWeight: '800', fontSize: 14 * u, letterSpacing: 1.5 * u }}>{r.status === 'active' ? '● LIVE' : 'FINAL'}</Text>
+              </View>
+              {sides && score ? (
+                <Text style={{ fontFamily: fonts.serif, fontWeight: '700', fontSize: 44 * u, ...TABULAR }}>
+                  <Text style={{ color: sides[0].color }}>{formatPoints(of(sides[0].letter))}</Text>
+                  <Text style={{ color: MUTED }}> – </Text>
+                  <Text style={{ color: sides[1].color }}>{formatPoints(of(sides[1].letter))}</Text>
+                </Text>
+              ) : null}
+              <Text style={{ fontFamily: SANS, color: MUTED, fontWeight: '600', fontSize: 15 * u }}>{[date, roundCourse(r)].filter(Boolean).join(' · ')}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 20 * u, alignItems: 'flex-start', marginTop: 18 * u }}>
+        <View style={{ flex: 1.3 }}>{sides ? <Contributions e={e} rounds={rounds} names={names} u={u * 1.15} picks={picks} /> : null}</View>
+        <View style={{ flex: 1, gap: 20 * u }}>
+          <NextUp e={e} names={names} u={u * 1.1} picks={picks} />
+          <View style={{ ...card, flexDirection: 'row', alignItems: 'center', gap: 20 * u }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 14 * u, padding: 6 * u, borderWidth: 1, borderColor: PANEL_LINE }}>
+              <QrCode value={joinUrl} size={130 * u} color={INK} />
+            </View>
+            <View style={{ flex: 1, gap: 6 * u }}>
+              <Text style={{ color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 26 * u }}>Follow live on your phone</Text>
+              <Text style={{ fontFamily: SANS, color: MUTED, fontSize: 16 * u }}>Scan, or tap Join with Code in Clutch Up</Text>
+              <Text style={{ fontFamily: SANS, color: PRIMARY, fontWeight: '800', fontSize: 40 * u, letterSpacing: 8 * u, ...TABULAR }}>{code}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </AutoScroll>
   );
 }
