@@ -611,16 +611,19 @@ function Leaderboard({ e, rounds, names, u }: { e: EventRecord; rounds: RoundRec
 function RoundsList({ e, rounds, sides, u, selected, onRound }: { e: EventRecord; rounds: RoundRecord[]; sides: [Side, Side] | null; u: number; selected?: string; onRound: (id: string) => void }) {
   const list = (e.rounds ?? []).map((p) => ({ p, r: p.roundId ? rounds.find((x) => x.id === p.roundId) : undefined })).filter((x) => x.r);
   const extra = rounds.filter((r) => !(e.rounds ?? []).some((p) => p.roundId === r.id)).map((r) => ({ p: undefined, r }));
-  const all = [...list, ...extra].slice(-6);
+  const all = [...list, ...extra];
+  // Rows are a fixed height so four of them set the panel's height; more than four scroll by themselves.
+  const rowH = 38 * u;
+  const gap = 4 * u;
   if (!all.length) return <Text style={{ color: MUTED, fontSize: 20 * u }}>No rounds played yet.</Text>;
   return (
-    <View style={{ gap: 4 * u }}>
+    <AutoScroll u={u} maxHeight={all.length > 4 ? rowH * 4 + gap * 3 : undefined} gap={gap}>
       {all.map(({ p, r }) => {
         const score = sides && r ? roundTeamScore(r, evaluate(r)) : null;
         const of = (L: string) => score?.find((t) => t.letter === L)?.points ?? 0;
         return (
           <Pressable key={r!.id} onPress={() => onRound(r!.id)} accessibilityRole="button" accessibilityLabel={`Open ${r!.label ?? 'round'}`}
-            style={(st) => ({ flexDirection: 'row', alignItems: 'center', gap: 10 * u, paddingVertical: 4 * u, paddingHorizontal: 8 * u, marginHorizontal: -8 * u, borderRadius: 8 * u, backgroundColor: selected === r!.id ? 'rgba(31,90,61,0.12)' : hov(st) ? 'rgba(31,90,61,0.06)' : 'transparent' })}>
+            style={(st) => ({ flexDirection: 'row', alignItems: 'center', gap: 10 * u, height: rowH, paddingHorizontal: 8 * u, marginHorizontal: -8 * u, borderRadius: 8 * u, backgroundColor: selected === r!.id ? 'rgba(31,90,61,0.12)' : hov(st) ? 'rgba(31,90,61,0.06)' : 'transparent' })}>
             <Text numberOfLines={1} style={{ flex: 1, color: INK, fontWeight: '700', fontSize: 21 * u }}>{r!.label ?? (p ? `Round ${p.number}` : 'Round')}</Text>
             {sides && score ? (
               <Text style={{ fontWeight: '800', fontSize: 22 * u, ...TABULAR }}>
@@ -634,7 +637,7 @@ function RoundsList({ e, rounds, sides, u, selected, onRound }: { e: EventRecord
           </Pressable>
         );
       })}
-    </View>
+    </AutoScroll>
   );
 }
 
@@ -690,7 +693,7 @@ function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds:
         <Text style={{ width: 56 * u, textAlign: 'right', color: MUTED, fontWeight: '800', fontSize: 13 * u, letterSpacing: 1 * u }}>PTS</Text>
         <Text style={{ width: 80 * u, textAlign: 'right', color: MUTED, fontWeight: '800', fontSize: 13 * u, letterSpacing: 1 * u }}>W–H–L</Text>
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 2 * u }}>
+      <AutoScroll u={u} style={{ flex: 1 }} gap={2 * u}>
         {rows.map((r) => {
           const L = letterOf(r.playerId);
           const color = L ? teamColor(L, picks).color : MUTED;
@@ -703,7 +706,69 @@ function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds:
             </View>
           );
         })}
-      </ScrollView>
+      </AutoScroll>
     </View>
+  );
+}
+
+/**
+ * A list that scrolls itself, slowly, when it has more than fits (the Rounds and Individual contributions panels):
+ * it waits a few seconds at the top, glides to the bottom, waits, then goes back to the top and starts again.
+ * Anyone can still scroll it by hand; it carries on from wherever they leave it.
+ */
+function AutoScroll({ u, style, maxHeight, gap, children }: { u: number; style?: object; maxHeight?: number; gap?: number; children: React.ReactNode }) {
+  const ref = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const [box, setBox] = useState(0);
+  const [content, setContent] = useState(0);
+  const y = useRef(0);
+  const overflow = Math.round(content - box);
+  useEffect(() => {
+    if (overflow < 1) {
+      y.current = 0;
+      ref.current?.scrollTo({ y: 0, animated: false });
+      return;
+    }
+    const TICK = 33;
+    const SPEED = 24 * u; // pixels a second: slow enough to read names as they pass
+    const PAUSE = 3500;
+    let waitUntil = Date.now() + PAUSE;
+    let atBottom = false;
+    const t = setInterval(() => {
+      const now = Date.now();
+      if (now < waitUntil) return;
+      if (atBottom) {
+        // Back to the top, then wait before going again.
+        atBottom = false;
+        y.current = 0;
+        ref.current?.scrollTo({ y: 0, animated: true });
+        waitUntil = now + PAUSE;
+        return;
+      }
+      y.current = Math.min(overflow, y.current + (SPEED * TICK) / 1000);
+      ref.current?.scrollTo({ y: y.current, animated: false });
+      if (y.current >= overflow) {
+        atBottom = true;
+        waitUntil = now + PAUSE;
+      }
+    }, TICK);
+    return () => clearInterval(t);
+  }, [overflow, u]);
+  return (
+    <ScrollView
+      ref={ref}
+      style={[style, maxHeight !== undefined ? { maxHeight } : null]}
+      contentContainerStyle={{ gap }}
+      showsVerticalScrollIndicator={false}
+      scrollEventThrottle={100}
+      onScroll={(ev) => {
+        // Only follow someone scrolling by hand; our own sub-pixel steps come back rounded.
+        const at = ev.nativeEvent.contentOffset.y;
+        if (Math.abs(at - y.current) > 3) y.current = at;
+      }}
+      onLayout={(ev) => setBox(ev.nativeEvent.layout.height)}
+      onContentSizeChange={(_, h) => setContent(h)}
+    >
+      {children}
+    </ScrollView>
   );
 }
