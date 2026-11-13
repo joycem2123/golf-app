@@ -1,7 +1,8 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, Text, View } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
 import type { RecordedMatch } from '@golf/engine';
 
@@ -19,32 +20,41 @@ import { canDeleteEvent } from '@/lib/events';
 export const canDeleteRound = (r: RoundRecord) => r.status !== 'complete' && (!r.completedAt || holesComplete(r) < playedHoles(r).length);
 
 /** Swipe a card left to reveal a trash can. */
-export function SwipeToDelete({ children, onDelete, label, disabled }: { children: ReactNode; onDelete: () => void; label: string; disabled?: boolean }) {
+/**
+ * The red Delete button behind a swipeable card. It's invisible until the card is actually swiped, so it can't show
+ * through around a card that's taller than its background (e.g. an event opened up to show its rounds).
+ */
+function DeleteAction({ progress, methods, label, onDelete }: { progress: SharedValue<number>; methods: SwipeableMethods; label: string; onDelete: () => void }) {
   const c = useColors();
+  const shown = useAnimatedStyle(() => ({ opacity: progress.value > 0.02 ? Math.min(1, progress.value * 3) : 0 }));
+  return (
+    <Animated.View style={[{ justifyContent: 'center', paddingLeft: space.sm }, shown]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${label}`}
+        onPress={() => {
+          methods.close();
+          onDelete();
+        }}
+        style={({ pressed }) => ({
+          width: 76, height: '100%', minHeight: 64, borderRadius: radius.lg, backgroundColor: c.danger,
+          alignItems: 'center', justifyContent: 'center', gap: 4, opacity: pressed ? 0.8 : 1,
+        })}>
+        {Platform.OS === 'ios' ? <SymbolView name="trash.fill" tintColor="#fff" size={24} /> : <Text style={{ color: '#fff', fontSize: 20 }}>🗑</Text>}
+        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Delete</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+export function SwipeToDelete({ children, onDelete, label, disabled }: { children: ReactNode; onDelete: () => void; label: string; disabled?: boolean }) {
   if (disabled) return <>{children}</>;
   return (
     <Swipeable
       friction={2}
       rightThreshold={40}
       overshootRight={false}
-      renderRightActions={(_progress, _translation, methods) => (
-        <View style={{ justifyContent: 'center', paddingLeft: space.sm }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Delete ${label}`}
-            onPress={() => {
-              methods.close();
-              onDelete();
-            }}
-            style={({ pressed }) => ({
-              width: 76, height: '100%', minHeight: 64, borderRadius: radius.lg, backgroundColor: c.danger,
-              alignItems: 'center', justifyContent: 'center', gap: 4, opacity: pressed ? 0.8 : 1,
-            })}>
-            {Platform.OS === 'ios' ? <SymbolView name="trash.fill" tintColor="#fff" size={24} /> : <Text style={{ color: '#fff', fontSize: 20 }}>🗑</Text>}
-            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Delete</Text>
-          </Pressable>
-        </View>
-      )}>
+      renderRightActions={(progress, _translation, methods) => <DeleteAction progress={progress} methods={methods} label={label} onDelete={onDelete} />}>
       {children}
     </Swipeable>
   );
