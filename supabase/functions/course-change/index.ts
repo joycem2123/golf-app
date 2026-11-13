@@ -1,6 +1,6 @@
 /**
- * A player saved a change to a scorecard (their own copy only). Work out exactly what changed, log it in
- * course_change_log, and send the admins a push notification so the card can be reviewed.
+ * A player saved a change to a scorecard (their own copy only). Work out exactly what changed and log it in
+ * course_change_log, where the team reviews it in the app (More → Course changes). No notifications are sent.
  *   body: { before: Course, after: Course, method?: 'manual' | 'photo' }
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -77,22 +77,6 @@ Deno.serve(async (req) => {
   });
   if (error) { console.error('log failed', error); return json({ error: 'Couldn’t record the change.' }, 500); }
 
-  // Tell the admins (not the person who made the change).
-  const { data: admins } = await admin.from('admins').select('user_id');
-  const ids = (admins ?? []).map((a: { user_id: string }) => a.user_id).filter((id: string) => id !== me);
-  if (ids.length) {
-    const { data: tokens } = await admin.from('push_tokens').select('token').in('user_id', ids);
-    const messages = (tokens ?? []).map((t: { token: string }) => ({
-      to: t.token,
-      title: `Scorecard changed: ${after.name}`,
-      body: `${name} (${method === 'photo' ? 'from a photo' : 'by hand'}) · ${changes.length} change${changes.length === 1 ? '' : 's'}: ${summary}`.slice(0, 230),
-      data: { kind: 'course_change', courseId: after.id },
-      sound: 'default',
-    }));
-    if (messages.length) {
-      await fetch('https://exp.host/--/api/v2/push/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(messages) })
-        .catch((e) => console.error('push failed', e));
-    }
-  }
+  // No notifications: the change waits in the team's review inbox in the app (More → Course changes).
   return json({ ok: true, changes: changes.length });
 });

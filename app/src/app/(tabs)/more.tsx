@@ -8,6 +8,7 @@ import { Body, Button, Card, Toggle } from '@/components/ui';
 import { useUsageSharing } from '@/lib/usage';
 import { liveActivitiesSupported, useLiveActivityPref } from '@/lib/live-activity';
 import { setPreviewFree, usePro } from '@/lib/pro';
+import { useAdmin } from '@/lib/admin';
 import { openTutorial } from '@/lib/tutorial';
 import { resetTips } from '@/components/tip';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
@@ -39,6 +40,7 @@ export default function More() {
   const [sharingUsage, setSharingUsage] = useUsageSharing();
   const [liveCard, setLiveCard] = useLiveActivityPref();
   const pro = usePro();
+  const team = useAdmin();
   const [tipsReset, setTipsReset] = useState(false);
   const c = useColors();
   const signedIn = !!session?.user && !session.user.is_anonymous;
@@ -61,6 +63,7 @@ export default function More() {
           <Row title="How Clutch Up works" sub="A two-minute video tour of the app" onPress={() => openTutorial()} />
           <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
           <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
+          {team.admin && <Row title={`Course changes${team.open ? ` · ${team.open} to review` : ''}`} sub="Team only · scorecard changes players have saved" href="/course-changes" />}
           <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
           <Row title="Show tips again" sub="Bring back the one-time tips and the welcome video" onPress={() => void resetTips().then(() => setTipsReset(true))} />
           <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
