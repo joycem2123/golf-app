@@ -40,6 +40,7 @@ export default function More() {
         <Card style={{ paddingVertical: 0 }}>
           <Row title="Account Settings" href="/account" />
           <Row title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade to Clutch Up Pro'} onPress={() => router.push('/pro')} />
+          <Row title="Recently deleted" href="/recently-deleted" />
           <Row title="How Clutch Up works" onPress={() => openTutorial()} />
           {team.admin && <Row title={`Course changes${team.open ? ` · ${team.open} to review` : ''}`} href="/course-changes" />}
           <Row title="Contact support" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
