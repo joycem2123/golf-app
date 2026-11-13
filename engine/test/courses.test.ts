@@ -14,8 +14,8 @@ describe('seed courses', () => {
 
   it('Willow Park blue tees: course handicap for a 12.0 index', () => {
     const blue = findCourse('willow-park')!.tees.find((t) => t.id === 'blue')!;
-    // 12.0 × 130/113 + (70.6 − 71) = 13.405 → 13
-    expect(courseHandicap(12.0, blue)).toBe(13);
+    // 12.0 × 126/113 + (69.5 − 71) = 11.88 → 12
+    expect(courseHandicap(12.0, blue)).toBe(12);
   });
 
   it('uses each tee’s own stroke index (Arroyo Gold vs Blue differ)', () => {
@@ -44,7 +44,12 @@ describe('course history', () => {
     const old = courseAsOf('willow-park', Date.UTC(2026, 9, 1));
     expect(old?.tees.map((t) => t.id)).not.toContain('black');
     expect(old?.tees[0].holes[0].strokeIndex).toBe(3);
-    expect(courseAsOf('willow-park', Date.now())).toBeUndefined();
-    expect(findCourse('willow-park')?.tees.map((t) => t.name)).toEqual(['Black', 'Blue', 'White', 'Gold', 'Silver', 'White', 'Gold']);
+    // Rounds from the club's Nov 2026 card (before the GolfCourseAPI update) keep that card.
+    const nov = courseAsOf('willow-park', Date.UTC(2026, 10, 9));
+    expect(nov?.tees.map((t) => t.name)).toEqual(['Black', 'Blue', 'White', 'Gold', 'Silver', 'White', 'Gold']);
+    expect(courseAsOf('willow-park', Date.now() + 60_000)).toBeUndefined();
+    const now = findCourse('willow-park')!;
+    expect(now.tees).toHaveLength(16);
+    expect(now.tees.find((t) => t.id === 'black')).toMatchObject({ courseRating: 70.9, slope: 129 });
   });
 });
