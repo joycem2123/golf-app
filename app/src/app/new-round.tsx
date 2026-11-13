@@ -24,6 +24,7 @@ import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { formatDate, today } from '@/lib/dates';
 import { canStartOn } from '@/lib/event-calendar';
 import { getCourse, useCourses } from '@/lib/courses';
+import { planName, roundNameProblem } from '@/lib/events';
 import { CoursePicker } from '@/components/course-picker';
 import { track } from '@/lib/usage';
 import { getPendingScan, guessRows, holesFromCard, ledgerFromCard, playedAt, setPendingScan } from '@/lib/round-scan';
@@ -228,11 +229,20 @@ export default function NewRound() {
         : null;
   const completeRound = useStore((s) => s.completeRound);
 
+  // The round's name in its event ("Round 8" unless renamed), which must be unique in the event.
+  const defaultRoundName = planned ? planName(planned) : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : null;
+  const [roundNameEdit, setRoundNameEdit] = useState<string | null>(null);
+  const roundName = roundNameEdit ?? defaultRoundName ?? '';
+  const renameEventRound = useStore((s) => s.renameEventRound);
+  const allRounds = useStore((s) => s.rounds);
+  const nameProblem = event && defaultRoundName ? roundNameProblem(event, allRounds, planned?.id ?? null, roundName) : null;
+
   // A planned round on a later day: everything can be set up now, but it's saved, not started.
   const planMode = !!event && !!planned?.date && planned.date > today() && !scan;
   const setEventRoundSetup = useStore((s) => s.setEventRoundSetup);
   const savePlan = () => {
-    if (!event || !planned || !course || !draft || problem) return;
+    if (!event || !planned || !course || !draft || problem || nameProblem) return;
+    if (roundName.trim() !== planName(planned)) renameEventRound(event.id, planned.id, roundName);
     setEventRoundSetup(event.id, planned.id, { courseId: course.id, roster, teamOf, teamColors, teamNames, letters, noTeams, draft, sideMatches, statsEnabled });
     track('event_round_set_up_ahead');
     router.back();
@@ -310,7 +320,7 @@ export default function NewRound() {
   };
 
   const start = () => {
-    if (!course || !draft || problem || scanProblem || (!event && toSeason === 'yes' && !season)) return;
+    if (!course || !draft || problem || scanProblem || nameProblem || (!event && toSeason === 'yes' && !season)) return;
     const id = newId();
     const round: RoundRecord = {
       id,
@@ -327,7 +337,7 @@ export default function NewRound() {
       status: 'active',
       notices: [],
       eventId: event?.id ?? season?.id,
-      label: planned ? `Round ${planned.number}` : event && addingRound ? `Round ${(event.rounds?.length ?? 0) + 1}` : season ? `Round ${(season.rounds?.length ?? 0) + 1}` : scheduled?.label,
+      label: event && defaultRoundName ? roundName.trim() : season ? `Round ${(season.rounds?.length ?? 0) + 1}` : scheduled?.label,
       teamOf: !noTeams && Object.keys(teamOf).length ? roundTeamOf() : undefined,
       teamColors: !noTeams && Object.keys(teamOf).length && Object.keys(teamColors).length ? teamColors : undefined,
       teamNames: !noTeams && Object.keys(teamOf).length && Object.values(teamNames).some((v) => v.trim()) ? teamNames : undefined,
@@ -341,8 +351,14 @@ export default function NewRound() {
     if (plain) saveDraft('round', null);
     track('round_created', { games: round.games.map((g) => g.type).join(','), players: players.length, teams: !!round.teamOf, stats: !!statsEnabled, in_event: !!round.eventId, side_matches: sideMatches.length });
     if (event && scheduled) saveScheduled(event.id, { ...scheduled, roundId: id });
-    if (event && planned) setEventRoundId(event.id, planned.id, id);
-    if (event && addingRound && !planned) addEventRound(event.id, { id: newId(), number: 0, date: today(), draft, roundId: id });
+    if (event && planned) {
+      setEventRoundId(event.id, planned.id, id);
+      if (roundName.trim() !== planName(planned)) renameEventRound(event.id, planned.id, roundName);
+    }
+    if (event && addingRound && !planned) {
+      const custom = roundName.trim() !== `Round ${(event.rounds?.length ?? 0) + 1}` ? roundName.trim() : undefined;
+      addEventRound(event.id, { id: newId(), number: 0, date: today(), draft, roundId: id, ...(custom ? { name: custom } : {}) });
+    }
     if (!event && season) {
       // Joins the season: listed as its next round, and anyone new joins the season.
       addEventRound(season.id, { id: newId(), number: 0, date: today(), draft, roundId: id });
@@ -407,11 +423,11 @@ export default function NewRound() {
       />
     ) : step === 'game' && course && planMode ? (
       // Set up ahead of the day: saved to the event, started on the day.
-      <Button title="Save round setup" disabled={!!problem} onPress={savePlan} />
+      <Button title="Save round setup" disabled={!!problem || !!nameProblem} onPress={savePlan} />
     ) : step === 'game' && course ? (
       <Button
         title={scan ? 'Calculate results' : season ? `Start round · ${season.name}` : 'Start round'}
-        disabled={!!problem || !!scanProblem || (!event && toSeason === 'yes' && !season)}
+        disabled={!!problem || !!scanProblem || !!nameProblem || (!event && toSeason === 'yes' && !season)}
         onPress={start}
       />
     ) : null;
@@ -419,7 +435,7 @@ export default function NewRound() {
   // A planned round or scheduled match can only be started on its day.
   const plannedDate = planned?.date ?? scheduled?.date;
   if (event && plannedDate && !canStartOn(plannedDate) && !scan && !planMode) {
-    const what = planned ? `Round ${planned.number}` : (scheduled?.label ?? 'This match');
+    const what = planned ? planName(planned) : (scheduled?.label ?? 'This match');
     const canMove = event.remote?.role !== 'viewer';
     return (
       <View style={{ flex: 1, padding: space.xl, gap: space.lg, justifyContent: 'center' }}>
@@ -487,11 +503,11 @@ export default function NewRound() {
     <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
       {scan && <Stack.Screen options={{ title: 'Set Up the Round' }} />}
-      {planMode && planned && <Stack.Screen options={{ title: `Set up Round ${planned.number}` }} />}
+      {planMode && planned && <Stack.Screen options={{ title: `Set up ${planName(planned)}` }} />}
       {planMode && planned?.date && (
         <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, borderLeftWidth: 3, borderLeftColor: c.accent }}>
           <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>
-            <Text style={{ fontWeight: '800' }}>Setting up Round {planned.number} for {formatDate(planned.date, { weekday: 'long', month: 'short', day: 'numeric' })}.</Text>
+            <Text style={{ fontWeight: '800' }}>Setting up {planName(planned)} for {formatDate(planned.date, { weekday: 'long', month: 'short', day: 'numeric' })}.</Text>
             {' '}Pick everything now; it’s saved to the event and can be started on the day.
           </Text>
         </View>
@@ -659,6 +675,9 @@ export default function NewRound() {
 
       {step === 'game' && course && (
         <>
+          {event && defaultRoundName ? (
+            <Field label="Round name" value={roundName} onChangeText={setRoundNameEdit} placeholder={defaultRoundName} maxLength={40} error={nameProblem} />
+          ) : null}
           <GamePicker value={draft?.kind ?? null} playerIds={rosterIds} teamOf={noTeams ? undefined : teamOf} onPick={pickGame} />
 
           {sameTeamMatches.length > 0 && (

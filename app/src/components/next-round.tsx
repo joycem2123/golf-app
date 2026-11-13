@@ -10,7 +10,7 @@ import { Button } from '@/components/ui';
 import { Countdown } from '@/components/countdown';
 import { boardMatches, LiveMatchRow } from '@/components/match-strip';
 import { formatDate, today } from '@/lib/dates';
-import { formatPoints } from '@/lib/events';
+import { formatPoints, planName } from '@/lib/events';
 import { canStartOn } from '@/lib/event-calendar';
 import { gameInfo, gameName, gameTitle, matchLabel } from '@/lib/games';
 import { roundTeamScore } from '@/lib/results';
@@ -40,7 +40,7 @@ export function NextRound({ e }: { e: EventRecord }) {
   const { plan, round } = f;
   const canEdit = e.remote?.role !== 'viewer';
   const first = (id: string) => (players.find((p) => p.id === id)?.name ?? round?.players.find((p) => p.id === id)?.name ?? '?').split(' ')[0];
-  const title = round?.label ?? (plan ? `Round ${plan.number}` : 'Round');
+  const title = round?.label ?? (plan ? planName(plan) : 'Round');
   const isToday = !!plan && !round && canStartOn(plan.date);
 
   // ---- live

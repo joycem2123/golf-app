@@ -117,6 +117,8 @@ export interface EventRound {
   id: string;
   /** 1-based. */
   number: number;
+  /** A name of its own (e.g. "Saturday at Canmore"); otherwise it's called "Round {number}". Unique in its event. */
+  name?: string;
   /** YYYY-MM-DD */
   date?: string;
   /** Format, handicap options and matchups (set up like a New Round's game step). */
@@ -273,6 +275,8 @@ interface State {
   setEventRoundDate: (eventId: string, eventRoundId: string, date: string) => void;
   /** Save a round's setup ahead of its day. */
   setEventRoundSetup: (eventId: string, eventRoundId: string, setup: RoundSetup) => void;
+  /** Rename a round of an event (and the round itself, if it has started). */
+  renameEventRound: (eventId: string, eventRoundId: string, name: string) => void;
   removeScheduled: (eventId: string, matchId: string) => void;
   clearDirtyEvents: (ids: string[]) => void;
   setMe: (id: string | null) => void;
@@ -307,6 +311,8 @@ interface State {
   addRound: (r: RoundRecord) => void;
   /** now: skip the undo window (Quit round). */
   deleteRound: (id: string, opts?: { now?: boolean }) => void;
+  /** Forget that I deleted something (it was restored from Recently deleted), so the sync brings it back. */
+  undelete: (id: string) => void;
   /** Put back a deleted round (Undo). */
   restoreRound: (r: RoundRecord, matches: RecordedMatch[]) => void;
   /** Put back a deleted event and re-link its rounds (Undo). */
@@ -482,6 +488,23 @@ export const useStore = create<State>()(
           events: s.events.map((e) => (e.id === eventId ? { ...e, rounds: e.rounds?.map((x) => (x.id === eventRoundId ? { ...x, date } : x)) } : e)),
           dirtyEvents: dirtyEvent(s, eventId),
         })),
+      renameEventRound: (eventId, eventRoundId, name) =>
+        set((s) => {
+          const e = s.events.find((x) => x.id === eventId);
+          const plan = e?.rounds?.find((x) => x.id === eventRoundId);
+          if (!e || !plan) return {};
+          const clean = name.trim();
+          // The default name isn't stored, so renumbering keeps "Round N" right.
+          const custom = clean && clean !== `Round ${plan.number}` ? clean : undefined;
+          const label = custom ?? `Round ${plan.number}`;
+          const rid = plan.roundId;
+          return {
+            events: s.events.map((x) => (x.id === eventId ? { ...x, rounds: (x.rounds ?? []).map((p) => (p.id === eventRoundId ? { ...p, name: custom } : p)) } : x)),
+            rounds: rid ? s.rounds.map((r) => (r.id === rid ? { ...r, label } : r)) : s.rounds,
+            dirtyEvents: dirtyEvent(s, eventId),
+            dirtyRounds: rid && s.rounds.some((r) => r.id === rid && r.remote && r.remote.role !== 'viewer') ? [...new Set([...s.dirtyRounds, rid])] : s.dirtyRounds,
+          };
+        }),
       setEventRoundSetup: (eventId, eventRoundId, setup) =>
         set((s) => ({
           events: s.events.map((e) => (e.id === eventId
@@ -645,7 +668,7 @@ export const useStore = create<State>()(
         set((s) => {
           const e = s.events.find((x) => x.id === eventId);
           const left = (e?.rounds ?? []).filter((x) => x.id !== eventRoundId).map((x, i) => ({ ...x, number: i + 1 }));
-          const label = new Map(left.filter((x) => x.roundId).map((x) => [x.roundId!, `Round ${x.number}`]));
+          const label = new Map(left.filter((x) => x.roundId).map((x) => [x.roundId!, x.name?.trim() || `Round ${x.number}`]));
           return {
             events: s.events.map((x) => (x.id === eventId ? { ...x, rounds: left } : x)),
             rounds: s.rounds.map((r) => (label.has(r.id) && r.label !== label.get(r.id) ? { ...r, label: label.get(r.id) } : r)),
@@ -681,6 +704,7 @@ export const useStore = create<State>()(
           events: s.events.some((x) => x.id === e.id) ? s.events : [...s.events, e].sort((a, b) => b.createdAt - a.createdAt),
           rounds: s.rounds.map((r) => (roundIds.includes(r.id) ? { ...r, eventId: e.id } : r)),
         })),
+      undelete: (id) => set((s) => ({ deleted: Object.fromEntries(Object.entries(s.deleted ?? {}).filter(([k]) => k !== id)) })),
       deleteRound: (id, opts) =>
         set((s) => ({
           deleted: (() => {

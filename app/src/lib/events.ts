@@ -47,6 +47,22 @@ function outcome(res: GameResult, aId: string): { result: EventMatch['result']; 
 }
 
 /** Every head-to-head match played in the event's rounds. */
+/** A planned round's name: its own, or "Round {number}". */
+export const planName = (p: { name?: string; number: number }) => p.name?.trim() || `Round ${p.number}`;
+
+/** Why a round name can't be used in this event (blank, or another round already has it), or null if it's fine. */
+export function roundNameProblem(e: EventRecord, rounds: RoundRecord[], planId: string | null, name: string): string | null {
+  const n = name.trim();
+  if (!n) return 'Give the round a name.';
+  if (n.length > 40) return 'Keep the name under 40 characters.';
+  const key = n.toLowerCase();
+  const mine = planId ? e.rounds?.find((p) => p.id === planId)?.roundId : undefined;
+  const taken =
+    (e.rounds ?? []).some((p) => p.id !== planId && planName(p).toLowerCase() === key) ||
+    rounds.some((r) => r.eventId === e.id && r.id !== mine && !(e.rounds ?? []).some((p) => p.id === planId && p.roundId === r.id) && (r.label ?? '').trim().toLowerCase() === key);
+  return taken ? `There’s already a round called “${n}” in this event.` : null;
+}
+
 export function eventMatches(e: EventRecord, rounds: RoundRecord[]): EventMatch[] {
   const out: EventMatch[] = [];
   for (const r of rounds.filter((x) => x.eventId === e.id).sort((a, b) => a.createdAt - b.createdAt)) {

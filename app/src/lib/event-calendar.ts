@@ -4,6 +4,7 @@
  */
 import { fromISODate, today } from '@/lib/dates';
 import type { EventRecord, RoundRecord } from '@/store/store';
+import { planName } from './events';
 
 /** Something in an event that's planned for a day and hasn't been started. */
 export type PlannedItem = {
@@ -26,7 +27,7 @@ export function plannedItems(events: EventRecord[], rounds: RoundRecord[]): Plan
     if (e.status === 'complete' || e.remote?.role === 'viewer') continue;
     for (const x of e.rounds ?? []) {
       if (!x.date || started(x.roundId, rounds)) continue;
-      out.push({ event: e, kind: 'round', id: x.id, date: x.date, title: `Round ${x.number}`, params: { eventId: e.id, eventRound: x.id } });
+      out.push({ event: e, kind: 'round', id: x.id, date: x.date, title: planName(x), params: { eventId: e.id, eventRound: x.id } });
     }
     for (const m of e.schedule ?? []) {
       if (!m.date || started((m as { roundId?: string }).roundId, rounds)) continue;

@@ -15,7 +15,7 @@ import { EventDrill, MoreButton, MyRounds, type DrillActions } from '@/component
 import { Body, Button, Checkbox, Segmented, Toggle } from '@/components/ui';
 import { formatDate, today } from '@/lib/dates';
 import { playersIn } from '@/lib/edit-rights';
-import { eventPhase } from '@/lib/events';
+import { eventPhase, planName } from '@/lib/events';
 import { gameTitle } from '@/lib/games';
 import { isMeId } from '@/lib/me';
 import { courseFor, shortCourseName } from '@/lib/round';
@@ -182,14 +182,14 @@ export function FriendMatches() {
               <View key={`${fe.event.id}:${p.id}`} style={{ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, padding: space.md }}>
                 <Pressable onPress={() => void go(`/event/${fe.event.id}`)} accessibilityRole="button" style={({ pressed }) => ({ gap: 2, paddingRight: 30, opacity: pressed ? 0.6 : 1 })}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontWeight: '800', fontSize: 15 }}>Round {p.number} · {fe.event.name}</Text>
+                    <Text numberOfLines={1} style={{ flexShrink: 1, color: c.text, fontWeight: '800', fontSize: 15 }}>{planName(p)} · {fe.event.name}</Text>
                     {followOf(rows, { eventId: fe.event.id, planId: p.id })?.follow && <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800' }}>★ FOLLOWING</Text>}
                   </View>
                   <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{p.date ? formatDate(p.date) : ''}{fe.friends.length ? ` · ${fe.friends.map((id) => nameOf(id).split(' ')[0]).join(', ')}` : ''}</Text>
                   <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>Event page ›</Text>
                 </Pressable>
                 <View style={{ position: 'absolute', top: 6, right: 6 }}>
-                  <MoreButton small onPress={() => setMenu({ target: { eventId: fe.event.id, planId: p.id }, title: `Round ${p.number} · ${fe.event.name}`, what: 'upcoming', openPath: `/event/${fe.event.id}` })} label="Follow and notification options" />
+                  <MoreButton small onPress={() => setMenu({ target: { eventId: fe.event.id, planId: p.id }, title: `${planName(p)} · ${fe.event.name}`, what: 'upcoming', openPath: `/event/${fe.event.id}` })} label="Follow and notification options" />
                 </View>
               </View>
             )),

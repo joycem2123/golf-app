@@ -8,7 +8,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { gameName } from '@/lib/games';
 import { headline } from '@/lib/headline';
-import { formatPoints } from '@/lib/events';
+import { formatPoints, planName } from '@/lib/events';
 import { liveTeamScore, matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { EventRecord, RoundRecord } from '@/store/store';
@@ -215,7 +215,7 @@ export function MyRounds({ rounds, events, onDelete, actions, upcomingSlot, empt
         {upcoming.map(({ e, p }) => (
           <Pressable key={`${e.id}:${p.id}`} onPress={() => router.push(`/event/${e.id}`)} accessibilityRole="button"
             style={({ pressed }) => ({ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, padding: space.md, gap: 2, opacity: pressed ? 0.6 : 1 })}>
-            <Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>Round {p.number} · {e.name}</Text>
+            <Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>{planName(p)} · {e.name}</Text>
             <Text style={{ color: c.muted, fontSize: 12 }}>{p.date ? formatDate(p.date) : ''}</Text>
             <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>Event page ›</Text>
           </Pressable>

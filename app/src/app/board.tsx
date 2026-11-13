@@ -17,7 +17,7 @@ import { QrCode } from '@/components/qr-code';
 import { getCourse } from '@/lib/courses';
 import { formatDate } from '@/lib/dates';
 import { formatIndex } from '@/lib/format';
-import { cupScore, eventStandings, eventTeamTotals, formatPoints } from '@/lib/events';
+import { cupScore, eventStandings, eventTeamTotals, formatPoints, planName } from '@/lib/events';
 import { gameInfo, gameName } from '@/lib/games';
 import { liveTeamScore, roundTeamScore, type MatchOutcome } from '@/lib/results';
 import { courseFor, evaluate, grossAt, isResult, shortCourseName } from '@/lib/round';
@@ -493,7 +493,7 @@ function RoundDetail({ e, r, sides, names, u, picks, onBack, open, onMatch }: { 
   }
   return (
     <>
-      <BackBar u={u} back="Main board" onBack={onBack} title={r.label ?? (plan ? `Round ${plan.number}` : 'Round')} sub={sub} />
+      <BackBar u={u} back="Main board" onBack={onBack} title={r.label ?? (plan ? planName(plan) : 'Round')} sub={sub} />
       {bar ? <TeamBar sides={bar} u={u * 0.8} /> : null}
       <Matches r={r} leftLetter={sides?.[0].letter} names={names} u={u} picks={picks} open={open} onMatch={onMatch} />
     </>
@@ -632,7 +632,7 @@ function RoundsList({ e, rounds, sides, u, selected, onRound }: { e: EventRecord
         return (
           <Pressable key={r!.id} onPress={() => onRound(r!.id)} accessibilityRole="button" accessibilityLabel={`Open ${r!.label ?? 'round'}`}
             style={(st) => ({ flexDirection: 'row', alignItems: 'center', gap: 10 * u, height: rowH, paddingHorizontal: 8 * u, marginHorizontal: -8 * u, borderRadius: 8 * u, backgroundColor: selected === r!.id ? 'rgba(31,90,61,0.12)' : hov(st) ? 'rgba(31,90,61,0.06)' : 'transparent' })}>
-            <Text numberOfLines={1} style={{ fontFamily: SANS, flex: 1, color: INK, fontWeight: '700', fontSize: 21 * u }}>{r!.label ?? (p ? `Round ${p.number}` : 'Round')}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: SANS, flex: 1, color: INK, fontWeight: '700', fontSize: 21 * u }}>{r!.label ?? (p ? planName(p) : 'Round')}</Text>
             {sides && score ? (
               <Text style={{ fontFamily: SANS, fontWeight: '800', fontSize: 22 * u, ...TABULAR }}>
                 <Text style={{ fontFamily: SANS, color: sides[0].color }}>{formatPoints(of(sides[0].letter))}</Text>
@@ -667,7 +667,7 @@ function NextUp({ e, names, u, picks }: { e: EventRecord; names: Names; u: numbe
   return (
     <Panel u={u} title="UP NEXT">
       <View style={{ gap: 2 * u }}>
-        <Text style={{ color: INK, fontFamily: SANS, fontWeight: '800', fontSize: 24 * u }}>Round {next.number} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
+        <Text style={{ color: INK, fontFamily: SANS, fontWeight: '800', fontSize: 24 * u }}>{planName(next)} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
         {format || course ? <Text style={{ fontFamily: SANS, color: '#9A7A12', fontWeight: '800', fontSize: 18 * u }}>{[format, course].filter(Boolean).join(' · ')}</Text> : null}
       </View>
       {matches.length ? (

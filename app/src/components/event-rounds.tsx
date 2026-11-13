@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { formatDate, toISODate, today } from '@/lib/dates';
-import { formatPoints } from '@/lib/events';
+import { formatPoints, planName } from '@/lib/events';
 import { canStartOn } from '@/lib/event-calendar';
 import { getCourse } from '@/lib/courses';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -58,8 +58,8 @@ export function EventRounds({ e }: { e: EventRecord }) {
     const deletable = !r && canEdit && planned.some((p) => p.id === x.id);
     return (
       <View key={x.id}>
-      <SwipeToDelete disabled={!deletable} label={`Round ${x.number}`} onDelete={() => setDeleting(x)}>
-      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Round ${x.number}`}>
+      <SwipeToDelete disabled={!deletable} label={planName(x)} onDelete={() => setDeleting(x)}>
+      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={planName(x)}>
         {({ pressed }) => (
           <View style={{ flexDirection: 'row', gap: space.md, paddingVertical: space.md, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: pressed ? c.chip : c.card }}>
             <View style={{ width: 50, alignItems: 'center', paddingTop: 2 }}>
@@ -71,7 +71,7 @@ export function EventRounds({ e }: { e: EventRecord }) {
             </View>
             <View style={{ flex: 1, gap: 3 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>{x.number ? `Round ${x.number}` : (r?.label ?? 'Unscheduled round')}</Text>
+                <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>{x.number ? planName(x) : (r?.label ?? 'Unscheduled round')}</Text>
                 {/* The section says upcoming; only the next one gets a tag. */}
                 {(status !== 'upcoming' || isNext) && (
                   <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm, backgroundColor: status === 'live' ? c.under : status === 'final' ? c.primary : c.accent }}>

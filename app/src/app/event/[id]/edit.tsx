@@ -11,6 +11,7 @@ import { daysBetween, formatDate } from '@/lib/dates';
 import { track } from '@/lib/usage';
 import { useEvent, useStore } from '@/store/store';
 import { radius, space, teamColor, TEAM_SWATCHES, useColors } from '@/theme';
+import { planName } from '@/lib/events';
 
 export default function EditEvent() {
   const c = useColors();
@@ -135,7 +136,7 @@ export default function EditEvent() {
       {outside.length > 0 && (
         <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md }}>
           <Text style={{ color: c.text, fontSize: 13 }}>
-            {outside.map((x) => `Round ${x.number} (${formatDate(x.date!)})`).join(', ')} {outside.length === 1 ? 'is' : 'are'} outside these dates and keep {outside.length === 1 ? 'its' : 'their'} own date. Tap a round on the event page to move or delete it.
+            {outside.map((x) => `${planName(x)} (${formatDate(x.date!)})`).join(', ')} {outside.length === 1 ? 'is' : 'are'} outside these dates and keep {outside.length === 1 ? 'its' : 'their'} own date. Tap a round on the event page to move or delete it.
           </Text>
         </View>
       )}
