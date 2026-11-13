@@ -9,6 +9,7 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 
 import { DateField } from '@/components/date-field';
 import { addedByMe, adderName, shortNamer } from '@/components/trip-expenses';
+import { MultiSelect } from '@/components/select';
 import { Button, Card, Field, Label } from '@/components/ui';
 import { today } from '@/lib/dates';
 import { useMe } from '@/lib/me';
@@ -22,7 +23,7 @@ function Person({ label, on, weight, onPress, onLongPress }: { label: string; on
   const c = useColors();
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={350} accessibilityRole="checkbox" accessibilityState={{ checked: on }}
-      accessibilityLabel={`${label}${weight && weight > 1 ? `, counts ×${weight}` : ''}`} accessibilityHint={onLongPress ? 'Press and hold to count them twice (a guest).' : undefined}
+      accessibilityLabel={`${label}${weight && weight > 1 ? `, counts ×${weight}` : ''}`} accessibilityHint={onLongPress ? 'Tap again to count them ×2, ×3 or ×4. Press and hold to leave them out.' : undefined}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, borderWidth: 1, borderColor: on ? c.primary : c.border, backgroundColor: on ? c.primarySoft : c.chip, opacity: pressed ? 0.7 : 1 })}>
       <Text style={{ color: on ? c.primary : c.muted, fontWeight: '600', fontSize: 14, textDecorationLine: on ? 'none' : 'line-through' }}>{label}</Text>
       {on && weight && weight > 1 ? (
@@ -58,15 +59,17 @@ export default function ExpenseScreen() {
   const [amountText, setAmountText] = useState(existing ? centsText(existing.amount) : '');
   const [currency, setCurrency] = useState(existing?.currency ?? money.currency);
   const [date, setDate] = useState(existing?.date ?? defaultDate());
-  const [splitPay, setSplitPay] = useState(existing ? Object.keys(existing.paidBy).length > 1 : false);
-  const [payer, setPayer] = useState<string>(existing ? Object.keys(existing.paidBy)[0] : (me ?? people[0]));
+  // Who paid: one person, or several (then each says how much).
+  const [payers, setPayers] = useState<string[]>(() => (existing ? Object.keys(existing.paidBy) : [me ?? people[0]].filter(Boolean) as string[]));
+  const splitPay = payers.length > 1;
+  const payer = payers[0];
   const [payParts, setPayParts] = useState<Record<string, string>>(() => (existing && Object.keys(existing.paidBy).length > 1 ? Object.fromEntries(Object.entries(existing.paidBy).map(([k, v]) => [k, centsText(v)])) : {}));
   const [shares, setShares] = useState<Record<string, number>>(() => existing?.shares ?? Object.fromEntries(people.map((p) => [p, 1])));
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
 
   const amount = parseCents(amountText);
-  const partsCents = Object.fromEntries(Object.entries(payParts).map(([k, v]) => [k, parseCents(v) ?? 0]).filter(([, v]) => (v as number) > 0)) as Record<string, number>;
+  const partsCents = Object.fromEntries(Object.entries(payParts).filter(([k]) => payers.includes(k)).map(([k, v]) => [k, parseCents(v) ?? 0]).filter(([, v]) => (v as number) > 0)) as Record<string, number>;
   const partsSum = Object.values(partsCents).reduce((a, b) => a + b, 0);
   const sharers = Object.keys(shares).filter((k) => shares[k] > 0);
   const perShare = useMemo(() => (amount && sharers.length ? splitCents(amount, shares, existing?.id ?? 'new') : {}), [amount, shares, sharers.length, existing?.id]);
@@ -96,8 +99,9 @@ export default function ExpenseScreen() {
       </View>
     );
 
-  const toggleShare = (pid: string) => setShares((s) => ({ ...s, [pid]: s[pid] ? 0 : 1 }));
-  const double = (pid: string) => setShares((s) => ({ ...s, [pid]: s[pid] === 2 ? 1 : 2 }));
+  // Tap: include them, then ×2, ×3, ×4 (guests) and back to ×1. Hold: leave them out.
+  const tapShare = (pid: string) => setShares((s) => ({ ...s, [pid]: !s[pid] ? 1 : s[pid] >= 4 ? 1 : s[pid] + 1 }));
+  const dropShare = (pid: string) => setShares((s) => ({ ...s, [pid]: 0 }));
   const everyone = () => setShares(Object.fromEntries(people.map((p) => [p, 1])));
   const justOne = (pid: string) => setShares(Object.fromEntries(people.map((p) => [p, p === pid ? 1 : 0])));
 
@@ -144,7 +148,7 @@ export default function ExpenseScreen() {
   const currencies = money.alt ? [money.currency, money.alt.currency] : [money.currency];
   const weights = Object.values(shares).reduce((a, w) => a + w, 0);
   const one = amount && weights ? Math.floor(amount / weights) : 0;
-  const doubled = sharers.filter((p) => shares[p] === 2);
+  const multiplied = sharers.filter((p) => shares[p] > 1);
 
   return (
     <>
@@ -171,19 +175,22 @@ export default function ExpenseScreen() {
         <DateField label="Date" value={date} onChange={setDate} />
 
         <Card style={{ gap: space.sm }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Label>Paid by</Label>
-            <Pressable onPress={() => { setSplitPay(!splitPay); if (!splitPay && amount && payer) setPayParts({ [payer]: centsText(amount) }); }} hitSlop={8} accessibilityRole="checkbox" accessibilityState={{ checked: splitPay }}>
-              <Text style={{ color: c.primary, fontWeight: '700', fontSize: 13 }}>Split payment {splitPay ? '✓' : ''}</Text>
-            </Pressable>
-          </View>
-          {!splitPay ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
-              {people.map((pid) => <Person key={pid} label={name(pid)} on={payer === pid} onPress={() => setPayer(pid)} />)}
-            </View>
-          ) : (
+          <Label>Paid by</Label>
+          <MultiSelect
+            label="Paid by"
+            placeholder="Who paid?"
+            options={people.map((pid) => ({ value: pid, label: name(pid) }))}
+            values={payers}
+            onChange={(next) => {
+              // Going from one payer to several: the first starts with the whole amount.
+              if (next.length > 1 && payers.length === 1 && amount && !payParts[payers[0]]) setPayParts((x) => ({ ...x, [payers[0]]: centsText(amount) }));
+              setPayers(next);
+            }}
+          />
+          {splitPay ? (
             <>
-              {people.map((pid) => (
+              <Text style={{ color: c.muted, fontSize: 12 }}>Split payment: how much did each pay?</Text>
+              {payers.map((pid) => (
                 <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm }}>
                   <Text style={{ color: c.text, fontWeight: '600', fontSize: 15, flex: 1 }}>{name(pid)}</Text>
                   <TextInput
@@ -201,7 +208,7 @@ export default function ExpenseScreen() {
                 {amount ? (partsSum === amount ? 'Adds up ✓' : `${fmt(partsSum)} of ${fmt(amount)} entered`) : 'Enter the total above first'}
               </Text>
             </>
-          )}
+          ) : null}
         </Card>
 
         <Card style={{ gap: space.sm }}>
@@ -210,17 +217,17 @@ export default function ExpenseScreen() {
             <Pressable onPress={everyone} hitSlop={8} accessibilityRole="button"><Text style={{ color: c.primary, fontWeight: '700', fontSize: 13 }}>Everyone</Text></Pressable>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
-            {people.map((pid) => <Person key={pid} label={name(pid)} on={!!shares[pid]} weight={shares[pid]} onPress={() => toggleShare(pid)} onLongPress={() => (shares[pid] ? double(pid) : justOne(pid))} />)}
+            {people.map((pid) => <Person key={pid} label={name(pid)} on={!!shares[pid]} weight={shares[pid]} onPress={() => tapShare(pid)} onLongPress={() => dropShare(pid)} />)}
           </View>
           <Text style={{ color: c.muted, fontSize: 12, lineHeight: 17 }}>
-            Tap to include or leave someone out. Press and hold for ×2 when someone brings a guest.
+            Tap again for ×2, ×3 or ×4 when someone brings guests. Press and hold to leave someone out.
           </Text>
           {sharers.length === 1 ? (
             <Text style={{ color: c.text, fontSize: 13, fontWeight: '700' }}>All of it is {name(sharers[0]) === 'Me' ? 'mine' : `${name(sharers[0])}’s`}{amount ? ` (${fmt(amount)})` : ''}</Text>
           ) : amount && sharers.length ? (
             <Text style={{ color: c.text, fontSize: 13 }}>
               <Text style={{ fontWeight: '700' }}>{fmt(one)} per share</Text>
-              {doubled.length ? ` · ${doubled.map(name).join(' and ')} ${fmt(perShare[doubled[0]] ?? one * 2)}` : ''}
+              {multiplied.length ? ` · ${multiplied.map((p) => `${name(p)} ${fmt(perShare[p] ?? one * shares[p])}`).join(' · ')}` : ''}
             </Text>
           ) : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>

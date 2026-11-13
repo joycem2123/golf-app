@@ -7,6 +7,7 @@ import { CURRENCIES, type TripMoney } from '@golf/engine';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
+import { Select } from '@/components/select';
 import { openPaywall, usePro } from '@/lib/pro';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -19,22 +20,8 @@ const roughRate = (from: string, to: string) => {
   return Number(r.toFixed(r < 0.1 ? 4 : 2));
 };
 
-function Chips({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
-  const c = useColors();
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-      {options.map((o) => {
-        const on = o === value;
-        return (
-          <Pressable key={o} onPress={() => onChange(o)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={o}
-            style={({ pressed }) => ({ paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: on ? c.primary : c.border, backgroundColor: on ? c.primarySoft : c.card, opacity: pressed ? 0.7 : 1 })}>
-            <Text style={{ color: on ? c.primary : c.text, fontWeight: '700', fontSize: 13 }}>{o}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
+const CURRENCY_NAMES: Record<string, string> = { CAD: 'CAD – Canadian dollar', USD: 'USD – US dollar', EUR: 'EUR – Euro', GBP: 'GBP – British pound', MXN: 'MXN – Mexican peso', AUD: 'AUD – Australian dollar' };
+const opt = (v: string) => ({ value: v, label: CURRENCY_NAMES[v] ?? v });
 
 export function TripMoneyOption({ value, onChange, organiserPays }: { value: TripMoney; onChange: (v: TripMoney) => void; /** Someone else organised it: their Pro covers it. */ organiserPays?: boolean }) {
   const c = useColors();
@@ -78,7 +65,7 @@ export function TripMoneyOption({ value, onChange, organiserPays }: { value: Tri
         <View style={{ gap: space.sm, paddingLeft: 34 }}>
           <View style={{ gap: 6 }}>
             <Text style={{ color: c.text, fontWeight: '600', fontSize: 14 }}>Currency</Text>
-            <Chips options={[...CURRENCIES]} value={value.currency} onChange={(cur) => {
+            <Select label="Currency" options={CURRENCIES.map(opt)} value={value.currency} onChange={(cur) => {
               const alt = value.alt && value.alt.currency !== cur ? { currency: value.alt.currency, rate: roughRate(cur, value.alt.currency) } : undefined;
               setRateText(alt ? String(alt.rate) : '');
               onChange({ ...value, currency: cur, alt });
@@ -86,7 +73,7 @@ export function TripMoneyOption({ value, onChange, organiserPays }: { value: Tri
           </View>
           <View style={{ gap: 6 }}>
             <Text style={{ color: c.text, fontWeight: '600', fontSize: 14 }}>Also show amounts in</Text>
-            <Chips options={['None', ...CURRENCIES.filter((x) => x !== value.currency)]} value={value.alt?.currency ?? 'None'} onChange={setAlt} />
+            <Select label="Also show amounts in" options={[{ value: 'None', label: 'None' }, ...CURRENCIES.filter((x) => x !== value.currency).map(opt)]} value={value.alt?.currency ?? 'None'} onChange={setAlt} />
           </View>
           {value.alt ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

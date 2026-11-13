@@ -90,17 +90,26 @@ export function TripExpenses({ e }: { e: EventRecord }) {
   return (
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
       <Segmented<View_> options={[{ value: 'expenses', label: 'Expenses' }, { value: 'balances', label: 'Balances' }, { value: 'settle', label: 'Settle Up' }]} value={view} onChange={setView} />
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 2 }}>
-        <View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 2, gap: space.sm }}>
+        <View style={{ flexShrink: 1 }}>
           <Label>Trip total</Label>
-          <Text style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 26 }}>
-            {fmt(total)} <Text style={{ color: c.muted, fontSize: 14 }}>{money.currency}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 24 }}>
+            {fmt(total)} <Text style={{ color: c.muted, fontSize: 13 }}>{money.currency}</Text>
           </Text>
         </View>
         {me ? (
-          <View style={{ alignItems: 'flex-end' }}>
-            <Label>Your share</Label>
-            <Text style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 18, marginTop: 4 }}>{fmt(myShare)}</Text>
+          <View style={{ flexDirection: 'row', gap: space.md }}>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Label>Your share</Label>
+              <Text style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 17, marginTop: 4 }}>{fmt(myShare)}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              {/* What I still owe, or am owed, after the payments made so far. */}
+              <Label>{(bal[me] ?? 0) < 0 ? 'You owe' : (bal[me] ?? 0) > 0 ? 'You are owed' : 'You'}</Label>
+              <Text style={{ color: (bal[me] ?? 0) < 0 ? c.danger : (bal[me] ?? 0) > 0 ? c.primary : c.muted, fontFamily: fonts.serif, fontWeight: '700', fontSize: 17, marginTop: 4 }}>
+                {(bal[me] ?? 0) === 0 ? 'Square' : fmt(Math.abs(bal[me] ?? 0))}
+              </Text>
+            </View>
           </View>
         ) : null}
       </View>
