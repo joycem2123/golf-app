@@ -9,7 +9,7 @@ import { headline } from '@/lib/headline';
 import { matchOutcomes, type MatchOutcome } from '@/lib/results';
 import { evaluate, isResult } from '@/lib/round';
 import type { EventRecord, RoundRecord } from '@/store/store';
-import { teamColor, useColors } from '@/theme';
+import { fonts, teamColor, useColors } from '@/theme';
 
 const INK = '#14261E';
 type Picks = EventRecord['teamColors'];
@@ -53,23 +53,30 @@ export function Arrow({ dir, color, h, overlay }: { dir: 'left' | 'right'; color
   );
 }
 
-/** Phone-sized scoreboard row for a match in play. */
+/**
+ * Phone-sized scoreboard row for a match in play. The status block sits in the middle with a slot either side for its
+ * arrow, so the colour never runs over a name and the blocks line up row to row. Long names shrink to fit.
+ */
 export function LiveMatchRow({ r, results, m, leftLetter, picks, onPress }: { r: RoundRecord; results: Results; m: MatchOutcome; leftLetter?: string; picks: Picks; onPress?: () => void }) {
   const c = useColors();
   const v = matchView(r, results, m, leftLetter, picks);
-  const h = 62;
+  const h = 60;
+  const slot = Math.round(h * 0.3);
   const player = (id: string) => r.players.find((p) => p.id === id);
   const people = (ids: string[], align: 'left' | 'right', color: string) => (
-    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 10, alignItems: align === 'left' ? 'flex-start' : 'flex-end' }}>
+    <View style={{ flex: 1, minWidth: 0, justifyContent: 'center', gap: 1, paddingLeft: align === 'left' ? 12 : 4, paddingRight: align === 'right' ? 12 : 4, alignItems: align === 'left' ? 'flex-start' : 'flex-end' }}>
       {ids.map((id) => {
         const p = player(id);
         return (
-          <View key={id} style={{ alignItems: align === 'left' ? 'flex-start' : 'flex-end' }}>
-            <Text numberOfLines={1} style={{ color, fontWeight: '800', fontSize: ids.length > 1 ? 13 : 15 }}>{p?.name ?? '?'}</Text>
-            {ids.length === 1 && p?.handicapIndex !== undefined ? <Text style={{ color: c.muted, fontSize: 10, fontWeight: '700' }}>HCP {formatIndex(p.handicapIndex)}</Text> : null}
-          </View>
+          <Text key={id} numberOfLines={ids.length > 1 ? 1 : 2} adjustsFontSizeToFit minimumFontScale={0.75} style={{ color, fontWeight: '700', fontSize: ids.length > 1 ? 14 : 15, lineHeight: ids.length > 1 ? 17 : 18, maxWidth: '100%', textAlign: align }}>{p?.name ?? '?'}</Text>
         );
       })}
+      {ids.length === 1 && player(ids[0])?.handicapIndex !== undefined ? <Text style={{ color: c.muted, fontSize: 11 }}>HCP {formatIndex(player(ids[0])!.handicapIndex)}</Text> : null}
+    </View>
+  );
+  const arrowSlot = (side: 'L' | 'R') => (
+    <View style={{ width: slot, height: h, alignItems: side === 'L' ? 'flex-end' : 'flex-start' }}>
+      {v.ahead === side ? <Arrow dir={side === 'L' ? 'left' : 'right'} color={v.cellColor} h={h} /> : null}
     </View>
   );
   return (
@@ -77,11 +84,12 @@ export function LiveMatchRow({ r, results, m, leftLetter, picks, onPress }: { r:
       accessibilityLabel={`${v.left.members.map((id) => player(id)?.name).join(' and ')} versus ${v.right.members.map((id) => player(id)?.name).join(' and ')}: ${v.big} ${v.small.toLowerCase()}`}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: pressed ? '#F3F6F4' : '#fff', borderRadius: 10, borderWidth: 1, borderColor: c.border, overflow: 'hidden' })}>
       {people(v.left.members, 'left', v.lc)}
-      <View style={{ width: 80, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: c.border , zIndex: 1, overflow: 'visible' }}>
-        {v.ahead ? <Arrow overlay dir={v.ahead === 'L' ? 'left' : 'right'} color={v.cellColor} h={h} /> : null}
-        <Text style={{ color: v.cellText, fontWeight: '900', fontSize: 18 }}>{v.big}</Text>
-        <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: v.cellText, opacity: 0.85, fontWeight: '800', fontSize: 8.5, letterSpacing: 0.3 }}>{v.small}</Text>
+      {arrowSlot('L')}
+      <View style={{ width: 76, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: c.border }}>
+        <Text style={{ color: v.cellText, fontFamily: fonts.serif, fontWeight: '700', fontSize: 18 }}>{v.big}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: v.cellText, opacity: 0.85, fontWeight: '700', fontSize: 8.5, letterSpacing: 0.2 }}>{v.small}</Text>
       </View>
+      {arrowSlot('R')}
       {people(v.right.members, 'right', v.rc)}
     </Pressable>
   );

@@ -7,9 +7,9 @@
  * Reads the event by its share code (no sign-in) and refreshes itself every 20 seconds.
  */
 import { applyScoreEntry } from '@golf/engine';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/logo';
 import { boardMatches, matchView } from '@/components/match-strip';
@@ -42,8 +42,11 @@ const css = (o: Record<string, string>): object => (Platform.OS === 'web' ? o : 
 const PAGE_BG = css({ backgroundImage: 'radial-gradient(1400px 700px at 12% -10%, #1E5A40 0%, rgba(30,90,64,0) 60%), radial-gradient(1000px 600px at 105% 115%, #154A33 0%, rgba(21,74,51,0) 60%), linear-gradient(180deg, #0E2A1F 0%, #071710 100%)' });
 const GLASS = css({ backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' });
 const SHADOW = css({ boxShadow: '0 18px 40px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.25)' });
-/** The app's text font: Apple's system font where there is one (iPhone, iPad, Mac), else Inter, which looks almost the same. */
-const SANS = Platform.OS === 'web' ? '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, "Helvetica Neue", Arial, sans-serif' : undefined;
+/**
+ * The board's text font: Inter on every screen (a close match for the iPhone's own font), so a Windows PC, a smart TV
+ * and a Mac all show the same letters. Georgia is kept only for the event name and the team names and scores.
+ */
+const SANS = Platform.OS === 'web' ? 'Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif' : undefined;
 const TABULAR = { fontVariant: ['tabular-nums' as const] };
 /** A team colour with a little depth: lighter top-left to darker bottom-right. */
 const sheen = (c: string) => css({ backgroundImage: `linear-gradient(180deg, ${lighten(c, 0.14)} 0%, ${c} 50%, ${darken(c, 0.14)} 100%)` });
@@ -73,7 +76,7 @@ function useInterFont() {
     const link = document.createElement('link');
     link.id = 'tv-inter';
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap';
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap';
     document.head.appendChild(link);
   }, []);
 }
@@ -110,7 +113,7 @@ export default function Board() {
     <View style={{ flex: 1, backgroundColor: BG, minHeight: '100%', ...PAGE_BG }}>
       <Stack.Screen options={{ headerShown: false, title: 'Clutch Up · TV' }} />
       {code.length !== 6 ? (
-        <Message u={u} title="Clutch Up TV board" sub="Open this page from an event's “Show on TV” button." />
+        <CodeEntry u={u} />
       ) : raw === undefined ? (
         <Message u={u} title="Loading…" sub={stale ? 'Can’t reach Clutch Up. Check the internet connection.' : ''} />
       ) : raw === null ? (
@@ -118,6 +121,37 @@ export default function Board() {
       ) : (
         <BoardView raw={raw} u={u} code={code} stale={stale} updated={updated} />
       )}
+    </View>
+  );
+}
+
+/** clutchupgolf.com/tv with no code: type the event's 6-character code (easy with a TV remote; no link to copy). */
+function CodeEntry({ u }: { u: number }) {
+  const [text, setText] = useState('');
+  const clean = text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  const go = () => { if (clean.length === 6) router.setParams({ c: clean }); };
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24 * u, padding: 40 * u }}>
+      <LogoMark size={110 * u} />
+      <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 56 * u, fontWeight: '700', textAlign: 'center' }}>Clutch Up TV</Text>
+      <Text style={{ fontFamily: SANS, color: 'rgba(255,255,255,0.75)', fontSize: 26 * u, textAlign: 'center' }}>Enter your event’s code. It’s under “Show on TV” on the event in the app.</Text>
+      <TextInput
+        value={clean}
+        onChangeText={setText}
+        onSubmitEditing={go}
+        autoFocus
+        autoCapitalize="characters"
+        autoCorrect={false}
+        maxLength={6}
+        placeholder="ABC123"
+        placeholderTextColor="rgba(20,38,30,0.25)"
+        accessibilityLabel="Event code"
+        style={{ fontFamily: SANS, backgroundColor: '#FAF8F2', color: INK, fontSize: 64 * u, fontWeight: '800', letterSpacing: 14 * u, textAlign: 'center', width: 520 * u, paddingVertical: 14 * u, borderRadius: 18 * u }}
+      />
+      <Pressable onPress={go} disabled={clean.length !== 6} accessibilityRole="button"
+        style={(st) => ({ backgroundColor: clean.length === 6 ? GOLD : 'rgba(255,255,255,0.15)', paddingHorizontal: 48 * u, paddingVertical: 16 * u, borderRadius: 999, opacity: hov(st) ? 0.9 : 1 })}>
+        <Text style={{ fontFamily: SANS, color: clean.length === 6 ? INK : 'rgba(255,255,255,0.6)', fontWeight: '800', fontSize: 26 * u }}>Show scoreboard</Text>
+      </Pressable>
     </View>
   );
 }
@@ -249,7 +283,7 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
               <QrCode value={joinUrl} size={96 * u} color={INK} />
             </View>
             <View style={{ flex: 1, gap: 4 * u }}>
-              <Text style={{ color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 21 * u }}>Follow live on your phone</Text>
+              <Text style={{ color: INK, fontFamily: SANS, fontWeight: '800', fontSize: 20 * u }}>Follow live on your phone</Text>
               <Text style={{ fontFamily: SANS, color: MUTED, fontSize: 14 * u }}>Scan, or tap Join with Code in Clutch Up</Text>
               <Text style={{ fontFamily: SANS, color: PRIMARY, fontWeight: '800', fontSize: 32 * u, letterSpacing: 8 * u, ...TABULAR }}>{code}</Text>
             </View>
@@ -445,7 +479,7 @@ function BackBar({ u, title, sub, back, onBack, onHome }: { u: number; title: st
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 * u }}>
       {btn(`← ${back}`, onBack)}
       <View style={{ flex: 1 }}>
-        <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 36 * u }}>{title}</Text>
+        <Text numberOfLines={1} style={{ color: '#fff', fontFamily: SANS, fontWeight: '800', fontSize: 34 * u }}>{title}</Text>
         {sub ? <Text numberOfLines={1} style={{ fontFamily: SANS, color: '#FFFFFFB0', fontSize: 20 * u, fontWeight: '600' }}>{sub}</Text> : null}
       </View>
       {onHome ? btn('Main board', onHome) : null}
@@ -648,7 +682,7 @@ function NextUp({ e, names, u, picks }: { e: EventRecord; names: Names; u: numbe
   return (
     <Panel u={u} title="UP NEXT">
       <View style={{ gap: 2 * u }}>
-        <Text style={{ color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 26 * u }}>Round {next.number} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
+        <Text style={{ color: INK, fontFamily: SANS, fontWeight: '800', fontSize: 24 * u }}>Round {next.number} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
         {format || course ? <Text style={{ fontFamily: SANS, color: '#9A7A12', fontWeight: '800', fontSize: 18 * u }}>{[format, course].filter(Boolean).join(' · ')}</Text> : null}
       </View>
       {matches.length ? (

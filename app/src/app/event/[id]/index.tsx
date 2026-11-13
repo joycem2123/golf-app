@@ -74,8 +74,8 @@ function MatchResults({ e, matches, rounds, name }: { e: EventRecord; matches: E
             return (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sideColor(ids, side), opacity: lost ? 0.45 : 1 }} />
-                <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: won ? 16 : 15, fontWeight: won ? '900' : '500', color: lost ? c.muted : sideColor(ids, side) }}>{ids.map(name).join(' & ')}</Text>
-                {won ? <Text style={{ color: sideColor(ids, side), fontSize: 14, fontWeight: '900' }}>✓</Text> : null}
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 15, fontWeight: won ? '800' : '400', color: lost ? c.muted : sideColor(ids, side) }}>{ids.map(name).join(' & ')}</Text>
+                {won ? <Text style={{ color: sideColor(ids, side), fontSize: 14, fontWeight: '800' }}>✓</Text> : null}
               </View>
             );
           };
@@ -88,8 +88,8 @@ function MatchResults({ e, matches, rounds, name }: { e: EventRecord; matches: E
                 {line(m.sideB, 'B')}
               </View>
               <View style={{ width: 84, backgroundColor: winColor, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 20 }}>{resultText(m, r)}</Text>
-                <Text numberOfLines={1} style={{ color: '#ffffffd0', fontWeight: '800', fontSize: 9, letterSpacing: 1 }}>{m.result === 'halved' ? 'HALVED' : (winnerTeam ?? 'FINAL').toUpperCase()}</Text>
+                <Text style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 21 }}>{resultText(m, r)}</Text>
+                <Text numberOfLines={1} style={{ color: '#ffffffd0', fontWeight: '700', fontSize: 9, letterSpacing: 1 }}>{m.result === 'halved' ? 'HALVED' : (winnerTeam ?? 'FINAL').toUpperCase()}</Text>
               </View>
             </Pressable>
           );
