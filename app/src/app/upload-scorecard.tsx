@@ -1,6 +1,7 @@
 /**
  * Upload scorecard: photo of a finished card → check the scores → set up the round as usual → results.
  */
+import { OnlineCourses } from '@/components/online-courses';
 import { searchCourses, type Course, type Tee } from '@golf/engine';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -320,6 +321,7 @@ export default function UploadScorecard() {
               <Text style={{ color: c.muted, fontSize: 12 }}>{[co.city, co.region].filter(Boolean).join(', ')}</Text>
             </Pressable>
           ))}
+          <OnlineCourses query={courseQuery} have={courses} onPick={(co) => { setCard({ ...card, courseId: co.id, teeName: undefined, rows: card.rows.map((r) => ({ ...r, teeId: undefined })) }); setCourseSheet(false); }} />
         </View>
       </Sheet>
     </ScrollView>

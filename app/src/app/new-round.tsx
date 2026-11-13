@@ -24,6 +24,7 @@ import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { formatDate, today } from '@/lib/dates';
 import { canStartOn } from '@/lib/event-calendar';
 import { getCourse, useCourses } from '@/lib/courses';
+import { OnlineCourses } from '@/components/online-courses';
 import { track } from '@/lib/usage';
 import { getPendingScan, guessRows, holesFromCard, ledgerFromCard, playedAt, setPendingScan } from '@/lib/round-scan';
 import { evaluate, gameHoles, isResult, recordedMatches, scoreKeys, shortCourseName } from '@/lib/round';
@@ -460,6 +461,27 @@ export default function NewRound() {
     );
   }
 
+  /** Choose a course: from the list, or one just brought in from the online course database. */
+  const pickCourse = (co: Course) => {
+    setCourse(co);
+    // Start with me in the group (if I'm part of this event, or it's a regular round).
+    // Uploaded card: start with the people confirmed on the score-check screen.
+    const fromCard = scan ? [...new Set(scan.rows.map((r) => r.playerId).filter((x): x is string => !!x))].filter((pid) => saved.some((p) => p.id === pid)) : [];
+    if (fromCard.length) {
+      setRoster(fromCard.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
+    } else if (planned) {
+      plannedDraftSet.current = false;
+      setRoster(plannedIds.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
+    } else setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);
+    setDraft(null);
+    // A planned round with its players and matchups already set: straight to the game step to check and start.
+    // (Matchups decided on the day: pick who's playing first.)
+    if (planned?.draft && !planned.matchupsLater && plannedIds.length) {
+      if (!eventTeams || !plannedIds.every((pid) => eventTeams[pid])) setNoTeams(true);
+      setStep('game');
+    } else setStep('players');
+  };
+
   return (
     <TeamColors picks={teamColors} names={teamNames}>
     <View style={{ flex: 1 }}>
@@ -494,25 +516,7 @@ export default function NewRound() {
             <Pressable
               key={co.id}
               disabled={unfinished}
-              onPress={() => {
-                setCourse(co);
-                // Start with me in the group (if I'm part of this event, or it's a regular round).
-                // Uploaded card: start with the people confirmed on the score-check screen.
-                const fromCard = scan ? [...new Set(scan.rows.map((r) => r.playerId).filter((x): x is string => !!x))].filter((pid) => saved.some((p) => p.id === pid)) : [];
-                if (fromCard.length) {
-                  setRoster(fromCard.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
-                } else if (planned) {
-                  plannedDraftSet.current = false;
-                  setRoster(plannedIds.map((pid) => ({ id: pid, teeId: defaultTee(co, saved.find((p) => p.id === pid)!) })));
-                } else setRoster(me && (!event || event.playerIds.includes(me.id)) ? [{ id: me.id, teeId: defaultTee(co, me) }] : []);
-                setDraft(null);
-                // A planned round with its players and matchups already set: straight to the game step to check and start.
-                // (Matchups decided on the day: pick who's playing first.)
-                if (planned?.draft && !planned.matchupsLater && plannedIds.length) {
-                  if (!eventTeams || !plannedIds.every((pid) => eventTeams[pid])) setNoTeams(true);
-                  setStep('game');
-                } else setStep('players');
-              }}>
+              onPress={() => pickCourse(co)}>
               <Card style={{ ...(course?.id === co.id ? { borderColor: c.primary, borderWidth: 2 } : {}), opacity: unfinished ? 0.55 : 1 }}>
                 <H2>{co.name}</H2>
                 <Body muted>{[co.city, co.region].filter(Boolean).join(', ')} · Par {co.tees[0]?.par ?? '–'} · {co.tees.length} tees</Body>
@@ -521,6 +525,8 @@ export default function NewRound() {
             </Pressable>
             );
           })}
+          {/* Not in the app yet: matching courses from the online course database. */}
+          <OnlineCourses query={query} have={courses} onPick={pickCourse} />
         </>
       )}
 
