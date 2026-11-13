@@ -22,7 +22,7 @@ import { teamGroups, teamHole } from '@/lib/teams';
 import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor, roundHoleCount } from '@/lib/round';
 import { useRound, useStore } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
-import { namesFor, teamName, TeamColors } from '@/lib/team-colors';
+import { namesFor, teamName, TeamColors, roundPicks } from '@/lib/team-colors';
 import { track } from '@/lib/usage';
 import { Tip } from '@/components/tip';
 import { AddToEvent } from '@/components/add-to-event';
@@ -50,7 +50,7 @@ export default function Results() {
   if (!r) return <Body>Round not found.</Body>;
 
   const results = evaluate(r);
-  const picks = r.teamColors;
+  const picks = roundPicks(r);
   const names = namesFor(r, useStore.getState().events.find((ev) => ev.id === r.eventId));
   const tn = (L: string) => teamName(L, names);
   const evTeams = useStore.getState().events.find((ev) => ev.id === r.eventId)?.teams;

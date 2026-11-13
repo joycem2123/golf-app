@@ -10,7 +10,7 @@ import { courseFor, evaluate, holesComplete, isResult, shortCourseName } from '@
 import { TeamScoreLine } from './team-score-line';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, useColors } from '@/theme';
-import { namesFor, teamName } from '@/lib/team-colors';
+import { namesFor, teamName, roundPicks } from '@/lib/team-colors';
 
 export function EventCard({ e, rounds, hint, onPress, nameOf }: { e: EventRecord; rounds: RoundRecord[]; hint?: string; onPress?: () => void; nameOf?: (id: string) => string | undefined }) {
   const c = useColors();
@@ -72,7 +72,7 @@ export function RoundCard({ r }: { r: RoundRecord }) {
           <Body muted>{r.players.map((p) => p.name).join(', ')}</Body>
           {/* Team rounds: the team score, coloured by who's ahead. Otherwise the game's summary. */}
           {team ? (
-            <TeamScoreLine picks={r.teamColors} done={r.status === 'complete'} teams={team.map((t) => ({ letter: t.letter, name: roundTeamName(t.letter), points: t.points }))} />
+            <TeamScoreLine picks={roundPicks(r)} done={r.status === 'complete'} teams={team.map((t) => ({ letter: t.letter, name: roundTeamName(t.letter), points: t.points }))} />
           ) : main && isResult(main) ? (
             <Body muted>{main.summary}</Body>
           ) : null}

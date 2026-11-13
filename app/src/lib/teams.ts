@@ -3,6 +3,7 @@ import type { GameConfig, GameResult } from '@golf/engine';
 import type { RoundRecord } from '@/store/store';
 import { teamColor, type Colors } from '@/theme';
 import { grossAt } from './round';
+import { roundPicks } from '@/lib/team-colors';
 
 export interface TeamGroup {
   id: string;
@@ -22,7 +23,7 @@ export function teamGroups(r: RoundRecord, c: Colors, gi = 0): TeamGroup[] | nul
   const make = (id: string, i: number, members: string[], keys: string[]): TeamGroup => {
     // Team letter from the id ("match-2-C", "team-C", old "teamA"); otherwise by position.
     const L = /-([A-Z])$/.exec(id)?.[1] ?? /^team([A-Z])$/.exec(id)?.[1] ?? String.fromCharCode(65 + i);
-    const tc = teamColor(L, r.teamColors);
+    const tc = teamColor(L, roundPicks(r));
     return { id, label: r.teamNames?.[L]?.trim() || `Team ${L}`, names: members.map(name).join(' & '), color: tc.color, soft: tc.soft, keys };
   };
   if ((g.type === 'matchPlay' && g.format === 'fourBall') || (g.type === 'nassau' && g.format === 'fourBall')) {

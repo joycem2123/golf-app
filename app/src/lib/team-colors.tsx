@@ -33,21 +33,39 @@ export function useTeamName() {
 /** A team's name: the one given to it, else "Team A". */
 export const teamName = (letter: string, names?: Record<string, string>) => names?.[letter]?.trim() || `Team ${letter}`;
 
-/** A round's team names: its own, else its event's (a Ryder Cup's are its two team names). */
+/**
+ * A round's team names. In an event the event's names win (a Ryder Cup's are its two team names), so a team is
+ * called the same thing everywhere; the round's own names only fill in teams the event doesn't have.
+ */
 export function namesFor(r?: { teamNames?: Record<string, string> }, e?: EventRecord): Record<string, string> | undefined {
   const fromCup = e?.teams ? { A: e.teams.A.name, B: e.teams.B.name } : undefined;
   if (!r?.teamNames && !e?.teamNames && !fromCup) return undefined;
-  return { ...fromCup, ...e?.teamNames, ...r?.teamNames };
+  return { ...r?.teamNames, ...e?.teamNames, ...fromCup };
 }
 
 /** Swap "Team A" in text from the scoring engine for the team's own name. */
 export const renameTeams = (text: string, names?: Record<string, string>) =>
   names ? text.replace(/\bTeam ([A-Z])\b/g, (m, L: string) => names[L]?.trim() || m) : text;
 
-/** A round's colours: its own, else its event's. */
+/**
+ * A round's colours. In an event the event's colours win, so a team is the same colour on every screen (a round
+ * can have saved its own, e.g. picked on a phone that didn't have the event's colours yet); the round's own only
+ * fill in teams the event doesn't colour.
+ */
+export function picksFor(r: { teamColors?: TeamPicks } | undefined, e: { teamColors?: TeamPicks } | undefined): TeamPicks | undefined {
+  if (!r?.teamColors && !e?.teamColors) return undefined;
+  return { ...r?.teamColors, ...e?.teamColors };
+}
+
+/** A round's colours (event colours win), outside of React components. */
+export function roundPicks(r: RoundRecord | undefined): TeamPicks | undefined {
+  if (!r) return undefined;
+  return picksFor(r, useStore.getState().events.find((e) => e.id === r.eventId));
+}
+
 export function useRoundPicks(r: RoundRecord | undefined): TeamPicks | undefined {
   const ev = useStore((s) => s.events.find((e) => e.id === r?.eventId)?.teamColors);
-  return r?.teamColors ?? ev;
+  return picksFor(r, { teamColors: ev });
 }
 
 export const eventPicks = (e: EventRecord | undefined) => e?.teamColors;

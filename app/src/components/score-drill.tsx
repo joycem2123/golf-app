@@ -13,7 +13,7 @@ import { liveTeamScore, matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
-import { namesFor, teamName } from '@/lib/team-colors';
+import { namesFor, teamName, picksFor } from '@/lib/team-colors';
 import { EventCard } from './cards';
 import { ListSection } from './list-section';
 import { formatDate, today } from '@/lib/dates';
@@ -111,7 +111,7 @@ export function RoundDrill({ r, e, actions }: { r: RoundRecord; e?: EventRecord;
           <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{[date, course, gameName(r.games[0]), e ? null : r.players.map((p) => p.name.split(' ')[0]).join(', ')].filter(Boolean).join(' · ')}</Text>
           {score ? (
             <View style={{ marginTop: 4 }}>
-              <TeamScoreLine picks={r.teamColors ?? e?.teamColors} done={!live} live={liveScore} teams={score.map((t) => ({ letter: t.letter, name: teamName(t.letter, namesFor(r, e)), points: t.points }))} />
+              <TeamScoreLine picks={picksFor(r, e)} done={!live} live={liveScore} teams={score.map((t) => ({ letter: t.letter, name: teamName(t.letter, namesFor(r, e)), points: t.points }))} />
             </View>
           ) : summary ? (
             <Text numberOfLines={2} style={{ color: c.text, fontSize: 13 }}>{summary}</Text>
@@ -127,7 +127,7 @@ export function RoundDrill({ r, e, actions }: { r: RoundRecord; e?: EventRecord;
           {matches.map((m) => (
             <View key={m.gi} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ flex: 1 }}>
-                <LiveMatchRow compact r={r} results={results} m={m} leftLetter={e?.teams ? 'A' : e?.teamLetters?.[0]} picks={r.teamColors ?? e?.teamColors} onPress={() => go(`/round/${r.id}/match/${m.gi}`)} />
+                <LiveMatchRow compact r={r} results={results} m={m} leftLetter={e?.teams ? 'A' : e?.teamLetters?.[0]} picks={picksFor(r, e)} onPress={() => go(`/round/${r.id}/match/${m.gi}`)} />
               </View>
               {actions?.matchMore && live ? <MoreButton small onPress={() => actions.matchMore!(r, m.gi)} label={`Follow and notification options for ${m.title}`} /> : null}
             </View>

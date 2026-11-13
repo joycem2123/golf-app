@@ -6,6 +6,7 @@ import { grossAt, scoreKeys, teeFor, gameHoles } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
 import type { RoundRecord } from '@/store/store';
 import { fonts, useColors, teamColor } from '@/theme';
+import { roundPicks } from '@/lib/team-colors';
 
 const W = 34; // hole cell width
 const SUM = 42; // out/in/total width
@@ -125,7 +126,7 @@ export function ScorecardGrid({
   const playerName = (k: string) => {
     const L = teamLetterOf(k);
     if (!L) return nameText(label(k));
-    const tc = teamColor(L, r.teamColors).color;
+    const tc = teamColor(L, roundPicks(r)).color;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
         <View style={{ width: 4, height: 18, borderRadius: 2, backgroundColor: tc }} />
@@ -196,7 +197,7 @@ export function ScorecardGrid({
                 (h) => {
                   const v = running[h - 1];
                   if (v === null || v === undefined) return null;
-                  const color = v > 0 ? (teams?.[0].color ?? teamColor('A', r.teamColors).color) : v < 0 ? (teams?.[1]?.color ?? teamColor('B', r.teamColors).color) : c.muted;
+                  const color = v > 0 ? (teams?.[0].color ?? teamColor('A', roundPicks(r)).color) : v < 0 ? (teams?.[1]?.color ?? teamColor('B', roundPicks(r)).color) : c.muted;
                   return <Text style={{ color, fontWeight: '700', fontSize: 12, fontFamily: fonts.serif }}>{v === 0 ? 'AS' : `${v > 0 ? letterA : letterB}${Math.abs(v)}`}</Text>;
                 },
                 () => null,

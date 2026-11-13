@@ -27,7 +27,7 @@ import { TeamScoreboard } from '@/components/team-scoreboard';
 import { cardSides, liveTeamScore } from '@/lib/results';
 import { headline } from '@/lib/headline';
 import { AddToEvent } from '@/components/add-to-event';
-import { namesFor, renameTeams, teamName, TeamColors } from '@/lib/team-colors';
+import { namesFor, renameTeams, teamName, TeamColors, roundPicks } from '@/lib/team-colors';
 import { myMatchIndex } from '@/components/live-carousel';
 import { EditRights, canEditGame, canEditKey, useAccountId, useCanEdit, useEditRequests } from '@/lib/edit-rights';
 import { EditRequestsCard, LockedMatch } from '@/components/edit-lock';
@@ -272,8 +272,8 @@ function SinglesBox({ r, k, hole, gi, side, result, strokes }: { r: RoundRecord;
   const c = useColors();
   const g = r.games[gi] as NassauConfig | Extract<RoundRecord['games'][number], { type: 'matchPlay' }>;
   const letter = r.teamOf?.[k.key] ?? (/-([A-Z])$/.exec(side === 'A' ? g.sideA.id : g.sideB.id)?.[1]) ?? side;
-  const color = teamColor(letter, r.teamColors).color;
-  const soft = teamColor(letter, r.teamColors).soft;
+  const color = teamColor(letter, roundPicks(r)).color;
+  const soft = teamColor(letter, roundPicks(r)).soft;
   const outcomes = result && isResult(result) ? (result.type === 'matchPlay' ? result.status.outcomes : result.type === 'nassau' ? result.segments[2].status.outcomes : []) : [];
   const o = outcomes[hole - 1] ?? null;
   const won = o !== null && o === (side === 'A' ? 1 : -1);
@@ -355,7 +355,7 @@ export default function Scorecard() {
   const done = (n: number) => keys.every((k) => grossAt(r, k.key, n) !== null);
   const allDone = allHolesScored(r);
   const tnames = namesFor(r, useStore.getState().events.find((e) => e.id === r.eventId));
-  const sidesByGame = cardSides(r, results, (L) => teamName(L, tnames), (L) => teamColor(L, r.teamColors).color);
+  const sidesByGame = cardSides(r, results, (L) => teamName(L, tnames), (L) => teamColor(L, roundPicks(r)).color);
   const teams = teamGroups(r, c, gi);
   const inTeams = new Set(teams?.flatMap((t) => t.keys) ?? []);
   const solo = keys.filter((k) => !inTeams.has(k.key));
@@ -403,8 +403,8 @@ export default function Scorecard() {
   const sideColor = (sd: 0 | 1 | null) => {
     if (sd === null) return c.brand;
     const L = gameSides ? r.teamOf?.[gameSides[sd][0]] : undefined;
-    if (L) return teamColor(L, r.teamColors).color;
-    return sd === 0 ? (teams?.[0]?.color ?? teamColor('A', r.teamColors).color) : (teams?.[1]?.color ?? teamColor('B', r.teamColors).color);
+    if (L) return teamColor(L, roundPicks(r)).color;
+    return sd === 0 ? (teams?.[0]?.color ?? teamColor('A', roundPicks(r)).color) : (teams?.[1]?.color ?? teamColor('B', roundPicks(r)).color);
   };
   // Leader in first names ("Ben & Dan"), and the score kept separate so it's never cut off.
   const short = (n: string) => n.split(' & ').map((x) => x.split(' ')[0]).join(' & ');
@@ -435,7 +435,7 @@ export default function Scorecard() {
   );
 
   return (
-    <TeamColors picks={r.teamColors} names={tnames}>
+    <TeamColors picks={roundPicks(r)} names={tnames}>
       <Stack.Screen options={{ title: shortCourseName(course.name) }} />
       {/* Full scorecard of a team round: the team score is pinned on top, the match status sits in the page. */}
       {teamTop ? <TeamScoreboard r={r} results={results} pinned={view === 'card' || viewer} mini={view === 'hole' && !viewer} /> : matchBanner()}

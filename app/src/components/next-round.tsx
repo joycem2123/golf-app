@@ -18,7 +18,7 @@ import { getCourse } from '@/lib/courses';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import { useStore, type EventRecord, type EventRound, type RoundRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
-import { namesFor, teamName } from '@/lib/team-colors';
+import { namesFor, teamName, picksFor } from '@/lib/team-colors';
 
 /** The featured round: live first, else the first planned round not yet played. */
 export function featuredRound(e: EventRecord, rounds: RoundRecord[]): { plan?: EventRound; round?: RoundRecord } | null {
@@ -58,7 +58,7 @@ export function NextRound({ e }: { e: EventRecord }) {
         {score && (
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {score.map((t) => (
-              <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter, round.teamColors ?? e.teamColors).color }}>
+              <View key={t.letter} style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.md, backgroundColor: teamColor(t.letter, picksFor(round, e)).color }}>
                 <Text style={{ color: '#ffffffcc', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>{teamName(t.letter, namesFor(round, e)).toUpperCase()}</Text>
                 <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 24, fontWeight: '700' }}>{formatPoints(t.points)}</Text>
               </View>
@@ -69,7 +69,7 @@ export function NextRound({ e }: { e: EventRecord }) {
         {teamMatches.length ? (
           <View style={{ gap: 6 }}>
             {teamMatches.map((m) => (
-              <LiveMatchRow key={m.gi} r={round} results={results} m={m} leftLetter={leftLetter} picks={round.teamColors ?? e.teamColors} onPress={() => router.push(`/round/${round.id}`)} />
+              <LiveMatchRow key={m.gi} r={round} results={results} m={m} leftLetter={leftLetter} picks={picksFor(round, e)} onPress={() => router.push(`/round/${round.id}`)} />
             ))}
           </View>
         ) : matches.slice(0, 6).map(({ g, res }, i) => (

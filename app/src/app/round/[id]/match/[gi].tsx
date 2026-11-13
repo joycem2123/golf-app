@@ -10,7 +10,7 @@ import { evaluate, isResult } from '@/lib/round';
 import { storyHoles } from '@/lib/story';
 import { useStore, useRound } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
-import { namesFor, teamName, TeamColors } from '@/lib/team-colors';
+import { namesFor, teamName, TeamColors, roundPicks } from '@/lib/team-colors';
 
 /** Everything about one match: result, story, hole-by-hole breakdown and the full scorecard. */
 export default function MatchDetail() {
@@ -28,8 +28,8 @@ export default function MatchDetail() {
   const myIds = r.players.filter((p) => isMe(p.id)).map((p) => p.id);
   const showTeam = m.a.letter !== m.b.letter;
   const names = namesFor(r, useStore.getState().events.find((e) => e.id === r.eventId));
-  const ca = teamColor(m.a.letter, r.teamColors);
-  const cb = teamColor(m.b.letter, r.teamColors);
+  const ca = teamColor(m.a.letter, roundPicks(r));
+  const cb = teamColor(m.b.letter, roundPicks(r));
   const played = holes.filter((h) => h.outcome !== null);
   const won = (side: 1 | -1) => played.filter((h) => h.outcome === side).length;
 
@@ -77,7 +77,7 @@ export default function MatchDetail() {
   );
 
   return (
-    <TeamColors picks={r.teamColors} names={names}>
+    <TeamColors picks={roundPicks(r)} names={names}>
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

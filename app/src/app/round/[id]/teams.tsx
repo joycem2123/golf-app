@@ -7,7 +7,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { TeamEditor } from '@/components/team-editor';
 import { Body, Button, Card, H2 } from '@/components/ui';
 import { gameTitle, matchLabel } from '@/lib/games';
-import { namesFor, teamName } from '@/lib/team-colors';
+import { namesFor, teamName, roundPicks } from '@/lib/team-colors';
 import { track } from '@/lib/usage';
 import { useRound, useStore } from '@/store/store';
 import { radius, space, teamColor, useColors } from '@/theme';
@@ -49,7 +49,7 @@ export default function EditRoundTeams() {
         <Card>
           <H2>Teams for {r.label ?? 'this round'}</H2>
           <Body muted>Move anyone to another team. Scores already entered stay; the team score is worked out again.{ev ? ' This round only; change the event’s teams from the event’s Edit screen.' : ''}</Body>
-          <TeamEditor players={r.players} teamOf={teamOf} letters={letters} names={names} picks={r.teamColors} onChange={setTeamOf} />
+          <TeamEditor players={r.players} teamOf={teamOf} letters={letters} names={names} picks={roundPicks(r)} onChange={setTeamOf} />
         </Card>
         {matches.length > 0 && (
           <Card style={{ gap: 6 }}>
@@ -59,9 +59,9 @@ export default function EditRoundTeams() {
                 <Text numberOfLines={1} style={{ flex: 1, color: c.text, fontSize: 14 }}>{m.title}</Text>
                 {m.counts ? (
                   <Text style={{ fontSize: 12, fontWeight: '800' }}>
-                    <Text style={{ color: teamColor(m.ta!, r.teamColors).color }}>{teamName(m.ta!, names)}</Text>
+                    <Text style={{ color: teamColor(m.ta!, roundPicks(r)).color }}>{teamName(m.ta!, names)}</Text>
                     <Text style={{ color: c.muted }}> v </Text>
-                    <Text style={{ color: teamColor(m.tb!, r.teamColors).color }}>{teamName(m.tb!, names)}</Text>
+                    <Text style={{ color: teamColor(m.tb!, roundPicks(r)).color }}>{teamName(m.tb!, names)}</Text>
                   </Text>
                 ) : (
                   <View style={{ backgroundColor: c.danger, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 }}>
