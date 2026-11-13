@@ -6,29 +6,20 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { gameName, gameTitle } from '@/lib/games';
+import { gameName } from '@/lib/games';
 import { headline } from '@/lib/headline';
 import { formatPoints } from '@/lib/events';
 import { liveTeamScore, matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
 import type { EventRecord, RoundRecord } from '@/store/store';
-import { radius, space, teamColor, useColors } from '@/theme';
+import { radius, space, useColors } from '@/theme';
 import { namesFor, teamName } from '@/lib/team-colors';
 import { EventCard } from './cards';
 import { ListSection } from './list-section';
 import { formatDate, today } from '@/lib/dates';
 import { TeamScoreLine, type LiveOverride } from './team-score-line';
 import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
-
-function Toggle({ open, label, onPress }: { open: boolean; label: string; onPress: () => void }) {
-  const c = useColors();
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={label} hitSlop={8}
-      style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: open ? c.primary : c.chip, opacity: pressed ? 0.7 : 1 })}>
-      <Text style={{ color: open ? c.onPrimary : c.primary, fontSize: 14, fontWeight: '900' }}>{open ? '▴' : '▾'}</Text>
-    </Pressable>
-  );
-}
+import { LiveMatchRow } from './match-strip';
 
 /** An event card that opens out into its rounds. */
 export interface DrillActions {
@@ -127,30 +118,29 @@ export function RoundDrill({ r, e, actions }: { r: RoundRecord; e?: EventRecord;
           ) : null}
           <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12, marginTop: 2 }}>{live ? 'Live scoring ›' : 'Round results ›'}</Text>
         </Pressable>
-        {matches.length > 0 && <Toggle open={open} label={open ? 'Hide matches' : 'Show matches'} onPress={() => setOpen(!open)} />}
         {/* Follow / alerts, tucked into the top-right corner. */}
         {more && <View style={{ position: 'absolute', top: 6, right: 6 }}><MoreButton small onPress={() => more(r)} label="Follow and notification options for this round" /></View>}
       </View>
-      {open && (
-        <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg }}>
-          {matches.map((m, i) => {
-            const res = results[m.gi];
-            // The winner's team colour (or the app's green when there are no teams).
-            const side = m.winner === 'a' ? m.a : m.winner === 'b' ? m.b : null;
-            const winColor = m.winner === 'halved' ? c.accent : side ? (side.letter ? teamColor(side.letter, r.teamColors).color : c.primary) : undefined;
-            const status = m.winner === 'halved' ? 'Halved' : m.winner ? `${(m.winner === 'a' ? m.a : m.b).names.split(' & ').map((n) => n.split(' ')[0]).join(' & ')} ${m.detail}` : res && isResult(res) && res.thru ? m.detail : 'Not started';
-            return (
-              <Pressable key={m.gi} onPress={() => go(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`}
-                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 10, paddingHorizontal: space.md, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, backgroundColor: pressed ? c.chip : 'transparent' })}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ color: c.text, fontSize: 14, fontWeight: '600' }}>{gameTitle(r.games[m.gi], r.players)}</Text>
-                  <Text numberOfLines={1} style={{ color: winColor ?? c.muted, fontSize: 13, fontWeight: m.winner ? '700' : '400' }}>{status}{actions?.isFollowing?.(r, m.gi) ? '  ★' : ''}</Text>
-                </View>
-                {actions?.matchMore && live ? <MoreButton onPress={() => actions.matchMore!(r, m.gi)} label={`Follow and notification options for ${m.title}`} /> : <Text style={{ color: c.primary, fontWeight: '800', fontSize: 16 }}>›</Text>}
-              </Pressable>
-            );
-          })}
+      {/* The matches open out below, slim scoreboard lines like the event page; the bar across the bottom opens them. */}
+      {open && matches.length > 0 && (
+        <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg, padding: 6, gap: 4 }}>
+          {matches.map((m) => (
+            <View key={m.gi} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ flex: 1 }}>
+                <LiveMatchRow compact r={r} results={results} m={m} leftLetter={e?.teams ? 'A' : e?.teamLetters?.[0]} picks={r.teamColors ?? e?.teamColors} onPress={() => go(`/round/${r.id}/match/${m.gi}`)} />
+              </View>
+              {actions?.matchMore && live ? <MoreButton small onPress={() => actions.matchMore!(r, m.gi)} label={`Follow and notification options for ${m.title}`} /> : null}
+            </View>
+          ))}
         </View>
+      )}
+      {matches.length > 0 && (
+        <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={open ? 'Hide matches' : 'Show matches'}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: pressed ? c.chip : c.primarySoft })}>
+          <Text style={{ color: c.primary, fontWeight: '800', fontSize: 13 }}>
+            {open ? 'Hide matches ▴' : `Show ${matches.length} match${matches.length === 1 ? '' : 'es'} ▾`}
+          </Text>
+        </Pressable>
       )}
     </View>
   );

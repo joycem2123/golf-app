@@ -57,13 +57,21 @@ export function Arrow({ dir, color, h, overlay }: { dir: 'left' | 'right'; color
  * Phone-sized scoreboard row for a match in play. The status block sits in the middle with a slot either side for its
  * arrow, so the colour never runs over a name and the blocks line up row to row. Long names shrink to fit.
  */
-export function LiveMatchRow({ r, results, m, leftLetter, picks, onPress }: { r: RoundRecord; results: Results; m: MatchOutcome; leftLetter?: string; picks: Picks; onPress?: () => void }) {
+export function LiveMatchRow({ r, results, m, leftLetter, picks, onPress, compact }: { r: RoundRecord; results: Results; m: MatchOutcome; leftLetter?: string; picks: Picks; onPress?: () => void; /** One slim line per match (lists of rounds). */ compact?: boolean }) {
   const c = useColors();
   const v = matchView(r, results, m, leftLetter, picks);
-  const h = 60;
+  const h = compact ? 40 : 60;
   const slot = Math.round(h * 0.3);
   const player = (id: string) => r.players.find((p) => p.id === id);
-  const people = (ids: string[], align: 'left' | 'right', color: string) => (
+  const first = (id: string) => (player(id)?.name ?? '?').split(' ')[0];
+  const slim = (ids: string[], align: 'left' | 'right', color: string) => (
+    <View style={{ flex: 1, minWidth: 0, justifyContent: 'center', paddingLeft: align === 'left' ? 10 : 4, paddingRight: align === 'right' ? 10 : 4, alignItems: align === 'left' ? 'flex-start' : 'flex-end' }}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ color, fontWeight: '700', fontSize: 14, maxWidth: '100%', textAlign: align }}>
+        {ids.length > 1 ? ids.map(first).join(' & ') : (player(ids[0])?.name ?? '?')}
+      </Text>
+    </View>
+  );
+  const people = (ids: string[], align: 'left' | 'right', color: string) => compact ? slim(ids, align, color) : (
     <View style={{ flex: 1, minWidth: 0, justifyContent: 'center', gap: 1, paddingLeft: align === 'left' ? 12 : 4, paddingRight: align === 'right' ? 12 : 4, alignItems: align === 'left' ? 'flex-start' : 'flex-end' }}>
       {ids.map((id) => {
         const p = player(id);
@@ -82,12 +90,12 @@ export function LiveMatchRow({ r, results, m, leftLetter, picks, onPress }: { r:
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${v.left.members.map((id) => player(id)?.name).join(' and ')} versus ${v.right.members.map((id) => player(id)?.name).join(' and ')}: ${v.big} ${v.small.toLowerCase()}`}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: pressed ? '#F3F6F4' : '#fff', borderRadius: 10, borderWidth: 1, borderColor: c.border, overflow: 'hidden' })}>
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: pressed ? '#F3F6F4' : '#fff', borderRadius: compact ? 8 : 10, borderWidth: 1, borderColor: c.border, overflow: 'hidden' })}>
       {people(v.left.members, 'left', v.lc)}
       {arrowSlot('L')}
-      <View style={{ width: 76, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: c.border }}>
-        <Text style={{ color: v.cellText, fontFamily: fonts.serif, fontWeight: '700', fontSize: 18 }}>{v.big}</Text>
-        <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: v.cellText, opacity: 0.85, fontWeight: '700', fontSize: 8.5, letterSpacing: 0.2 }}>{v.small}</Text>
+      <View style={{ width: compact ? 64 : 76, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: c.border }}>
+        <Text style={{ color: v.cellText, fontFamily: fonts.serif, fontWeight: '700', fontSize: compact ? 15 : 18, lineHeight: compact ? 17 : undefined }}>{v.big}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: v.cellText, opacity: 0.85, fontWeight: '700', fontSize: compact ? 7.5 : 8.5, letterSpacing: 0.2 }}>{v.small}</Text>
       </View>
       {arrowSlot('R')}
       {people(v.right.members, 'right', v.rc)}

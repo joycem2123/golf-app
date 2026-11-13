@@ -3,6 +3,7 @@ import { ScrollView, View } from 'react-native';
 
 import { AnalyticsSection } from '@/components/analytics-section';
 import { MeCard, StatTiles, UnclaimedRounds } from '@/components/people';
+import { MyRoundsCard } from '@/components/my-rounds-card';
 import { TabHeader } from '@/components/tab-header';
 import { Body, Button, Card, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
@@ -41,6 +42,7 @@ export default function Profile() {
 
         <UnclaimedRounds />
         <AnalyticsSection />
+        {stats && <MyRoundsCard stats={stats} />}
 
         {guest ? (
           <Card>
