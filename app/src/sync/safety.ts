@@ -4,12 +4,20 @@ import { useStore, type SavedPlayer } from '@/store/store';
 import { supabase } from './supabase';
 
 /** Permanently delete my account and its data, then go back to a clean guest state on this phone. */
-export async function deleteMyAccount() {
+export async function deleteMyAccount(password: string) {
   const { data } = await supabase.auth.getSession();
   const user = data.session?.user;
   if (!user) throw new Error('Sign in first.');
-  const { error } = await supabase.functions.invoke('delete-account', { body: {} });
-  if (error) throw new Error('Couldn’t delete your account. Check your connection and try again.');
+  const { error } = await supabase.functions.invoke('delete-account', { body: { password } });
+  if (error) {
+    // A wrong password comes back with its own message; anything else is a connection problem.
+    let msg = 'Couldn’t delete your account. Check your connection and try again.';
+    try {
+      const body = (await (error as { context?: Response }).context?.json()) as { error?: string; code?: string } | undefined;
+      if (body?.code === 'password' && body.error) msg = body.error;
+    } catch { /* keep the general message */ }
+    throw new Error(msg);
+  }
   await supabase.auth.signOut().catch(() => undefined);
   await switchAccount(GUEST_KEY);
   await forgetAccount(accountKey(user.id));

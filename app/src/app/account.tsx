@@ -41,6 +41,7 @@ export default function Account() {
   const [busy, setBusy] = useState<'email' | 'password' | 'delete' | null>(null);
   const [askDelete, setAskDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletePw, setDeletePw] = useState('');
   const [blocked, setBlocked] = useState<{ id: string; name: string }[]>([]);
   // People I've blocked, with their names.
   useEffect(() => {
@@ -59,12 +60,13 @@ export default function Account() {
     await supabase.rpc('unblock_user', { target: id });
     setBlocked((b) => b.filter((x) => x.id !== id));
   };
+  // Deleting needs the current password (checked by the server). A wrong one keeps the box open to try again.
   const reallyDelete = async () => {
-    setAskDelete(false);
     setBusy('delete');
     setDeleteError(null);
     try {
-      await deleteMyAccount();
+      await deleteMyAccount(deletePw);
+      setAskDelete(false);
       router.replace('/welcome');
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : String(e));
@@ -140,8 +142,6 @@ export default function Account() {
         <Text style={{ color: c.muted, fontSize: 12 }}>Change your name, username or handicap from the Profile tab.</Text>
       </Card>
 
-      <AppPreferences />
-
       <Card>
         <H2>Change email</H2>
         {pending ? <Message text={`Waiting to confirm ${pending}. Tap the link sent to both your current and new email.`} /> : null}
@@ -164,6 +164,8 @@ export default function Account() {
         <Button title={busy === 'password' ? 'Saving…' : 'Change password'} disabled={!current || !passwordOk(next) || next !== again || busy !== null} onPress={savePassword} />
       </Card>
 
+      <AppPreferences />
+
       {blocked.length > 0 && (
         <Card>
           <H2>Blocked people</H2>
@@ -181,18 +183,21 @@ export default function Account() {
         <Text style={{ color: c.muted, fontSize: 14 }}>
           Permanently deletes your Clutch Up account: your profile, friends list, rounds and events you started, shared courses and requests. This can’t be undone.
         </Text>
-        {deleteError ? <Message text={deleteError} error /> : null}
-        <Button title={busy === 'delete' ? 'Deleting…' : 'Delete my account'} kind="danger" disabled={busy !== null} onPress={() => setAskDelete(true)} />
+        <Button title="Delete my account" kind="danger" disabled={busy !== null} onPress={() => { setDeletePw(''); setDeleteError(null); setAskDelete(true); }} />
       </Card>
       <ConfirmDialog
         visible={askDelete}
         title="Delete your account?"
         message={`Everything tied to ${user.email ?? 'your account'} will be deleted for good. Friends keep their copies of rounds you played together.`}
         cancelLabel="Keep my account"
-        confirmLabel="Delete forever"
-        onCancel={() => setAskDelete(false)}
-        onConfirm={reallyDelete}
-      />
+        confirmLabel={busy === 'delete' ? 'Deleting…' : 'Delete forever'}
+        confirmDisabled={!deletePw || busy === 'delete'}
+        onCancel={() => { setAskDelete(false); setDeletePw(''); setDeleteError(null); }}
+        onConfirm={() => void reallyDelete()}
+      >
+        <Field label="Current password" value={deletePw} onChangeText={(t) => { setDeletePw(t); setDeleteError(null); }} secureTextEntry autoComplete="current-password" textContentType="password" placeholder="Enter your password to confirm" />
+        {deleteError ? <Text style={{ color: c.danger, fontSize: 13, textAlign: 'center' }}>{deleteError}</Text> : null}
+      </ConfirmDialog>
     </ScrollView>
   );
 }

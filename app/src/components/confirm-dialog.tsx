@@ -12,6 +12,8 @@ export function ConfirmDialog({
   destructive = true,
   onConfirm,
   onCancel,
+  children,
+  confirmDisabled,
 }: {
   visible: boolean;
   title: string;
@@ -21,6 +23,9 @@ export function ConfirmDialog({
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Extra content under the message (e.g. a password box). */
+  children?: React.ReactNode;
+  confirmDisabled?: boolean;
 }) {
   const c = useColors();
   return (
@@ -31,13 +36,14 @@ export function ConfirmDialog({
           <View style={{ padding: space.xl, gap: space.sm, alignItems: 'center' }}>
             <Text style={{ fontFamily: fonts.serif, fontSize: 20, fontWeight: '700', color: c.text, textAlign: 'center' }}>{title}</Text>
             {message ? <Text style={{ color: c.muted, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>{message}</Text> : null}
+            {children ? <View style={{ alignSelf: 'stretch', marginTop: space.sm, gap: space.sm }}>{children}</View> : null}
           </View>
           <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: c.border }}>
             <Pressable accessibilityRole="button" onPress={onCancel} style={({ pressed }) => ({ flex: 1, paddingVertical: space.lg, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{cancelLabel}</Text>
             </Pressable>
             <View style={{ width: 1, backgroundColor: c.border }} />
-            <Pressable accessibilityRole="button" onPress={onConfirm} style={({ pressed }) => ({ flex: 1, paddingVertical: space.lg, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!confirmDisabled }} disabled={confirmDisabled} onPress={onConfirm} style={({ pressed }) => ({ flex: 1, paddingVertical: space.lg, alignItems: 'center', opacity: confirmDisabled ? 0.35 : pressed ? 0.6 : 1 })}>
               <Text style={{ color: destructive ? c.danger : c.primary, fontSize: 16, fontWeight: '800' }}>{confirmLabel}</Text>
             </Pressable>
           </View>
