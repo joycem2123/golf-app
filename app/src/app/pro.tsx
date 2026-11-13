@@ -22,7 +22,7 @@ const REASONS: Record<string, string> = {
 };
 
 const FEATURES: { icon: string; title: string; sub: string }[] = [
-  { icon: '🏆', title: 'Events', sub: 'Trips, Ryder Cups and seasons with live standings, projections and schedules.' },
+  { icon: '🏆', title: 'Events', sub: 'Trips and seasons with live standings, projections and schedules.' },
   { icon: '✨', title: 'Match & event stories', sub: 'A story of every match and event, written for you.' },
   { icon: '📷', title: 'Scorecard uploads', sub: 'Snap a filled-in card and get the results in seconds.' },
   { icon: '🏅', title: 'Points Race seasons', sub: 'Stableford seasons with finishing bonuses and best-rounds standings for each half.' },

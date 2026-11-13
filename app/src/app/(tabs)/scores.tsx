@@ -15,7 +15,7 @@ import { space } from '@/theme';
 function EventsList({ onDeleteEvent }: { onDeleteEvent: (id: string) => void }) {
   const events = useStore((s) => s.events);
   const rounds = useStore((s) => s.rounds);
-  if (events.length === 0) return <Body muted>No events yet. Set up a trip, Ryder Cup or season from Home.</Body>;
+  if (events.length === 0) return <Body muted>No events yet. Set up a trip or season from Home.</Body>;
   const last = (id: string, fallback: number) => Math.max(fallback, ...rounds.filter((r) => r.eventId === id).map((r) => r.completedAt ?? r.createdAt));
   const sorted = [...events].sort((a, b) => last(b.id, b.createdAt) - last(a.id, a.createdAt));
   const open = sorted.filter((e) => eventPhase(e, rounds) !== 'completed');

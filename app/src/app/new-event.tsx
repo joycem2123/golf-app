@@ -29,7 +29,8 @@ type Plan = { id: string; date?: string; draft: GameDraft | null; tbd?: boolean 
 
 const TYPES: { value: EventType; label: string; icon: string; blurb: string }[] = [
   { value: 'trip', label: 'Trip', icon: '✈︎', blurb: 'A few rounds over a few days. Standings from every match.' },
-  { value: 'cup', label: 'Ryder Cup', icon: '🏆', blurb: 'Two teams play matches for points. Win 1, halve ½.' },
+  // Ryder Cup: hidden for launch (the code still supports it; existing cups keep working).
+  // { value: 'cup', label: 'Ryder Cup', icon: '🏆', blurb: 'Two teams play matches for points. Win 1, halve ½.' },
   { value: 'season', label: 'Season', icon: '📅', blurb: 'Regular rounds on a repeating schedule, with season standings.' },
 ];
 

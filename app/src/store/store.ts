@@ -180,6 +180,8 @@ export interface EventRecord {
   /** Season/trip standings points. */
   points: { win: number; halve: number; loss: number };
   status: 'active' | 'complete';
+  /** When it was completed (Complete Event). */
+  completedAt?: number;
   remote?: Remote;
   schedule?: ScheduledMatch[];
   /** YYYY-MM-DD */
@@ -311,6 +313,8 @@ interface State {
   setEventStory: (eventId: string, story: { text: string; key: string }) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
+  /** Finish an event (or reopen it). */
+  setEventComplete: (id: string, complete: boolean) => void;
   upsertPlayer: (p: SavedPlayer) => void;
   removePlayer: (id: string) => void;
   addRound: (r: RoundRecord) => void;
@@ -682,6 +686,11 @@ export const useStore = create<State>()(
           };
         }),
       updateEvent: (e) => set((s) => ({ events: s.events.map((x) => (x.id === e.id ? e : x)), dirtyEvents: dirtyEvent(s, e.id) })),
+      setEventComplete: (id, complete) =>
+        set((s) => ({
+          events: s.events.map((e) => (e.id === id ? { ...e, status: complete ? 'complete' : 'active', completedAt: complete ? Date.now() : undefined } : e)),
+          dirtyEvents: dirtyEvent(s, id),
+        })),
       deleteEvent: (id) =>
         set((s) => {
           const e = s.events.find((x) => x.id === id);

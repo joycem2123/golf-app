@@ -163,7 +163,7 @@ export default function Home() {
         )}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
           <Tile primary title="New Round" sub="Pick a course, players and games" icon={glyph('+', '#fff')} onPress={() => router.push('/new-round')} />
-          <Tile title="New Event" sub="Trip, Ryder Cup or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
+          <Tile title="New Event" sub="Trip or season" icon={glyph('🏆', c.primary)} onPress={() => router.push('/new-event')} />
           {/* Upload a scorecard: the other way to start a round, so it sits right under New Round, in deep green and gold. */}
           <Pressable
             onPress={() => (usePro.getState().pro ? router.push('/upload-scorecard') : openPaywall('scorecard'))}

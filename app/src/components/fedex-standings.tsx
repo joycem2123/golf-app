@@ -27,7 +27,7 @@ export function FedexStandings({ e, rounds }: { e: EventRecord; rounds: RoundRec
   const c = useColors();
   const cfg = e.fedex!;
   const results = useMemo(() => fedexResults(e, rounds), [e, rounds]);
-  const [part, setPart] = useState<FedexPart>(() => (currentHalf(e, results) === 2 ? 'second' : 'first'));
+  const [part, setPart] = useState<FedexPart>(() => (e.status === 'complete' ? 'season' : currentHalf(e, results) === 2 ? 'second' : 'first'));
   const name = usePlayerName();
   const { isMe } = useMe();
   const players = useStore((s) => s.players);

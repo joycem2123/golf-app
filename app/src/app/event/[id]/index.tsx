@@ -25,6 +25,8 @@ import { Tip } from '@/components/tip';
 import { AddEventPlayer } from '@/components/add-event-player';
 import { EventStory } from '@/components/event-story';
 import { TripExpenses } from '@/components/trip-expenses';
+import { completeBlocker, eventSummary } from '@/lib/event-summary';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { FedexStandings } from '@/components/fedex-standings';
 
 export { ErrorBoundary } from '@/components/error-screen';
@@ -116,6 +118,61 @@ function ProjectedLine({ items }: { items: { letter: string; value: number; colo
   );
 }
 
+/** Completed events: who won, and a way back to the final results. */
+function ChampionBanner({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+  const c = useColors();
+  const players = useStore((s) => s.players);
+  const sum = eventSummary(e, rounds);
+  const nm = (pid: string) => players.find((p) => p.id === pid)?.name ?? 'Player';
+  const winner = sum.kind === 'teams' ? (sum.tie ? 'All square' : sum.teams[0]?.name) : sum.podium.filter((p) => p.position === 1).map((p) => nm(p.playerId)).join(' & ');
+  return (
+    <Pressable onPress={() => router.push({ pathname: '/event/[id]/summary', params: { id: e.id } })} accessibilityRole="button"
+      style={({ pressed }) => ({ backgroundColor: c.brand, borderRadius: radius.lg, padding: space.md, flexDirection: 'row', alignItems: 'center', gap: space.md, opacity: pressed ? 0.85 : 1 })}>
+      <Text style={{ fontSize: 34 }}>🏆</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: '#F3E3B5', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>EVENT COMPLETE{e.completedAt ? ` · ${formatDate(new Date(e.completedAt).toISOString().slice(0, 10), { month: 'short', day: 'numeric' }).toUpperCase()}` : ''}</Text>
+        <Text style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 19 }}>{winner ? `${sum.kind === 'teams' && !sum.tie ? '' : 'Champion: '}${winner}${sum.kind === 'teams' && !sum.tie ? ' win' : ''}` : 'Final results'}</Text>
+        <Text style={{ color: '#ffffffc0', fontSize: 13 }}>View final results ›</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+/** Complete Event: only once nothing is left to play (rounds still scheduled must be played or deleted). */
+function CompleteEvent({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+  const c = useColors();
+  const setEventComplete = useStore((s) => s.setEventComplete);
+  const [ask, setAsk] = useState<'complete' | 'reopen' | null>(null);
+  const blocker = e.status === 'complete' ? null : completeBlocker(e, rounds);
+  return (
+    <>
+      {e.status === 'complete' ? (
+        <Button title="Reopen event" kind="ghost" onPress={() => setAsk('reopen')} />
+      ) : (
+        <Card style={{ gap: space.sm }}>
+          <Button title="🏆 Complete Event" disabled={!!blocker} onPress={() => setAsk('complete')} />
+          <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>{blocker ?? 'Every round is done. Complete the event to crown the champion.'}</Text>
+        </Card>
+      )}
+      <ConfirmDialog
+        visible={ask !== null}
+        title={ask === 'reopen' ? 'Reopen this event?' : 'Complete this event?'}
+        message={ask === 'reopen' ? 'It goes back to being in progress, so rounds can be added again.' : 'The standings become final and everyone sees the champion.'}
+        confirmLabel={ask === 'reopen' ? 'Reopen' : 'Complete'}
+        cancelLabel="Not yet"
+        destructive={false}
+        onCancel={() => setAsk(null)}
+        onConfirm={() => {
+          const completing = ask === 'complete';
+          setAsk(null);
+          setEventComplete(e.id, completing);
+          if (completing) router.push({ pathname: '/event/[id]/summary', params: { id: e.id, celebrate: '1' } });
+        }}
+      />
+    </>
+  );
+}
+
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const e = useEvent(id);
@@ -197,6 +254,7 @@ export default function EventScreen() {
       ) : null}
       {expensesOn && tab === 'expenses' ? <TripExpenses e={e} /> : (
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
+        {e.status === 'complete' ? <ChampionBanner e={e} rounds={rounds} /> : null}
         {(e.startDate || e.recurrence) && (
           <View style={{ alignItems: 'center', gap: 2 }}>
             <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{e.type === 'cup' ? 'RYDER CUP' : e.type === 'season' ? (e.fedex ? 'SEASON · POINTS RACE' : 'SEASON') : 'TRIP'}</Text>
@@ -315,6 +373,7 @@ export default function EventScreen() {
         )}
         <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />
 
+        {e.remote?.role !== 'viewer' ? <CompleteEvent e={e} rounds={rounds} /> : null}
         <TvButton e={e} />
         <Button title="Head-to-head records" kind="secondary" onPress={() => router.push('/head-to-head')} />
         {canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' && <Button
