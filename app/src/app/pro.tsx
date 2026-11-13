@@ -16,12 +16,14 @@ const REASONS: Record<string, string> = {
   event: 'Creating events is part of Clutch Up Pro. Your setup is saved, so you can finish it once you’re in.',
   story: 'Match and event stories are part of Clutch Up Pro.',
   scorecard: 'Scorecard uploads are part of Clutch Up Pro.',
+  group: 'Rounds with more than 8 players are part of Clutch Up Pro. Up to 8 players is always free.',
 };
 
 const FEATURES: { icon: string; title: string; sub: string }[] = [
   { icon: '🏆', title: 'Events', sub: 'Trips, Ryder Cups and seasons with live standings, projections and schedules.' },
   { icon: '✨', title: 'Match & event stories', sub: 'A story of every match and event, written for you.' },
   { icon: '📷', title: 'Scorecard uploads', sub: 'Snap a filled-in card and get the results in seconds.' },
+  { icon: '⛳', title: 'Large groups', sub: 'Play rounds with 9 or more players. Up to 8 is always free.' },
   { icon: '👥', title: 'Friends join free', sub: 'Anyone you bring into your events plays, scores and follows along free.' },
 ];
 
@@ -89,7 +91,7 @@ export default function ProScreen() {
         <LogoMark size={56} />
         <Text style={{ fontFamily: fonts.serif, fontSize: 28, fontWeight: '700', color: c.primary }}>Clutch Up Pro</Text>
         {reason && REASONS[reason] && !pro ? <Body muted style={{ textAlign: 'center' }}>{REASONS[reason]}</Body> : null}
-        {previewFree ? <Text style={{ color: c.accent, fontSize: 12, fontWeight: '800', textAlign: 'center' }}>PREVIEWING AS A FREE USER · turn off in More</Text> : null}
+        {previewFree ? <Text style={{ color: c.accent, fontSize: 12, fontWeight: '800', textAlign: 'center' }}>PREVIEWING AS A FREE USER · turn off in Account Settings</Text> : null}
       </View>
 
       <Card style={{ gap: space.md }}>

@@ -182,7 +182,10 @@ export function needsProError(error: unknown, data?: unknown): boolean {
 
 let paywalledAt = 0;
 /** Show the Pro screen (e.g. after the server said a feature needs Pro). */
-export function openPaywall(reason: 'event' | 'story' | 'scorecard') {
+/** Free rounds hold up to this many players; bigger groups are part of Pro (rounds in an event are free for everyone). */
+export const FREE_MAX_PLAYERS = 8;
+
+export function openPaywall(reason: 'event' | 'story' | 'scorecard' | 'group') {
   paywalledAt = Date.now();
   router.push({ pathname: '/pro', params: { reason } });
 }

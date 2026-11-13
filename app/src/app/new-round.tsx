@@ -25,6 +25,7 @@ import { formatDate, today } from '@/lib/dates';
 import { canStartOn } from '@/lib/event-calendar';
 import { getCourse, useCourses } from '@/lib/courses';
 import { planName, roundNameProblem } from '@/lib/events';
+import { FREE_MAX_PLAYERS, openPaywall, usePro } from '@/lib/pro';
 import { CoursePicker } from '@/components/course-picker';
 import { track } from '@/lib/usage';
 import { getPendingScan, guessRows, holesFromCard, ledgerFromCard, playedAt, setPendingScan } from '@/lib/round-scan';
@@ -414,7 +415,15 @@ export default function NewRound() {
     : null;
   const footer =
     step === 'players' && course ? (
-      <Button title="Next: teams" disabled={roster.length === 0} onPress={() => setStep('teams')} />
+      <Button
+        title="Next: teams"
+        disabled={roster.length === 0}
+        onPress={() => {
+          // More than 8 players in a round (not part of an event) is a Pro feature.
+          if (!event && roster.length > FREE_MAX_PLAYERS && !usePro.getState().pro) return openPaywall('group');
+          setStep('teams');
+        }}
+      />
     ) : step === 'teams' && course ? (
       <Button
         title={teamsDone && !noTeams ? 'Next: choose game' : `Put every player on a team (${players.filter((p) => !letters.includes(teamOf[p.id])).length} left)`}
