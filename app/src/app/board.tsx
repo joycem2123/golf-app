@@ -29,8 +29,9 @@ import { fonts, teamColor, useColors } from '@/theme';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
-const BG = '#0B0D0D';
-const PANEL = '#1A1E1E';
+const BG = '#0E2A20';
+/** Side panels: near-black so they stand out against the green. */
+const PANEL = '#0A0C0C';
 const GOLD = '#C9A227';
 const INK = '#14261E';
 const REFRESH_MS = 20_000;
@@ -442,76 +443,80 @@ function Scorecard({ r, results, m, leftLetter, names, u, picks }: { r: RoundRec
   const sub = [gameName(g), g.handicap?.net === false ? 'Gross' : 'Net', roundCourse(r)].filter(Boolean).join(' · ');
   // Lead from the left side's point of view.
   const sign = v.flip ? -1 : 1;
-  const nine = holes.length > 9 ? [holes.slice(0, 9), holes.slice(9)] : [holes];
+  // One row, like a printed card: 1–9, OUT, 10–18, IN, TOT (or just the holes and a total).
+  type Col = { k: 'hole'; h: (typeof holes)[number] } | { k: 'sum'; id: string; label: string; hs: typeof holes };
+  const cols: Col[] = holes.length === 18
+    ? [...holes.slice(0, 9).map((h) => ({ k: 'hole' as const, h })), { k: 'sum', id: 'out', label: 'OUT', hs: holes.slice(0, 9) },
+      ...holes.slice(9).map((h) => ({ k: 'hole' as const, h })), { k: 'sum', id: 'in', label: 'IN', hs: holes.slice(9) }, { k: 'sum', id: 'tot', label: 'TOT', hs: holes }]
+    : [...holes.map((h) => ({ k: 'hole' as const, h })), { k: 'sum', id: 'tot', label: 'TOT', hs: holes }];
   const leftIds = v.left.members;
   const rightIds = v.right.members;
-  const sum = (ids: string, hs: typeof holes) => {
-    const xs = hs.map((h) => grossAt(r, ids, h.hole));
+  const sum = (id: string, hs: typeof holes) => {
+    const xs = hs.map((h) => grossAt(r, id, h.hole));
     return xs.some((x) => x !== null) ? xs.reduce<number>((t, x) => t + (x ?? 0), 0) : null;
   };
-  const cellW = 62 * u;
-  const labelW = 210 * u;
-  const rowH = 44 * u;
+  const cellW = 46 * u;
+  const sumW = 54 * u;
+  const labelW = 150 * u;
+  const rowH = 34 * u;
   const cell = (key: string | number, text: string | number | null, o: { bg?: string; color?: string; bold?: boolean; ring?: string; w?: number } = {}) => (
     <View key={key} style={{ width: o.w ?? cellW, height: rowH, alignItems: 'center', justifyContent: 'center', backgroundColor: o.bg }}>
-      <View style={o.ring ? { borderWidth: 2 * u, borderColor: o.ring, borderRadius: 18 * u, minWidth: 36 * u, height: 36 * u, alignItems: 'center', justifyContent: 'center' } : undefined}>
-        <Text style={{ color: o.color ?? INK, fontWeight: o.bold ? '900' : '700', fontSize: 22 * u }}>{text ?? ''}</Text>
+      <View style={o.ring ? { borderWidth: 2 * u, borderColor: o.ring, borderRadius: 14 * u, minWidth: 28 * u, height: 28 * u, alignItems: 'center', justifyContent: 'center' } : undefined}>
+        <Text style={{ color: o.color ?? INK, fontWeight: o.bold ? '900' : '700', fontSize: 17 * u }}>{text ?? ''}</Text>
       </View>
     </View>
   );
   const label = (text: string, color = INK, small = false) => (
-    <View style={{ width: labelW, height: rowH, justifyContent: 'center', paddingHorizontal: 12 * u }}>
-      <Text numberOfLines={1} style={{ color, fontWeight: '900', fontSize: (small ? 16 : 21) * u, letterSpacing: small ? 2 * u : 0 }}>{text}</Text>
+    <View style={{ width: labelW, height: rowH, justifyContent: 'center', paddingHorizontal: 10 * u }}>
+      <Text numberOfLines={1} style={{ color, fontWeight: '900', fontSize: (small ? 13 : 17) * u, letterSpacing: small ? 2 * u : 0 }}>{text}</Text>
     </View>
   );
-  const playerRow = (id: string, color: string, side: 1 | -1, hs: typeof holes, total: boolean, last: boolean) => (
+  const sumCell = (col: Extract<Col, { k: 'sum' }>, text: string | number | null, o: { color?: string; bold?: boolean; bg?: string } = {}) =>
+    cell(col.id, text, { w: sumW, bg: o.bg ?? (col.id === 'tot' ? '#E2E8E4' : '#EEF2EF'), color: o.color, bold: o.bold ?? true });
+  const playerRow = (id: string, color: string, side: 1 | -1) => (
     <View key={id} style={{ flexDirection: 'row', borderTopWidth: 1, borderColor: '#E3E8E5' }}>
       {label(names.get(id)?.name ?? '?', color)}
-      {hs.map((h) => {
+      {cols.map((col) => {
+        if (col.k === 'sum') return sumCell(col, sum(id, col.hs));
+        const h = col.h;
         const gross = grossAt(r, id, h.hole);
         const won = h.outcome !== null && h.outcome * sign === side;
         return cell(h.hole, gross, { bg: won ? `${color}22` : undefined, color: won ? color : INK, bold: won, ring: gross !== null && gross < h.par ? color : undefined });
       })}
-      {cell('t', sum(id, hs), { bold: true, w: 80 * u, bg: '#F1F4F2' })}
-      {total ? cell('tt', last ? sum(id, holes) : null, { bold: true, w: 80 * u, bg: last ? '#E6EBE8' : undefined }) : null}
     </View>
   );
-  const half = (hs: typeof holes, i: number, last: boolean) => (
-    <View key={i} style={{ backgroundColor: '#fff', borderRadius: 14 * u, overflow: 'hidden' }}>
+  const table = (
+    <View style={{ backgroundColor: '#fff', borderRadius: 10 * u, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', backgroundColor: INK }}>
         {label('HOLE', '#fff', true)}
-        {hs.map((h) => cell(h.hole, h.hole, { color: '#fff', bold: true }))}
-        {cell('t', nine.length > 1 ? (i === 0 ? 'OUT' : 'IN') : 'TOT', { color: GOLD, bold: true, w: 80 * u })}
-        {nine.length > 1 ? cell('tt', last ? 'TOT' : '', { color: GOLD, bold: true, w: 80 * u }) : null}
+        {cols.map((col) => (col.k === 'sum' ? sumCell(col, col.label, { color: GOLD, bg: '#0F1D17' }) : cell(col.h.hole, col.h.hole, { color: '#fff', bold: true })))}
       </View>
-      <View style={{ flexDirection: 'row', backgroundColor: '#F1F4F2' }}>
+      <View style={{ flexDirection: 'row', backgroundColor: '#F4F6F5' }}>
         {label('PAR', '#4A5A52', true)}
-        {hs.map((h) => cell(h.hole, h.par, { color: '#4A5A52' }))}
-        {cell('t', hs.reduce((t, h) => t + h.par, 0), { color: '#4A5A52', w: 80 * u })}
-        {nine.length > 1 ? cell('tt', last ? holes.reduce((t, h) => t + h.par, 0) : '', { color: '#4A5A52', w: 80 * u }) : null}
+        {cols.map((col) => (col.k === 'sum' ? sumCell(col, col.hs.reduce((t, h) => t + h.par, 0), { color: '#4A5A52', bold: false }) : cell(col.h.hole, col.h.par, { color: '#4A5A52' })))}
       </View>
-      {leftIds.map((id) => playerRow(id, v.lc, 1, hs, nine.length > 1, last))}
+      {leftIds.map((id) => playerRow(id, v.lc, 1))}
       {/* The match after each hole, in the leader's colour. */}
       <View style={{ flexDirection: 'row', borderTopWidth: 2, borderBottomWidth: 2, borderColor: '#C9D2CD' }}>
         {label('MATCH', '#4A5A52', true)}
-        {hs.map((h) => {
+        {cols.map((col) => {
+          if (col.k === 'sum') return sumCell(col, '', { bg: '#fff' });
+          const h = col.h;
           if (h.lead === null) return cell(h.hole, '');
           const lead = h.lead * sign;
           return cell(h.hole, lead === 0 ? 'AS' : `${Math.abs(lead)}`, { bg: lead > 0 ? v.lc : lead < 0 ? v.rc : '#E6EBE8', color: lead === 0 ? INK : '#fff', bold: true });
         })}
-        {cell('t', '', { w: 80 * u })}
-        {nine.length > 1 ? cell('tt', '', { w: 80 * u }) : null}
       </View>
-      {rightIds.map((id) => playerRow(id, v.rc, -1, hs, nine.length > 1, last))}
+      {rightIds.map((id) => playerRow(id, v.rc, -1))}
     </View>
   );
   return (
-    <View style={{ backgroundColor: '#E9EEEB', borderBottomLeftRadius: 12 * u, borderBottomRightRadius: 12 * u, paddingVertical: 16 * u, paddingHorizontal: 12 * u, gap: 12 * u, alignItems: 'center' }}>
-      <Text style={{ color: '#4A5A52', fontWeight: '800', fontSize: 17 * u, letterSpacing: 2 * u }}>{sub.toUpperCase()}</Text>
+    <View style={{ backgroundColor: '#E9EEEB', borderBottomLeftRadius: 12 * u, borderBottomRightRadius: 12 * u, paddingVertical: 12 * u, paddingHorizontal: 12 * u, gap: 8 * u, alignItems: 'center' }}>
+      <Text style={{ color: '#4A5A52', fontWeight: '800', fontSize: 14 * u, letterSpacing: 2 * u }}>{sub.toUpperCase()}</Text>
       {holes.length ? (
         <>
-          {nine.map((hs, i) => half(hs, i, i === nine.length - 1))}
-          <Text style={{ color: '#4A5A52', fontSize: 15 * u }}>Gross scores · shaded = won the hole · circled = birdie or better · MATCH = holes up after each hole</Text>
+          {table}
+          <Text style={{ color: '#4A5A52', fontSize: 14 * u }}>Gross scores · shaded = won the hole · circled = birdie or better · MATCH = holes up after each hole</Text>
         </>
       ) : (
         <Text style={{ color: '#4A5A52', fontSize: 22 * u }}>No scores yet.</Text>
