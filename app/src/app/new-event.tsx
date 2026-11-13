@@ -66,7 +66,8 @@ export default function NewEvent() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [current, setCurrent] = useState(0);
   // One game for every round (on by default; untick to choose per round).
-  const [sameGame, setSameGame] = useState(true);
+  // Off by default: each round can have its own game unless the organiser chooses one for all.
+  const [sameGame, setSameGame] = useState(false);
 
   const isSeason = type === 'season';
   const isCup = type === 'cup';
@@ -495,7 +496,12 @@ export default function NewEvent() {
               </OptionRow>
             )}
             {asYouGo && <Text style={{ color: c.muted, fontSize: 13 }}>You can add more rounds from the event page any time during the season.</Text>}
-            {plans.length > 1 && (
+            <Text style={{ color: c.muted, fontSize: 13 }}>{sameGame && plans.length > 1 ? 'Choose the game for every round.' : 'Choose the format for each round.'} {withGame.length ? 'You’ll set the matchups next.' : 'Leave it as Decide later to choose when each round is set up.'}</Text>
+          </Card>
+
+          {/* Its own card, just under the number of rounds, so it's easy to spot (off by default). */}
+          {plans.length > 1 && (
+            <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
               <Checkbox
                 label="Same game for all rounds"
                 hint="Pick the game once instead of for every round."
@@ -506,9 +512,8 @@ export default function NewEvent() {
                   if (v && plans[0]?.draft) setPlans((ps) => ps.map((p, i) => (i === 0 || p.draft?.kind === ps[0].draft!.kind ? p : { ...p, draft: newDraft(ps[0].draft!.kind, players, teams) })));
                 }}
               />
-            )}
-            <Text style={{ color: c.muted, fontSize: 13 }}>{sameGame && plans.length > 1 ? 'Choose the game for every round.' : 'Choose the format for each round.'} {withGame.length ? 'You’ll set the matchups next.' : 'Leave it as Decide later to choose when each round is set up.'}</Text>
-          </Card>
+            </Card>
+          )}
 
           {sameGame && plans.length > 1 && (
             <Card>
