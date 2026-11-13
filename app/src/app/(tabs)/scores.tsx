@@ -40,7 +40,7 @@ export default function Scores() {
   const rounds = useStore((s) => s.rounds);
   const { deleteRound, deleteEvent, bar } = useDeleteWithUndo();
   const events = useStore((s) => s.events);
-  const [games, setGames] = useState<'events' | 'solo'>('solo');
+  const [games, setGames] = useState<'events' | 'solo'>('events');
   const [whose, setWhose] = useState<'mine' | 'friends'>('mine');
   const uid = useStore((s) => s.me);
   // My matches: rounds I'm part of (not friends' rounds I'm only following).
@@ -61,7 +61,7 @@ export default function Scores() {
                 {/* Rounds (live, upcoming, completed) or events (opening out into rounds and matches). */}
                 <Segmented
                   compact
-                  options={[{ value: 'solo', label: `Rounds${myRounds.length ? ` (${myRounds.length})` : ''}` }, { value: 'events', label: `Events${myEvents.length ? ` (${myEvents.length})` : ''}` }]}
+                  options={[{ value: 'events', label: `Events${myEvents.length ? ` (${myEvents.length})` : ''}` }, { value: 'solo', label: `Rounds${myRounds.length ? ` (${myRounds.length})` : ''}` }]}
                   value={games}
                   onChange={setGames}
                 />

@@ -40,7 +40,7 @@ export function FriendMatches() {
   const saved = useStore((s) => s.players);
   const [only, setOnly] = useState<string[]>([]);
   const [picking, setPicking] = useState(false);
-  const [view, setView] = useState<'rounds' | 'events'>('rounds');
+  const [view, setView] = useState<'rounds' | 'events'>('events');
   const [menu, setMenu] = useState<Menu | null>(null);
   const [busy, setBusy] = useState(false);
   const [openErr, setOpenErr] = useState<string | null>(null);
@@ -161,7 +161,7 @@ export function FriendMatches() {
 
       <Segmented
         compact
-        options={[{ value: 'rounds', label: `Rounds${shownRounds.length ? ` (${shownRounds.length})` : ''}` }, { value: 'events', label: `Events${shownEvents.length ? ` (${shownEvents.length})` : ''}` }]}
+        options={[{ value: 'events', label: `Events${shownEvents.length ? ` (${shownEvents.length})` : ''}` }, { value: 'rounds', label: `Rounds${shownRounds.length ? ` (${shownRounds.length})` : ''}` }]}
         value={view}
         onChange={setView}
       />
