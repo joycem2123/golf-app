@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { justPaywalled } from '@/lib/pro';
 import { Pressable, Text, View } from 'react-native';
@@ -11,11 +11,22 @@ import { radius, space, useColors } from '@/theme';
  * "The story so far": an AI overview of every completed match in the event. Written only when someone taps
  * Generate story (it costs a little each time), and can be rewritten once there are new results.
  */
-export function EventStory({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+export function EventStory({ e, rounds, autoWrite }: { e: EventRecord; rounds: RoundRecord[]; /** Write it straight away if it's missing or out of date (right after completing the event). */ autoWrite?: boolean }) {
   const c = useColors();
   const key = eventStoryKey(e, rounds);
   const [writing, setWriting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const autoDone = useRef(false);
+  useEffect(() => {
+    if (!autoWrite || autoDone.current || !key || e.remote?.role === 'viewer' || e.story?.key === key) return;
+    autoDone.current = true;
+    void (async () => {
+      setWriting(true);
+      const text = await refreshEventStory(e, rounds);
+      setWriting(false);
+      if (!text && !justPaywalled()) setFailed(true);
+    })();
+  }, [autoWrite, key]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!key) return null; // no completed matches yet
   const canWrite = e.remote?.role !== 'viewer';
   const stale = !!e.story && e.story.key !== key; // results have come in since it was written

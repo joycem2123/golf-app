@@ -11,7 +11,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Card, Label, Segmented } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { currentHalf, fedexResults, importedGuests } from '@/lib/fedex';
-import { useMe } from '@/lib/me';
+import { isMeId, useMe } from '@/lib/me';
 import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, space, useColors } from '@/theme';
 
@@ -20,7 +20,9 @@ export const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 't
 
 export function usePlayerName() {
   const players = useStore((s) => s.players);
-  return (id: string) => players.find((p) => p.id === id)?.name ?? 'Player';
+  const myPlayerId = useStore((s) => s.myPlayerId);
+  // My own entry can be under an older id of mine (e.g. before I signed in): show my name for it too.
+  return (id: string) => players.find((p) => p.id === id)?.name ?? (isMeId(id) ? players.find((p) => p.id === myPlayerId)?.name : undefined) ?? 'Player';
 }
 
 type Leader = { names: string[]; points: number; margin: number | null; tied: boolean };

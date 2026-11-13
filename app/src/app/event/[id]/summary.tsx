@@ -7,6 +7,8 @@ import { useMemo } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { Confetti } from '@/components/confetti';
+import { EventStory } from '@/components/event-story';
+import { usePlayerName } from '@/components/fedex-standings';
 import { Button, Card } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { eventSummary } from '@/lib/event-summary';
@@ -24,10 +26,9 @@ export default function EventSummaryScreen() {
   const { id, celebrate } = useLocalSearchParams<{ id: string; celebrate?: string }>();
   const e = useEvent(id);
   const rounds = useStore((s) => s.rounds);
-  const players = useStore((s) => s.players);
   const summary = useMemo(() => (e ? eventSummary(e, rounds) : null), [e, rounds]);
+  const name = usePlayerName();
   if (!e || !summary) return null;
-  const name = (pid: string) => players.find((p) => p.id === pid)?.name ?? 'Player';
   const dates = e.startDate ? `${formatDate(e.startDate, { month: 'short', day: 'numeric' })}${e.endDate && e.endDate !== e.startDate ? ` – ${formatDate(e.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}` : '';
   const kind = e.type === 'cup' ? 'Ryder Cup' : e.type === 'season' ? (e.fedex ? 'Points Race' : 'Season') : 'Trip';
 
@@ -95,6 +96,7 @@ export default function EventSummaryScreen() {
           <Card><Text style={{ color: c.text }}>No results to show yet.</Text></Card>
         )}
 
+        <EventStory e={e} rounds={rounds} autoWrite={!!celebrate} />
         <Button title="Done" onPress={() => router.back()} />
       </ScrollView>
       {celebrate ? <Confetti count={90} /> : null}

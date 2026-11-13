@@ -27,7 +27,7 @@ import { EventStory } from '@/components/event-story';
 import { TripExpenses } from '@/components/trip-expenses';
 import { completeBlocker, eventSummary } from '@/lib/event-summary';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { FedexStandings, RaceSummary } from '@/components/fedex-standings';
+import { FedexStandings, RaceSummary, usePlayerName } from '@/components/fedex-standings';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
@@ -121,9 +121,8 @@ function ProjectedLine({ items }: { items: { letter: string; value: number; colo
 /** Completed events: who won, and a way back to the final results. */
 function ChampionBanner({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
   const c = useColors();
-  const players = useStore((s) => s.players);
+  const nm = usePlayerName();
   const sum = eventSummary(e, rounds);
-  const nm = (pid: string) => players.find((p) => p.id === pid)?.name ?? 'Player';
   const winner = sum.kind === 'teams' ? (sum.tie ? 'All square' : sum.teams[0]?.name) : sum.podium.filter((p) => p.position === 1).map((p) => nm(p.playerId)).join(' & ');
   return (
     <Pressable onPress={() => router.push({ pathname: '/event/[id]/summary', params: { id: e.id } })} accessibilityRole="button"
@@ -358,10 +357,11 @@ export default function EventScreen() {
             })()}
             {/* Points Race seasons: the race at a glance comes first. */}
             {e.fedex ? <RaceSummary e={e} rounds={rounds} /> : null}
+            {e.fedex ? <EventStory e={e} rounds={rounds} /> : null}
             <NextRound e={e} />
             {/* Points Race seasons: the 1st half / 2nd half / season standings. */}
             {e.fedex ? <FedexStandings e={e} rounds={rounds} /> : null}
-            <EventStory e={e} rounds={rounds} />
+            {e.fedex ? null : <EventStory e={e} rounds={rounds} />}
             {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
             {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
             {e.fedex ? null : standingsCard}
