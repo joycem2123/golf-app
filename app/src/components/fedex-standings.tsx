@@ -23,6 +23,85 @@ export function usePlayerName() {
   return (id: string) => players.find((p) => p.id === id)?.name ?? 'Player';
 }
 
+type Leader = { names: string[]; points: number; margin: number | null; tied: boolean };
+
+/** Who leads a part of the season, by how much (null when there's no one to lead). */
+function leaderOf(rows: ReturnType<typeof fedexStandings>, name: (id: string) => string): Leader | null {
+  const played = rows.filter((r) => r.played > 0);
+  if (!played.length) return null;
+  const top = played.filter((r) => r.position === 1);
+  const next = played.find((r) => r.position > 1);
+  return { names: top.map((r) => name(r.playerId)), points: top[0].points, margin: next ? top[0].points - next.points : null, tied: top.length > 1 };
+}
+
+const marginText = (l: Leader, done: boolean) =>
+  l.tied ? (done ? 'Shared the win' : 'Tied for the lead') : l.margin === null ? (done ? 'Won it' : 'Only player so far') : `${done ? 'Won by' : 'Leading by'} ${fmtPts(l.margin)} pt${l.margin === 1 ? '' : 's'}`;
+
+/** The race at a glance: season leader, each half's winner or leader, and where I stand. */
+export function RaceSummary({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
+  const c = useColors();
+  const results = useMemo(() => fedexResults(e, rounds), [e, rounds]);
+  const cfg = e.fedex!;
+  const name = usePlayerName();
+  const { isMe } = useMe();
+  const first = name;
+  const done = e.status === 'complete';
+  const half = currentHalf(e, results);
+  const season = fedexStandings(results, cfg, 'season', e.playerIds);
+  const s = leaderOf(season, first);
+  const h1 = leaderOf(fedexStandings(results, cfg, 'first', e.playerIds), first);
+  const h2 = leaderOf(fedexStandings(results, cfg, 'second', e.playerIds), first);
+  const h1Done = done || half === 2;
+  const mine = season.find((r) => isMe(r.playerId) && r.played > 0);
+  const top = season.find((r) => r.position === 1);
+  const planned = (e.rounds ?? []).filter((p) => !p.roundId).length;
+  const next = (e.rounds ?? []).filter((p) => !p.roundId && p.date && p.date >= new Date().toISOString().slice(0, 10)).sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))[0];
+  const halfNote = cfg.half.kind === 'date' ? `2nd half from ${formatDate(cfg.half.date, { month: 'short', day: 'numeric' })}` : `2nd half after round ${cfg.half.count}`;
+
+  const small = (label: string, l: Leader | null, finished: boolean, empty: string) => (
+    <View style={{ flex: 1, backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: c.border, padding: space.md, gap: 3 }}>
+      <Text style={{ color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 }}>{label}</Text>
+      {l ? (
+        <>
+          <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{finished ? (l.tied ? 'CO-WINNERS' : '🏅 WINNER') : 'LEADER'}</Text>
+          <Text numberOfLines={2} style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 17 }}>{l.names.join(' & ')}</Text>
+          <Text style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 15 }}>{fmtPts(l.points)} pts</Text>
+          <Text style={{ color: c.muted, fontSize: 12 }}>{marginText(l, finished)}</Text>
+        </>
+      ) : <Text style={{ color: c.muted, fontSize: 13, marginTop: 4 }}>{empty}</Text>}
+    </View>
+  );
+
+  return (
+    <View style={{ gap: space.sm }}>
+      <View style={{ backgroundColor: c.brand, borderRadius: 12, padding: space.lg, gap: 4 }}>
+        <Text style={{ color: '#F3E3B5', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{done ? '🏆 SEASON CHAMPION' : 'SEASON LEADER'}</Text>
+        {s ? (
+          <>
+            <Text style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 28 }}>{s.names.join(' & ')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10 }}>
+              <Text style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 20 }}>{fmtPts(s.points)} pts</Text>
+              <Text style={{ color: '#ffffffc8', fontSize: 14 }}>{marginText(s, done)}</Text>
+            </View>
+          </>
+        ) : <Text style={{ color: '#fff', fontSize: 16 }}>No rounds played yet.</Text>}
+        <Text style={{ color: '#ffffffa8', fontSize: 12, marginTop: 4 }}>
+          {[`${results.length} round${results.length === 1 ? '' : 's'} played`, done ? null : planned ? `${planned} to go` : null, done ? null : halfNote, !done && next?.date ? `next ${formatDate(next.date, { month: 'short', day: 'numeric' })}` : null].filter(Boolean).join(' · ')}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        {small('1ST HALF', h1, h1Done, 'No rounds yet.')}
+        {small('2ND HALF', h2, done, half === 1 ? `Starts ${cfg.half.kind === 'date' ? formatDate(cfg.half.date, { month: 'short', day: 'numeric' }) : `after round ${cfg.half.count}`}.` : 'No rounds yet.')}
+      </View>
+      {mine && top && !isMe(top.playerId) ? (
+        <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>
+          You’re {ordinal(mine.position)} in the season, {fmtPts(top.points - mine.points)} pts behind{mine.cutoff !== null ? ` · your next round counts if it beats ${fmtPts(mine.cutoff)}` : ''}.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function FedexStandings({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
   const c = useColors();
   const cfg = e.fedex!;

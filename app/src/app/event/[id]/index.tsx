@@ -27,7 +27,7 @@ import { EventStory } from '@/components/event-story';
 import { TripExpenses } from '@/components/trip-expenses';
 import { completeBlocker, eventSummary } from '@/lib/event-summary';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { FedexStandings } from '@/components/fedex-standings';
+import { FedexStandings, RaceSummary } from '@/components/fedex-standings';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
@@ -356,8 +356,10 @@ export default function EventScreen() {
                 </View>
               );
             })()}
+            {/* Points Race seasons: the race at a glance comes first. */}
+            {e.fedex ? <RaceSummary e={e} rounds={rounds} /> : null}
             <NextRound e={e} />
-            {/* Points Race seasons: the 1st half / 2nd half / season standings come first. */}
+            {/* Points Race seasons: the 1st half / 2nd half / season standings. */}
             {e.fedex ? <FedexStandings e={e} rounds={rounds} /> : null}
             <EventStory e={e} rounds={rounds} />
             {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
