@@ -13,16 +13,13 @@ import { useStore } from '@/store/store';
 import { signOut, useSession } from '@/sync/auth';
 import { space, useColors } from '@/theme';
 
-function Row({ title, sub, href, onPress }: { title: string; sub: string; href?: Href; onPress?: () => void }) {
+function Row({ title, href, onPress }: { title: string; href?: Href; onPress?: () => void }) {
   const c = useColors();
   return (
     <Pressable onPress={() => (onPress ? onPress() : href && router.push(href))}>
       {({ pressed }) => (
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: c.border, opacity: pressed ? 0.6 : 1 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, color: c.text, fontWeight: '600' }}>{title}</Text>
-            <Text style={{ fontSize: 13, color: c.muted }}>{sub}</Text>
-          </View>
+          <Text style={{ flex: 1, fontSize: 16, color: c.text, fontWeight: '600' }}>{title}</Text>
           <Text style={{ color: c.muted, fontSize: 20 }}>›</Text>
         </View>
       )}
@@ -36,22 +33,17 @@ export default function More() {
   const pro = usePro();
   const team = useAdmin();
   const signedIn = !!session?.user && !session.user.is_anonymous;
-  const email = session?.user?.email;
   return (
     <View style={{ flex: 1 }}>
       <TabHeader title="More" />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Card style={{ paddingVertical: 0 }}>
-          <Row title="Account Settings" sub={signedIn ? `${email ?? 'Your account'} · email, password and preferences` : 'Playing as a guest · create an account, preferences'} href="/account" />
-          <Row
-            title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade to Clutch Up Pro'}
-            sub={!pro.paywall && !pro.previewFree ? 'Every feature is free during the beta' : pro.pro ? 'Events, stories and scorecard uploads' : 'Events, stories and scorecard uploads · 7-day free trial'}
-            onPress={() => router.push('/pro')}
-          />
-          <Row title="How Clutch Up works" sub="A two-minute video tour of the app" onPress={() => openTutorial()} />
-          {team.admin && <Row title={`Course changes${team.open ? ` · ${team.open} to review` : ''}`} sub="Team only · scorecard changes players have saved" href="/course-changes" />}
-          <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
-          <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
+          <Row title="Account Settings" href="/account" />
+          <Row title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade to Clutch Up Pro'} onPress={() => router.push('/pro')} />
+          <Row title="How Clutch Up works" onPress={() => openTutorial()} />
+          {team.admin && <Row title={`Course changes${team.open ? ` · ${team.open} to review` : ''}`} href="/course-changes" />}
+          <Row title="Contact support" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
+          <Row title="Privacy policy & terms" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
         </Card>
         {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
         <Body muted style={{ textAlign: 'center' }}>Clutch Up · preview build</Body>
