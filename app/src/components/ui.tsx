@@ -176,7 +176,8 @@ const PLACEHOLDER = '#A9AEA5';
 export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { label: string; error?: string | null; /** Show an ✕ that empties the box (search boxes). */ onClear?: () => void }>(function Field(props, ref) {
   const c = useColors();
   const { label, style, secureTextEntry, error, onClear, ...rest } = props;
-  const clearable = !!onClear && !secureTextEntry && !!rest.value;
+  // Boxes with an ✕ keep the same layout empty or not, so the text box isn't rebuilt (and the keyboard stays up).
+  const clearable = !!onClear && !secureTextEntry;
   // Password boxes get an eye button to show or hide what was typed.
   const [shown, setShown] = useState(false);
   const input = (
@@ -214,7 +215,7 @@ export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps &
       ) : clearable ? (
         <View style={{ justifyContent: 'center' }}>
           {input}
-          <Pressable
+          {rest.value ? <Pressable
             onPress={onClear}
             hitSlop={8}
             accessibilityRole="button"
@@ -224,7 +225,7 @@ export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps &
             <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.muted, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: c.card, fontSize: 13, fontWeight: '800', lineHeight: 15 }}>✕</Text>
             </View>
-          </Pressable>
+          </Pressable> : null}
         </View>
       ) : (
         input
