@@ -8,7 +8,7 @@
  */
 import { applyScoreEntry } from '@golf/engine';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/logo';
@@ -29,8 +29,8 @@ import { fonts, teamColor, useColors } from '@/theme';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
-const BG = '#0E2A20';
-const PANEL = '#14352A';
+const BG = '#0B0D0D';
+const PANEL = '#1A1E1E';
 const GOLD = '#C9A227';
 const INK = '#14261E';
 const REFRESH_MS = 20_000;
@@ -38,7 +38,8 @@ const REFRESH_MS = 20_000;
 const IDLE_MS = 90_000;
 
 type Names = Map<string, { name: string; hcp?: number }>;
-type Screen = { k: 'board' } | { k: 'round'; id: string } | { k: 'match'; id: string; gi: number };
+type Screen = { k: 'board' } | { k: 'round'; id: string };
+type Open = { id: string; gi: number } | null;
 
 type Raw = { event: { id: string; share_code: string; data: Record<string, unknown> & { playerInfo?: { id: string; name: string; handicapIndex?: number }[] } }; rounds: { id: string; status: 'active' | 'complete'; data: Record<string, unknown>; scores: { key: string; hole: number; gross: number | null }[] }[] } | null;
 
@@ -120,12 +121,15 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
   // Tap a round or a match to open it; it goes back to the main board after a while untouched.
   const [screen, setScreen] = useState<Screen>({ k: 'board' });
   const [touch, setTouch] = useState(0);
-  const go = (next: Screen) => { setScreen(next); setTouch((n) => n + 1); };
+  const [open, setOpen] = useState<Open>(null);
+  const go = (next: Screen) => { setScreen(next); setOpen(null); setTouch((n) => n + 1); };
+  // Tap a match to open its scorecard underneath it; tap again to close.
+  const toggle = (id: string, gi: number) => { setOpen((o) => (o && o.id === id && o.gi === gi ? null : { id, gi })); setTouch((n) => n + 1); };
   useEffect(() => {
-    if (screen.k === 'board') return;
-    const t = setTimeout(() => setScreen({ k: 'board' }), IDLE_MS);
+    if (screen.k === 'board' && !open) return;
+    const t = setTimeout(() => { setScreen({ k: 'board' }); setOpen(null); }, IDLE_MS);
     return () => clearTimeout(t);
-  }, [screen, touch]);
+  }, [screen, open, touch]);
   const screenRound = screen.k === 'board' ? undefined : rounds.find((r) => r.id === screen.id);
 
   // The round to feature: the one being played (latest scores), else the most recent.
@@ -186,14 +190,12 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
       <View style={{ flex: 1, flexDirection: 'row', gap: 26 * u }}>
         {/* Main: team score and matches (or the leaderboard), a round's details, or one match's scorecard */}
         <View style={{ flex: 7, gap: 18 * u }}>
-          {screenRound && screen.k === 'match' ? (
-            <MatchDetail r={screenRound} gi={screen.gi} sides={sides} names={names} u={u} picks={picks} onBack={() => go({ k: 'round', id: screenRound.id })} onHome={() => go({ k: 'board' })} />
-          ) : screenRound ? (
-            <RoundDetail e={e} r={screenRound} sides={sides} names={names} u={u} picks={picks} onBack={() => go({ k: 'board' })} onMatch={(gi) => go({ k: 'match', id: screenRound.id, gi })} />
+          {screenRound ? (
+            <RoundDetail e={e} r={screenRound} sides={sides} names={names} u={u} picks={picks} onBack={() => go({ k: 'board' })} open={open?.id === screenRound.id ? open.gi : null} onMatch={(gi) => toggle(screenRound.id, gi)} />
           ) : sides ? (
             <>
               <TeamBar sides={sides} u={u} />
-              {featured && <Matches r={featured} leftLetter={sides[0].letter} names={names} u={u} picks={picks} onMatch={(gi) => go({ k: 'match', id: featured.id, gi })} />}
+              {featured && <Matches r={featured} leftLetter={sides[0].letter} names={names} u={u} picks={picks} open={open?.id === featured.id ? open.gi : null} onMatch={(gi) => toggle(featured.id, gi)} />}
             </>
           ) : (
             <Leaderboard e={e} rounds={rounds} names={names} u={u} />
@@ -212,7 +214,7 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
             <View style={{ flex: 1, gap: 2 * u }}>
               <Text style={{ color: INK, fontWeight: '900', fontSize: 20 * u }}>Follow live on your phone</Text>
               <Text style={{ color: '#4A5A52', fontSize: 15 * u }}>Scan, or open Clutch Up and tap Join with Code:</Text>
-              <Text style={{ color: PANEL, fontFamily: fonts.serif, fontWeight: '700', fontSize: 32 * u, letterSpacing: 6 * u }}>{code}</Text>
+              <Text style={{ color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 32 * u, letterSpacing: 6 * u }}>{code}</Text>
             </View>
           </View>
         </View>
@@ -223,7 +225,7 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
 
 function Panel({ u, title, children }: { u: number; title: string; children: React.ReactNode }) {
   return (
-    <View style={{ backgroundColor: PANEL, borderRadius: 18 * u, padding: 20 * u, gap: 12 * u, borderWidth: 1, borderColor: '#FFFFFF1A' }}>
+    <View style={{ backgroundColor: PANEL, borderRadius: 18 * u, padding: 20 * u, gap: 12 * u, borderWidth: 1, borderColor: '#FFFFFF24' }}>
       <Text style={{ color: GOLD, fontWeight: '900', fontSize: 18 * u, letterSpacing: 3 * u }}>{title}</Text>
       {children}
     </View>
@@ -268,9 +270,13 @@ function TeamBar({ sides, u }: { sides: [Side, Side]; u: number }) {
         {name(B, 'left')}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40 * u }}>
-        <Text style={{ color: A.color === '#000000' ? '#fff' : lighten(A.color), fontWeight: '900', fontSize: 44 * u, opacity: projLead === 'B' ? 0.75 : 1 }}>{formatPoints(A.projected)}</Text>
-        <Text style={{ color: '#FFFFFFB0', fontWeight: '800', fontSize: 22 * u, letterSpacing: 4 * u }}>PROJECTED</Text>
-        <Text style={{ color: lighten(B.color), fontWeight: '900', fontSize: 44 * u, opacity: projLead === 'A' ? 0.75 : 1 }}>{formatPoints(B.projected)}</Text>
+        <View style={{ backgroundColor: A.color, borderRadius: 10 * u, paddingHorizontal: 22 * u, paddingVertical: 2 * u, minWidth: 110 * u, alignItems: 'center', opacity: projLead === 'B' ? 0.7 : 1, borderWidth: 2 * u, borderColor: '#FFFFFF40' }}>
+          <Text style={{ color: '#fff', fontWeight: '900', fontSize: 44 * u }}>{formatPoints(A.projected)}</Text>
+        </View>
+        <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22 * u, letterSpacing: 4 * u }}>PROJECTED</Text>
+        <View style={{ backgroundColor: B.color, borderRadius: 10 * u, paddingHorizontal: 22 * u, paddingVertical: 2 * u, minWidth: 110 * u, alignItems: 'center', opacity: projLead === 'A' ? 0.7 : 1, borderWidth: 2 * u, borderColor: '#FFFFFF40' }}>
+          <Text style={{ color: '#fff', fontWeight: '900', fontSize: 44 * u }}>{formatPoints(B.projected)}</Text>
+        </View>
       </View>
     </View>
   );
@@ -312,7 +318,7 @@ function matchView(r: RoundRecord, results: ReturnType<typeof evaluate>, m: Matc
 }
 
 /** The scoreboard row: players either side, the status block in the leader's colour pointing at them. */
-function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress }: { r: RoundRecord; results: ReturnType<typeof evaluate>; m: MatchOutcome; leftLetter?: string; names: Names; u: number; picks: Picks; h: number; onPress?: () => void }) {
+function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress, open }: { r: RoundRecord; results: ReturnType<typeof evaluate>; m: MatchOutcome; leftLetter?: string; names: Names; u: number; picks: Picks; h: number; onPress?: () => void; open?: boolean }) {
   const v = matchView(r, results, m, leftLetter, picks);
   const people = (ids: string[], align: 'left' | 'right', color: string) => (
     <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 18 * u, gap: 2 * u }}>
@@ -325,8 +331,8 @@ function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress }: { 
     </View>
   );
   return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? 'Open this match’s scorecard' : undefined}
-      style={(st) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: hov(st) ? '#F1F5F2' : '#fff', borderRadius: 12 * u, overflow: 'hidden' })}>
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? (open ? 'Close this match’s scorecard' : 'Open this match’s scorecard') : undefined} accessibilityState={{ expanded: !!open }}
+      style={(st) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: hov(st) ? '#F1F5F2' : '#fff', borderRadius: 12 * u, borderBottomLeftRadius: open ? 0 : 12 * u, borderBottomRightRadius: open ? 0 : 12 * u, overflow: 'hidden' })}>
       {people(v.left.members, 'left', v.lc)}
       {v.ahead === 'L' ? <Arrow dir="left" color={v.cellColor} h={h} /> : null}
       <View style={{ width: 170 * u, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: '#DDE3DF' }}>
@@ -342,26 +348,39 @@ function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress }: { 
 const boardMatches = (r: RoundRecord, results: ReturnType<typeof evaluate>) =>
   matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter);
 
-/** Every match in the round: Team A's players left, Team B's right. Tap one for its scorecard. */
-function Matches({ r, leftLetter, names, u, picks, onMatch }: { r: RoundRecord; leftLetter?: string; names: Names; u: number; picks: Picks; onMatch: (gi: number) => void }) {
+/** Every match in the round: Team A's players left, Team B's right. Tap one to open its scorecard underneath. */
+function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRecord; leftLetter?: string; names: Names; u: number; picks: Picks; open: number | null; onMatch: (gi: number) => void }) {
   const results = evaluate(r);
   const rows = boardMatches(r, results);
+  const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const tops = useRef<Record<number, number>>({});
+  // Bring the opened match (and its scorecard) up into view.
+  useEffect(() => {
+    if (open === null) { scroller.current?.scrollTo({ y: 0, animated: true }); return; }
+    const t = setTimeout(() => scroller.current?.scrollTo({ y: Math.max(0, (tops.current[open] ?? 0) - 8 * u), animated: true }), 60);
+    return () => clearTimeout(t);
+  }, [open, u]);
   if (!rows.length) return <Text style={{ color: '#FFFFFF99', fontSize: 24 * u }}>No matches in this round.</Text>;
-  // Two columns when there are lots of matches, so every one stays big enough to read.
-  const cols = rows.length > 6 ? 2 : 1;
+  // Two columns when there are lots of matches (one while a scorecard is open), so every one stays big enough to read.
+  const cols = rows.length > 6 && open === null ? 2 : 1;
   const perCol = Math.ceil(rows.length / cols);
-  const rowH = Math.min(150, 620 / perCol) * u;
+  const rowH = Math.max(90, Math.min(150, 620 / Math.ceil(rows.length / (rows.length > 6 ? 2 : 1)))) * u;
   const columns = Array.from({ length: cols }, (_, i) => rows.slice(i * perCol, (i + 1) * perCol));
   return (
-    <View style={{ flex: 1, gap: 8 * u }}>
-      <View style={{ flex: 1, flexDirection: 'row', gap: 16 * u }}>
+    <View style={{ flex: 1, minHeight: 0, gap: 8 * u }}>
+      <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', gap: 16 * u }}>
         {columns.map((list, i) => (
           <View key={i} style={{ flex: 1, gap: 10 * u }}>
-            {list.map((m) => <MatchRow key={m.gi} r={r} results={results} m={m} leftLetter={leftLetter} names={names} u={u} picks={picks} h={rowH} onPress={() => onMatch(m.gi)} />)}
+            {list.map((m) => (
+              <View key={m.gi} onLayout={(ev) => { tops.current[m.gi] = ev.nativeEvent.layout.y; }}>
+                <MatchRow r={r} results={results} m={m} leftLetter={leftLetter} names={names} u={u} picks={picks} h={rowH} open={open === m.gi} onPress={() => onMatch(m.gi)} />
+                {open === m.gi ? <Scorecard r={r} results={results} m={m} leftLetter={leftLetter} names={names} u={u} picks={picks} /> : null}
+              </View>
+            ))}
           </View>
         ))}
-      </View>
-      <Text style={{ color: '#FFFFFF66', fontSize: 15 * u, textAlign: 'center' }}>Tap a match for its scorecard</Text>
+      </ScrollView>
+      <Text style={{ color: '#FFFFFF80', fontSize: 15 * u, textAlign: 'center' }}>{open === null ? 'Tap a match for its scorecard' : 'Tap the match again to close its scorecard'}</Text>
     </View>
   );
 }
@@ -389,7 +408,7 @@ function roundCourse(r: RoundRecord) {
 }
 
 /** One round: its date, course, format and team score, then every match (tap for the scorecard). */
-function RoundDetail({ e, r, sides, names, u, picks, onBack, onMatch }: { e: EventRecord; r: RoundRecord; sides: [Side, Side] | null; names: Names; u: number; picks: Picks; onBack: () => void; onMatch: (gi: number) => void }) {
+function RoundDetail({ e, r, sides, names, u, picks, onBack, open, onMatch }: { e: EventRecord; r: RoundRecord; sides: [Side, Side] | null; names: Names; u: number; picks: Picks; onBack: () => void; open: number | null; onMatch: (gi: number) => void }) {
   const results = evaluate(r);
   const plan = (e.rounds ?? []).find((p) => p.roundId === r.id);
   const formats = [...new Set(r.games.filter((g) => !(g.id ?? '').startsWith('side-')).map(gameName))].join(' + ');
@@ -407,22 +426,20 @@ function RoundDetail({ e, r, sides, names, u, picks, onBack, onMatch }: { e: Eve
     <>
       <BackBar u={u} back="Main board" onBack={onBack} title={r.label ?? (plan ? `Round ${plan.number}` : 'Round')} sub={sub} />
       {bar ? <TeamBar sides={bar} u={u * 0.8} /> : null}
-      <Matches r={r} leftLetter={sides?.[0].letter} names={names} u={u} picks={picks} onMatch={onMatch} />
+      <Matches r={r} leftLetter={sides?.[0].letter} names={names} u={u} picks={picks} open={open} onMatch={onMatch} />
     </>
   );
 }
 
-/** One match, hole by hole: par, every player's score, who won each hole and the running status. */
-function MatchDetail({ r, gi, sides, names, u, picks, onBack, onHome }: { r: RoundRecord; gi: number; sides: [Side, Side] | null; names: Names; u: number; picks: Picks; onBack: () => void; onHome: () => void }) {
+/** The drawer under an opened match, hole by hole: par, every player's score, who won each hole and the running status. */
+function Scorecard({ r, results, m, leftLetter, names, u, picks }: { r: RoundRecord; results: ReturnType<typeof evaluate>; m: MatchOutcome; leftLetter?: string; names: Names; u: number; picks: Picks }) {
   const c = useColors();
-  const results = evaluate(r);
-  const m = matchOutcomes(r, results).find((x) => x.gi === gi);
-  if (!m) return <BackBar u={u} back="Round" onBack={onBack} title="Match not found" />;
+  const gi = m.gi;
   const res = results[gi];
-  const v = matchView(r, results, m, sides?.[0].letter, picks);
+  const v = matchView(r, results, m, leftLetter, picks);
   const holes = res && isResult(res) ? storyHoles(r, res, m, c) : [];
   const g = r.games[gi];
-  const sub = [r.label, gameName(g), g.handicap?.net === false ? 'Gross' : 'Net', roundCourse(r)].filter(Boolean).join(' · ');
+  const sub = [gameName(g), g.handicap?.net === false ? 'Gross' : 'Net', roundCourse(r)].filter(Boolean).join(' · ');
   // Lead from the left side's point of view.
   const sign = v.flip ? -1 : 1;
   const nine = holes.length > 9 ? [holes.slice(0, 9), holes.slice(9)] : [holes];
@@ -461,7 +478,7 @@ function MatchDetail({ r, gi, sides, names, u, picks, onBack, onHome }: { r: Rou
   );
   const half = (hs: typeof holes, i: number, last: boolean) => (
     <View key={i} style={{ backgroundColor: '#fff', borderRadius: 14 * u, overflow: 'hidden' }}>
-      <View style={{ flexDirection: 'row', backgroundColor: PANEL }}>
+      <View style={{ flexDirection: 'row', backgroundColor: INK }}>
         {label('HOLE', '#fff', true)}
         {hs.map((h) => cell(h.hole, h.hole, { color: '#fff', bold: true }))}
         {cell('t', nine.length > 1 ? (i === 0 ? 'OUT' : 'IN') : 'TOT', { color: GOLD, bold: true, w: 80 * u })}
@@ -489,18 +506,17 @@ function MatchDetail({ r, gi, sides, names, u, picks, onBack, onHome }: { r: Rou
     </View>
   );
   return (
-    <>
-      <BackBar u={u} back={r.label ?? 'Round'} onBack={onBack} onHome={onHome} title={`${leftIds.map((id) => names.get(id)?.name.split(' ')[0] ?? '?').join(' & ')} vs ${rightIds.map((id) => names.get(id)?.name.split(' ')[0] ?? '?').join(' & ')}`} sub={sub} />
-      <MatchRow r={r} results={results} m={m} leftLetter={sides?.[0].letter} names={names} u={u} picks={picks} h={110 * u} />
+    <View style={{ backgroundColor: '#E9EEEB', borderBottomLeftRadius: 12 * u, borderBottomRightRadius: 12 * u, paddingVertical: 16 * u, paddingHorizontal: 12 * u, gap: 12 * u, alignItems: 'center' }}>
+      <Text style={{ color: '#4A5A52', fontWeight: '800', fontSize: 17 * u, letterSpacing: 2 * u }}>{sub.toUpperCase()}</Text>
       {holes.length ? (
-        <View style={{ gap: 14 * u, alignItems: 'center' }}>
+        <>
           {nine.map((hs, i) => half(hs, i, i === nine.length - 1))}
-          <Text style={{ color: '#FFFFFF80', fontSize: 16 * u }}>Gross scores · shaded = won the hole · circled = birdie or better · MATCH = holes up after each hole</Text>
-        </View>
+          <Text style={{ color: '#4A5A52', fontSize: 15 * u }}>Gross scores · shaded = won the hole · circled = birdie or better · MATCH = holes up after each hole</Text>
+        </>
       ) : (
-        <Text style={{ color: '#FFFFFF99', fontSize: 24 * u }}>No scores yet.</Text>
+        <Text style={{ color: '#4A5A52', fontSize: 22 * u }}>No scores yet.</Text>
       )}
-    </>
+    </View>
   );
 }
 
@@ -518,7 +534,7 @@ function Leaderboard({ e, rounds, names, u }: { e: EventRecord; rounds: RoundRec
         <View key={r.playerId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 * u, paddingHorizontal: 12 * u, borderRadius: 10 * u, backgroundColor: i === 0 ? '#F6EFD9' : i % 2 ? '#F4F6F5' : '#fff' }}>
           <Text style={{ flex: 1, textAlign: 'center', color: INK, fontWeight: '900', fontSize: 30 * u }}>{r.position}</Text>
           <Text numberOfLines={1} style={{ flex: 4, color: INK, fontWeight: '800', fontSize: 32 * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
-          <Text style={{ flex: 1, textAlign: 'center', color: PANEL, fontWeight: '900', fontSize: 34 * u }}>{formatPoints(r.points)}</Text>
+          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontWeight: '900', fontSize: 34 * u }}>{formatPoints(r.points)}</Text>
           <Text style={{ flex: 1, textAlign: 'center', color: '#4A5A52', fontWeight: '700', fontSize: 24 * u }}>{r.wins}–{r.halves}–{r.losses}</Text>
         </View>
       ))}
@@ -570,7 +586,7 @@ function NextUp({ e, names, u, picks }: { e: EventRecord; names: Names; u: numbe
   const matches = !next.matchupsLater ? (d?.matches ?? []).filter((m) => m.a.length && m.b.length) : [];
   const first = (id: string) => names.get(id)?.name ?? '?';
   const side = (ids: string[], letter: string | undefined, align: 'left' | 'right') => (
-    <Text numberOfLines={1} style={{ flex: 1, textAlign: align, color: letter ? lighten(teamColor(letter, picks).color, 0.45) : '#fff', fontWeight: '800', fontSize: (matches.length > 4 ? 16 : 18) * u }}>{ids.map(first).join(' & ')}</Text>
+    <Text numberOfLines={1} style={{ flex: 1, textAlign: align, color: letter ? lighten(teamColor(letter, picks).color, 0.5) : '#fff', fontWeight: '800', fontSize: (matches.length > 4 ? 16 : 18) * u }}>{ids.map(first).join(' & ')}</Text>
   );
   return (
     <Panel u={u} title="UP NEXT">
@@ -603,7 +619,7 @@ function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds:
   if (!rows.length) return <View style={{ flex: 1 }} />;
   const fs = rows.length > 12 ? 16 : 18;
   return (
-    <View style={{ flex: 1, minHeight: 0, backgroundColor: PANEL, borderRadius: 18 * u, padding: 16 * u, gap: 8 * u, borderWidth: 1, borderColor: '#FFFFFF1A' }}>
+    <View style={{ flex: 1, minHeight: 0, backgroundColor: PANEL, borderRadius: 18 * u, padding: 16 * u, gap: 8 * u, borderWidth: 1, borderColor: '#FFFFFF24' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={{ flex: 1, color: GOLD, fontWeight: '900', fontSize: 16 * u, letterSpacing: 3 * u }}>INDIVIDUAL CONTRIBUTIONS</Text>
         <Text style={{ width: 56 * u, textAlign: 'right', color: '#FFFFFF80', fontWeight: '800', fontSize: 13 * u, letterSpacing: 1 * u }}>PTS</Text>
