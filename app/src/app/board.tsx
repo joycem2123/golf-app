@@ -30,8 +30,11 @@ import { fonts, teamColor, useColors } from '@/theme';
 export { ErrorBoundary } from '@/components/error-screen';
 
 const BG = '#0B2219';
-/** Side panels: near-black glass so they stand out against the green. */
-const PANEL = 'rgba(4,8,6,0.78)';
+/** Side panels: the app's cream card, so they stand out against the green. */
+const PANEL = '#FAF8F2';
+const PANEL_LINE = 'rgba(20,38,30,0.08)';
+const MUTED = '#66756D';
+const PRIMARY = '#1F5A3D';
 const LINE = 'rgba(255,255,255,0.09)';
 
 // The board runs in a web browser, so it can use real CSS for depth: gradients, glass blur and soft shadows.
@@ -109,7 +112,7 @@ function Message({ u, title, sub }: { u: number; title: string; sub: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 * u, padding: 40 * u }}>
       <LogoMark size={120 * u} />
-      <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 56 * u, textAlign: 'center' }}>{title}</Text>
+      <Text style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 56 * u, textAlign: 'center' }}>{title}</Text>
       {sub ? <Text style={{ color: '#FFFFFFAA', fontSize: 28 * u, textAlign: 'center' }}>{sub}</Text> : null}
     </View>
   );
@@ -185,20 +188,20 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
         </View>
         <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: LINE }} />
         <View style={{ flex: 1, gap: 2 * u }}>
-          <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 40 * u, letterSpacing: -0.5 * u }}>{e.name}</Text>
-          {subtitle ? <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.6)', fontFamily: fonts.brandMedium, fontSize: 18 * u, letterSpacing: 1.5 * u }}>{subtitle.toUpperCase()}</Text> : null}
+          <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 42 * u }}>{e.name}</Text>
+          {subtitle ? <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.6)', fontWeight: '700', fontSize: 18 * u, letterSpacing: 1.5 * u }}>{subtitle.toUpperCase()}</Text> : null}
         </View>
-        <Text style={{ color: stale ? '#F5B041' : 'rgba(255,255,255,0.5)', fontSize: 15 * u, fontFamily: fonts.brandMedium }}>
+        <Text style={{ color: stale ? '#F5B041' : 'rgba(255,255,255,0.5)', fontSize: 15 * u, fontWeight: '700' }}>
           {stale ? 'Reconnecting…' : updated ? `Updated ${updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
         </Text>
         {isLive ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 * u, backgroundColor: 'rgba(231,76,60,0.16)', borderWidth: 1, borderColor: 'rgba(231,76,60,0.55)', paddingHorizontal: 16 * u, paddingVertical: 7 * u, borderRadius: 999 }}>
             <LiveDot size={12 * u} />
-            <Text style={{ color: '#FF6B5A', fontFamily: fonts.brand, fontSize: 18 * u, letterSpacing: 3 * u }}>LIVE</Text>
+            <Text style={{ color: '#FF6B5A', fontWeight: '800', fontSize: 18 * u, letterSpacing: 3 * u }}>LIVE</Text>
           </View>
         ) : (
           <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 16 * u, paddingVertical: 7 * u, borderRadius: 999 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontFamily: fonts.brand, fontSize: 16 * u, letterSpacing: 3 * u }}>FINAL</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '800', fontSize: 16 * u, letterSpacing: 3 * u }}>FINAL</Text>
           </View>
         )}
       </View>
@@ -226,14 +229,14 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
           </Panel>
           <NextUp e={e} names={names} u={u} picks={picks} />
           {sides ? <Contributions e={e} rounds={rounds} names={names} u={u} picks={picks} /> : <View style={{ flex: 1 }} />}
-          <View style={{ backgroundColor: PANEL, borderRadius: 22 * u, padding: 14 * u, flexDirection: 'row', alignItems: 'center', gap: 16 * u, borderWidth: 1, borderColor: LINE, ...GLASS, ...SHADOW }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 14 * u, padding: 6 * u }}>
+          <View style={{ backgroundColor: PANEL, borderRadius: 22 * u, padding: 14 * u, flexDirection: 'row', alignItems: 'center', gap: 16 * u, borderWidth: 1, borderColor: PANEL_LINE, ...SHADOW }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 14 * u, padding: 6 * u, borderWidth: 1, borderColor: PANEL_LINE }}>
               <QrCode value={joinUrl} size={96 * u} color={INK} />
             </View>
             <View style={{ flex: 1, gap: 4 * u }}>
-              <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 20 * u }}>Follow live on your phone</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 * u }}>Scan, or tap Join with Code in Clutch Up</Text>
-              <Text style={{ color: GOLD, fontFamily: fonts.brand, fontSize: 32 * u, letterSpacing: 8 * u }}>{code}</Text>
+              <Text style={{ color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 21 * u }}>Follow live on your phone</Text>
+              <Text style={{ color: MUTED, fontSize: 14 * u }}>Scan, or tap Join with Code in Clutch Up</Text>
+              <Text style={{ color: PRIMARY, fontWeight: '800', fontSize: 32 * u, letterSpacing: 8 * u, ...TABULAR }}>{code}</Text>
             </View>
           </View>
         </View>
@@ -266,7 +269,7 @@ function PanelTitle({ u, title, right }: { u: number; title: string; right?: Rea
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 * u }}>
       <View style={{ width: 4 * u, height: 16 * u, borderRadius: 2 * u, backgroundColor: GOLD }} />
-      <Text style={{ flex: 1, color: 'rgba(255,255,255,0.75)', fontFamily: fonts.brand, fontSize: 15 * u, letterSpacing: 3 * u }}>{title}</Text>
+      <Text style={{ flex: 1, color: PRIMARY, fontWeight: '800', fontSize: 15 * u, letterSpacing: 2.5 * u }}>{title}</Text>
       {right}
     </View>
   );
@@ -274,7 +277,7 @@ function PanelTitle({ u, title, right }: { u: number; title: string; right?: Rea
 
 function Panel({ u, title, children }: { u: number; title: string; children: React.ReactNode }) {
   return (
-    <View style={{ backgroundColor: PANEL, borderRadius: 22 * u, padding: 22 * u, gap: 14 * u, borderWidth: 1, borderColor: LINE, ...GLASS, ...SHADOW }}>
+    <View style={{ backgroundColor: PANEL, borderRadius: 22 * u, padding: 22 * u, gap: 14 * u, borderWidth: 1, borderColor: PANEL_LINE, ...SHADOW }}>
       <PanelTitle u={u} title={title} />
       {children}
     </View>
@@ -300,13 +303,13 @@ function TeamBar({ sides, u }: { sides: [Side, Side]; u: number }) {
   const projLead = A.projected > B.projected ? 'A' : B.projected > A.projected ? 'B' : null;
   const name = (s: Side, align: 'right' | 'left') => (
     <View style={{ flex: 1, height: h, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 32 * u, gap: 2 * u, ...css({ backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #EEF2EF 100%)' }) }}>
-      <Text style={{ color: '#8A978F', fontFamily: fonts.brandMedium, fontSize: 15 * u, letterSpacing: 3 * u, textAlign: align }}>{lead === s.letter ? 'LEADS' : lead ? 'TRAILS' : 'TIED'}</Text>
-      <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: s.color, fontFamily: fonts.brand, fontSize: 50 * u, letterSpacing: -0.5 * u, textAlign: align }}>{s.name}</Text>
+      <Text style={{ color: '#8A978F', fontWeight: '700', fontSize: 15 * u, letterSpacing: 3 * u, textAlign: align }}>{lead === s.letter ? 'LEADS' : lead ? 'TRAILS' : 'TIED'}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: s.color, fontFamily: fonts.serif, fontWeight: '700', fontSize: 50 * u, textAlign: align }}>{s.name}</Text>
     </View>
   );
   const score = (s: Side) => (
     <View style={{ width: 210 * u, height: h, backgroundColor: s.color, alignItems: 'center', justifyContent: 'center', ...sheen(s.color) }}>
-      <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 88 * u, ...TABULAR, ...css({ textShadow: '0 2px 10px rgba(0,0,0,0.25)' }) }}>{formatPoints(s.points)}</Text>
+      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 88 * u, ...TABULAR, ...css({ textShadow: '0 2px 10px rgba(0,0,0,0.25)' }) }}>{formatPoints(s.points)}</Text>
     </View>
   );
   return (
@@ -321,11 +324,11 @@ function TeamBar({ sides, u }: { sides: [Side, Side]; u: number }) {
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40 * u }}>
         <View style={{ backgroundColor: A.color, borderRadius: 999, paddingHorizontal: 26 * u, paddingVertical: 4 * u, minWidth: 120 * u, alignItems: 'center', opacity: projLead === 'B' ? 0.75 : 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', ...sheen(A.color), ...SHADOW }}>
-          <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 38 * u, ...TABULAR }}>{formatPoints(A.projected)}</Text>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 38 * u, ...TABULAR }}>{formatPoints(A.projected)}</Text>
         </View>
-        <Text style={{ color: 'rgba(255,255,255,0.8)', fontFamily: fonts.brand, fontSize: 18 * u, letterSpacing: 5 * u }}>PROJECTED</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '800', fontSize: 18 * u, letterSpacing: 5 * u }}>PROJECTED</Text>
         <View style={{ backgroundColor: B.color, borderRadius: 999, paddingHorizontal: 26 * u, paddingVertical: 4 * u, minWidth: 120 * u, alignItems: 'center', opacity: projLead === 'A' ? 0.75 : 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', ...sheen(B.color), ...SHADOW }}>
-          <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 38 * u, ...TABULAR }}>{formatPoints(B.projected)}</Text>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 38 * u, ...TABULAR }}>{formatPoints(B.projected)}</Text>
         </View>
       </View>
     </View>
@@ -379,10 +382,10 @@ function matchView(r: RoundRecord, results: ReturnType<typeof evaluate>, m: Matc
 function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress, open }: { r: RoundRecord; results: ReturnType<typeof evaluate>; m: MatchOutcome; leftLetter?: string; names: Names; u: number; picks: Picks; h: number; onPress?: () => void; open?: boolean }) {
   const v = matchView(r, results, m, leftLetter, picks);
   const people = (ids: string[], align: 'left' | 'right', color: string) => (
-    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 18 * u, gap: 2 * u }}>
+    <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 * u, gap: 0 }}>
       {ids.map((id) => (
         <View key={id} style={{ flexDirection: align === 'left' ? 'row' : 'row-reverse', alignItems: 'baseline', gap: 10 * u }}>
-          <Text numberOfLines={1} style={{ color, fontFamily: fonts.brandMedium, fontSize: (ids.length > 1 ? 24 : 30) * u, flexShrink: 1 }}>{names.get(id)?.name ?? '?'}</Text>
+          <Text numberOfLines={1} style={{ color, fontWeight: '700', fontSize: (ids.length > 1 ? 21 : 26) * u, flexShrink: 1 }}>{names.get(id)?.name ?? '?'}</Text>
           {names.get(id)?.hcp !== undefined ? <Text style={{ color: '#7A8A82', fontWeight: '700', fontSize: 15 * u }}>HCP {formatIndex(names.get(id)!.hcp!)}</Text> : null}
         </View>
       ))}
@@ -393,9 +396,9 @@ function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress, open
       style={(st) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: hov(st) ? '#F3F7F4' : '#fff', borderRadius: 18 * u, borderBottomLeftRadius: open ? 0 : 18 * u, borderBottomRightRadius: open ? 0 : 18 * u, overflow: 'hidden', ...(open ? {} : SHADOW), ...css({ transition: 'background-color 150ms ease' }) })}>
       {people(v.left.members, 'left', v.lc)}
       {v.ahead === 'L' ? <Arrow dir="left" color={v.cellColor} h={h} /> : null}
-      <View style={{ width: 170 * u, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: '#E3E8E5', ...(v.ahead || v.done ? sheen(v.cellColor) : css({ backgroundImage: 'linear-gradient(180deg, #F7F9F8 0%, #E9EEEB 100%)' })) }}>
-        <Text style={{ color: v.cellText, fontFamily: fonts.brand, fontSize: 38 * u }}>{v.big}</Text>
-        <Text style={{ color: v.cellText, opacity: 0.85, fontFamily: fonts.brandMedium, fontSize: 15 * u, letterSpacing: 2 * u }}>{v.small}</Text>
+      <View style={{ width: 150 * u, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: '#E3E8E5', ...(v.ahead || v.done ? sheen(v.cellColor) : css({ backgroundImage: 'linear-gradient(180deg, #F7F9F8 0%, #E9EEEB 100%)' })) }}>
+        <Text style={{ color: v.cellText, fontWeight: '800', fontSize: 32 * u, ...TABULAR }}>{v.big}</Text>
+        <Text style={{ color: v.cellText, opacity: 0.85, fontWeight: '700', fontSize: 12 * u, letterSpacing: 2 * u }}>{v.small}</Text>
       </View>
       {v.ahead === 'R' ? <Arrow dir="right" color={v.cellColor} h={h} /> : null}
       {people(v.right.members, 'right', v.rc)}
@@ -422,7 +425,7 @@ function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRe
   // Two columns when there are lots of matches (one while a scorecard is open), so every one stays big enough to read.
   const cols = rows.length > 6 && open === null ? 2 : 1;
   const perCol = Math.ceil(rows.length / cols);
-  const rowH = Math.max(90, Math.min(150, 620 / Math.ceil(rows.length / (rows.length > 6 ? 2 : 1)))) * u;
+  const rowH = Math.max(72, Math.min(100, 560 / Math.ceil(rows.length / (rows.length > 6 ? 2 : 1)))) * u;
   const columns = Array.from({ length: cols }, (_, i) => rows.slice(i * perCol, (i + 1) * perCol));
   return (
     <View style={{ flex: 1, minHeight: 0, gap: 8 * u }}>
@@ -446,14 +449,14 @@ function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRe
 function BackBar({ u, title, sub, back, onBack, onHome }: { u: number; title: string; sub?: string; back: string; onBack: () => void; onHome?: () => void }) {
   const btn = (label: string, on: () => void) => (
     <Pressable onPress={on} accessibilityRole="button" style={(st) => ({ backgroundColor: hov(st) ? '#FFFFFF33' : '#FFFFFF1A', borderRadius: 10 * u, paddingHorizontal: 16 * u, paddingVertical: 8 * u })}>
-      <Text style={{ color: '#fff', fontFamily: fonts.brandMedium, fontSize: 20 * u }}>{label}</Text>
+      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 20 * u }}>{label}</Text>
     </Pressable>
   );
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 * u }}>
       {btn(`← ${back}`, onBack)}
       <View style={{ flex: 1 }}>
-        <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 36 * u, letterSpacing: -0.5 * u }}>{title}</Text>
+        <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 36 * u }}>{title}</Text>
         {sub ? <Text numberOfLines={1} style={{ color: '#FFFFFFB0', fontSize: 20 * u, fontWeight: '600' }}>{sub}</Text> : null}
       </View>
       {onHome ? btn('Main board', onHome) : null}
@@ -519,13 +522,13 @@ function Scorecard({ r, results, m, leftLetter, names, u, picks }: { r: RoundRec
   const cell = (key: string | number, text: string | number | null, o: { bg?: string; color?: string; bold?: boolean; ring?: string; w?: number } = {}) => (
     <View key={key} style={{ width: o.w ?? cellW, height: rowH, alignItems: 'center', justifyContent: 'center', backgroundColor: o.bg }}>
       <View style={o.ring ? { borderWidth: 2 * u, borderColor: o.ring, borderRadius: 14 * u, minWidth: 28 * u, height: 28 * u, alignItems: 'center', justifyContent: 'center' } : undefined}>
-        <Text style={{ color: o.color ?? INK, fontFamily: o.bold ? fonts.brand : fonts.brandMedium, ...TABULAR, fontSize: 17 * u }}>{text ?? ''}</Text>
+        <Text style={{ color: o.color ?? INK, fontWeight: o.bold ? '800' : '600', ...TABULAR, fontSize: 17 * u }}>{text ?? ''}</Text>
       </View>
     </View>
   );
   const label = (text: string, color = INK, small = false) => (
     <View style={{ width: labelW, height: rowH, justifyContent: 'center', paddingHorizontal: 10 * u }}>
-      <Text numberOfLines={1} style={{ color, fontFamily: fonts.brand, fontSize: (small ? 13 : 17) * u, letterSpacing: small ? 2 * u : 0 }}>{text}</Text>
+      <Text numberOfLines={1} style={{ color, fontWeight: '800', fontSize: (small ? 13 : 17) * u, letterSpacing: small ? 2 * u : 0 }}>{text}</Text>
     </View>
   );
   const sumCell = (col: Extract<Col, { k: 'sum' }>, text: string | number | null, o: { color?: string; bold?: boolean; bg?: string } = {}) =>
@@ -569,7 +572,7 @@ function Scorecard({ r, results, m, leftLetter, names, u, picks }: { r: RoundRec
   );
   return (
     <View style={{ backgroundColor: '#F1F4F2', borderBottomLeftRadius: 18 * u, borderBottomRightRadius: 18 * u, borderTopWidth: 1, borderColor: '#DDE3DF', ...SHADOW, paddingVertical: 12 * u, paddingHorizontal: 12 * u, gap: 8 * u, alignItems: 'center' }}>
-      <Text style={{ color: '#4A5A52', fontFamily: fonts.brandMedium, fontSize: 14 * u, letterSpacing: 2 * u }}>{sub.toUpperCase()}</Text>
+      <Text style={{ color: '#4A5A52', fontWeight: '700', fontSize: 14 * u, letterSpacing: 2 * u }}>{sub.toUpperCase()}</Text>
       {holes.length ? (
         <>
           {table}
@@ -589,14 +592,14 @@ function Leaderboard({ e, rounds, names, u }: { e: EventRecord; rounds: RoundRec
     <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 18 * u, padding: 20 * u, gap: 6 * u }}>
       <View style={{ flexDirection: 'row', paddingHorizontal: 12 * u }}>
         {['POS', 'PLAYER', 'PTS', 'W–H–L'].map((t, i) => (
-          <Text key={t} style={{ flex: i === 1 ? 4 : 1, color: '#7A8A82', fontFamily: fonts.brand, fontSize: 18 * u, letterSpacing: 2 * u, textAlign: i === 1 ? 'left' : 'center' }}>{t}</Text>
+          <Text key={t} style={{ flex: i === 1 ? 4 : 1, color: '#7A8A82', fontWeight: '800', fontSize: 18 * u, letterSpacing: 2 * u, textAlign: i === 1 ? 'left' : 'center' }}>{t}</Text>
         ))}
       </View>
       {rows.map((r, i) => (
         <View key={r.playerId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 * u, paddingHorizontal: 12 * u, borderRadius: 10 * u, backgroundColor: i === 0 ? '#F6EFD9' : i % 2 ? '#F4F6F5' : '#fff' }}>
-          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontFamily: fonts.brand, fontSize: 30 * u }}>{r.position}</Text>
-          <Text numberOfLines={1} style={{ flex: 4, color: INK, fontFamily: fonts.brandMedium, fontSize: 32 * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
-          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontFamily: fonts.brand, fontSize: 34 * u }}>{formatPoints(r.points)}</Text>
+          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontWeight: '800', fontSize: 30 * u }}>{r.position}</Text>
+          <Text numberOfLines={1} style={{ flex: 4, color: INK, fontWeight: '700', fontSize: 32 * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
+          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontWeight: '800', fontSize: 34 * u }}>{formatPoints(r.points)}</Text>
           <Text style={{ flex: 1, textAlign: 'center', color: '#4A5A52', fontWeight: '700', fontSize: 24 * u }}>{r.wins}–{r.halves}–{r.losses}</Text>
         </View>
       ))}
@@ -609,7 +612,7 @@ function RoundsList({ e, rounds, sides, u, selected, onRound }: { e: EventRecord
   const list = (e.rounds ?? []).map((p) => ({ p, r: p.roundId ? rounds.find((x) => x.id === p.roundId) : undefined })).filter((x) => x.r);
   const extra = rounds.filter((r) => !(e.rounds ?? []).some((p) => p.roundId === r.id)).map((r) => ({ p: undefined, r }));
   const all = [...list, ...extra].slice(-6);
-  if (!all.length) return <Text style={{ color: '#FFFFFF99', fontSize: 20 * u }}>No rounds played yet.</Text>;
+  if (!all.length) return <Text style={{ color: MUTED, fontSize: 20 * u }}>No rounds played yet.</Text>;
   return (
     <View style={{ gap: 4 * u }}>
       {all.map(({ p, r }) => {
@@ -617,17 +620,17 @@ function RoundsList({ e, rounds, sides, u, selected, onRound }: { e: EventRecord
         const of = (L: string) => score?.find((t) => t.letter === L)?.points ?? 0;
         return (
           <Pressable key={r!.id} onPress={() => onRound(r!.id)} accessibilityRole="button" accessibilityLabel={`Open ${r!.label ?? 'round'}`}
-            style={(st) => ({ flexDirection: 'row', alignItems: 'center', gap: 10 * u, paddingVertical: 4 * u, paddingHorizontal: 8 * u, marginHorizontal: -8 * u, borderRadius: 8 * u, backgroundColor: selected === r!.id ? '#FFFFFF26' : hov(st) ? '#FFFFFF14' : 'transparent' })}>
-            <Text numberOfLines={1} style={{ flex: 1, color: '#fff', fontWeight: '700', fontSize: 21 * u }}>{r!.label ?? (p ? `Round ${p.number}` : 'Round')}</Text>
+            style={(st) => ({ flexDirection: 'row', alignItems: 'center', gap: 10 * u, paddingVertical: 4 * u, paddingHorizontal: 8 * u, marginHorizontal: -8 * u, borderRadius: 8 * u, backgroundColor: selected === r!.id ? 'rgba(31,90,61,0.12)' : hov(st) ? 'rgba(31,90,61,0.06)' : 'transparent' })}>
+            <Text numberOfLines={1} style={{ flex: 1, color: INK, fontWeight: '700', fontSize: 21 * u }}>{r!.label ?? (p ? `Round ${p.number}` : 'Round')}</Text>
             {sides && score ? (
-              <Text style={{ fontFamily: fonts.brand, fontSize: 22 * u }}>
-                <Text style={{ color: lighten(sides[0].color) }}>{formatPoints(of(sides[0].letter))}</Text>
-                <Text style={{ color: '#FFFFFF80' }}> – </Text>
-                <Text style={{ color: lighten(sides[1].color) }}>{formatPoints(of(sides[1].letter))}</Text>
+              <Text style={{ fontWeight: '800', fontSize: 22 * u, ...TABULAR }}>
+                <Text style={{ color: sides[0].color }}>{formatPoints(of(sides[0].letter))}</Text>
+                <Text style={{ color: MUTED }}> – </Text>
+                <Text style={{ color: sides[1].color }}>{formatPoints(of(sides[1].letter))}</Text>
               </Text>
             ) : null}
-            <Text style={{ width: 64 * u, textAlign: 'right', color: r!.status === 'active' ? '#E74C3C' : '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 15 * u }}>{r!.status === 'active' ? 'LIVE' : 'FINAL'}</Text>
-            <Text style={{ color: '#FFFFFF66', fontSize: 20 * u }}>›</Text>
+            <Text style={{ width: 64 * u, textAlign: 'right', color: r!.status === 'active' ? '#D63A2A' : MUTED, fontWeight: '800', fontSize: 14 * u, letterSpacing: 1 * u }}>{r!.status === 'active' ? 'LIVE' : 'FINAL'}</Text>
+            <Text style={{ color: MUTED, fontSize: 20 * u }}>›</Text>
           </Pressable>
         );
       })}
@@ -648,27 +651,27 @@ function NextUp({ e, names, u, picks }: { e: EventRecord; names: Names; u: numbe
   const matches = !next.matchupsLater ? (d?.matches ?? []).filter((m) => m.a.length && m.b.length) : [];
   const first = (id: string) => names.get(id)?.name ?? '?';
   const side = (ids: string[], letter: string | undefined, align: 'left' | 'right') => (
-    <Text numberOfLines={1} style={{ flex: 1, textAlign: align, color: letter ? lighten(teamColor(letter, picks).color, 0.5) : '#fff', fontFamily: fonts.brandMedium, fontSize: (matches.length > 4 ? 16 : 18) * u }}>{ids.map(first).join(' & ')}</Text>
+    <Text numberOfLines={1} style={{ flex: 1, textAlign: align, color: letter ? teamColor(letter, picks).color : INK, fontWeight: '700', fontSize: (matches.length > 4 ? 16 : 18) * u }}>{ids.map(first).join(' & ')}</Text>
   );
   return (
     <Panel u={u} title="UP NEXT">
       <View style={{ gap: 2 * u }}>
-        <Text style={{ color: '#fff', fontFamily: fonts.brandMedium, fontSize: 26 * u }}>Round {next.number} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
-        {format || course ? <Text style={{ color: GOLD, fontFamily: fonts.brandMedium, fontSize: 19 * u }}>{[format, course].filter(Boolean).join(' · ')}</Text> : null}
+        <Text style={{ color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 26 * u }}>Round {next.number} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
+        {format || course ? <Text style={{ color: '#9A7A12', fontWeight: '800', fontSize: 18 * u }}>{[format, course].filter(Boolean).join(' · ')}</Text> : null}
       </View>
       {matches.length ? (
         <View style={{ gap: 4 * u }}>
           {matches.slice(0, 6).map((m, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * u }}>
               {side(m.a, m.ta, 'right')}
-              <Text style={{ color: '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 14 * u }}>vs</Text>
+              <Text style={{ color: MUTED, fontWeight: '700', fontSize: 14 * u }}>vs</Text>
               {side(m.b, m.tb, 'left')}
             </View>
           ))}
-          {matches.length > 6 ? <Text style={{ color: '#FFFFFF80', fontSize: 15 * u, textAlign: 'center' }}>+{matches.length - 6} more</Text> : null}
+          {matches.length > 6 ? <Text style={{ color: MUTED, fontSize: 15 * u, textAlign: 'center' }}>+{matches.length - 6} more</Text> : null}
         </View>
       ) : (
-        <Text style={{ color: '#FFFFFF99', fontSize: 17 * u }}>{d?.kind || next.matchupsLater ? 'Matchups to be set on the day.' : 'Format and matchups to be set.'}</Text>
+        <Text style={{ color: MUTED, fontSize: 17 * u }}>{d?.kind || next.matchupsLater ? 'Matchups to be set on the day.' : 'Format and matchups to be set.'}</Text>
       )}
     </Panel>
   );
@@ -681,22 +684,22 @@ function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds:
   if (!rows.length) return <View style={{ flex: 1 }} />;
   const fs = rows.length > 12 ? 16 : 18;
   return (
-    <View style={{ flex: 1, minHeight: 0, backgroundColor: PANEL, borderRadius: 22 * u, padding: 20 * u, gap: 10 * u, borderWidth: 1, borderColor: LINE, ...GLASS, ...SHADOW }}>
+    <View style={{ flex: 1, minHeight: 0, backgroundColor: PANEL, borderRadius: 22 * u, padding: 20 * u, gap: 10 * u, borderWidth: 1, borderColor: PANEL_LINE, ...SHADOW }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ flex: 1 }}><PanelTitle u={u} title="INDIVIDUAL CONTRIBUTIONS" /></View>
-        <Text style={{ width: 56 * u, textAlign: 'right', color: '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 13 * u, letterSpacing: 1 * u }}>PTS</Text>
-        <Text style={{ width: 80 * u, textAlign: 'right', color: '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 13 * u, letterSpacing: 1 * u }}>W–H–L</Text>
+        <Text style={{ width: 56 * u, textAlign: 'right', color: MUTED, fontWeight: '800', fontSize: 13 * u, letterSpacing: 1 * u }}>PTS</Text>
+        <Text style={{ width: 80 * u, textAlign: 'right', color: MUTED, fontWeight: '800', fontSize: 13 * u, letterSpacing: 1 * u }}>W–H–L</Text>
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 3 * u }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 2 * u }}>
         {rows.map((r) => {
           const L = letterOf(r.playerId);
-          const color = L ? teamColor(L, picks).color : '#FFFFFF';
+          const color = L ? teamColor(L, picks).color : MUTED;
           return (
             <View key={r.playerId} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * u }}>
               <View style={{ width: 6 * u, height: 22 * u, borderRadius: 3 * u, backgroundColor: color }} />
-              <Text numberOfLines={1} style={{ flex: 1, color: '#fff', fontWeight: '700', fontSize: fs * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
-              <Text style={{ width: 56 * u, textAlign: 'right', color: L ? lighten(color, 0.45) : '#fff', fontFamily: fonts.brand, fontSize: (fs + 2) * u }}>{formatPoints(r.points)}</Text>
-              <Text style={{ width: 80 * u, textAlign: 'right', color: '#FFFFFFB0', fontWeight: '700', fontSize: fs * u }}>{r.wins}–{r.halves}–{r.losses}</Text>
+              <Text numberOfLines={1} style={{ flex: 1, color: INK, fontWeight: '700', fontSize: fs * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
+              <Text style={{ width: 56 * u, textAlign: 'right', color, fontWeight: '800', fontSize: (fs + 2) * u, ...TABULAR }}>{formatPoints(r.points)}</Text>
+              <Text style={{ width: 80 * u, textAlign: 'right', color: MUTED, fontWeight: '700', fontSize: fs * u, ...TABULAR }}>{r.wins}–{r.halves}–{r.losses}</Text>
             </View>
           );
         })}
