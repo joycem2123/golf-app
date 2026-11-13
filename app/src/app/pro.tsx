@@ -17,6 +17,7 @@ const REASONS: Record<string, string> = {
   story: 'Match and event stories are part of Clutch Up Pro.',
   scorecard: 'Scorecard uploads are part of Clutch Up Pro.',
   group: 'Rounds with more than 8 players are part of Clutch Up Pro. Up to 8 players is always free.',
+  fedex: 'Stableford Points Race seasons are part of Clutch Up Pro. Your setup is saved, so you can finish it once you’re in.',
   expenses: 'Trip expenses are part of Clutch Up Pro. Everyone in your trip can add bills and settle up free.',
 };
 
@@ -24,6 +25,7 @@ const FEATURES: { icon: string; title: string; sub: string }[] = [
   { icon: '🏆', title: 'Events', sub: 'Trips, Ryder Cups and seasons with live standings, projections and schedules.' },
   { icon: '✨', title: 'Match & event stories', sub: 'A story of every match and event, written for you.' },
   { icon: '📷', title: 'Scorecard uploads', sub: 'Snap a filled-in card and get the results in seconds.' },
+  { icon: '🏅', title: 'Points Race seasons', sub: 'Stableford seasons with finishing bonuses and best-rounds standings for each half.' },
   { icon: '🧾', title: 'Trip expenses', sub: 'Track shared bills, see who owes what, and settle up with the fewest payments.' },
   { icon: '⛳', title: 'Large groups', sub: 'Play rounds with 9 or more players. Up to 8 is always free.' },
   { icon: '👥', title: 'Friends join free', sub: 'Anyone you bring into your events plays, scores and follows along free.' },

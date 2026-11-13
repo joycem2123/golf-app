@@ -1,4 +1,4 @@
-import { lockHandicaps, type Player, type TripMoney } from '@golf/engine';
+import { lockHandicaps, type FedexConfig, type Player, type TripMoney } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DateField } from '@/components/date-field';
 import { DEFAULT_TRIP_MONEY, TripMoneyOption } from '@/components/trip-money-option';
+import { FedexSettings, SeasonScoring } from '@/components/fedex-setup';
 import { SetupSaved } from '@/components/setup-saved';
 import { TeamColors } from '@/lib/team-colors';
 import { GameOptions } from '@/components/game-options';
@@ -54,6 +55,8 @@ export default function NewEvent() {
   const [rec, setRec] = useState<Recurrence>({ every: fromRound ? 'asYouGo' : 'weekly', days: [], week: 1 });
   const [lock, setLock] = useState(true);
   const [tripMoney, setTripMoney] = useState<TripMoney>(DEFAULT_TRIP_MONEY);
+  // Seasons: Stableford Points Race settings (null = match points).
+  const [fedex, setFedex] = useState<FedexConfig | null>(null);
   // Players & teams
   const [ids, setIds] = useState<string[]>(me ? [me.id] : []);
   const [teamOf, setTeamOfState] = useState<TeamOf>({});
@@ -72,6 +75,7 @@ export default function NewEvent() {
   const [sameGame, setSameGame] = useState(false);
 
   const isSeason = type === 'season';
+  const isFedex = isSeason && !!fedex;
   const isCup = type === 'cup';
   const asYouGo = isSeason && rec.every === 'asYouGo';
   const eventDays = useMemo(() => daysBetween(start, end), [start, end]);
@@ -131,7 +135,7 @@ export default function NewEvent() {
   // ------------------------------------------------------------------ draft
   // Saved as you go, so closing the screen by accident loses nothing ("Pick up where you left off").
   const saveDraft = useStore((s) => s.saveDraft);
-  const snapshot = { step, type, name, start, end, rec, lock, tripMoney, ids, teamOf, teamColors, letters, noTeams, teamNames, holder, count, plans, current };
+  const snapshot = { step, type, name, start, end, rec, lock, tripMoney, fedex, ids, teamOf, teamColors, letters, noTeams, teamNames, holder, count, plans, current };
   const started = !!name.trim() || ids.length > 1 || step !== 'details';
   useEffect(() => {
     if (fromRound || !started) return;
@@ -147,7 +151,7 @@ export default function NewEvent() {
     setRestorePlans(null);
   }, [restorePlans]);
   const resume = (d: typeof snapshot) => {
-    setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock); if (d.tripMoney) setTripMoney(d.tripMoney);
+    setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock); if (d.tripMoney) setTripMoney(d.tripMoney); setFedex(d.fedex ?? null);
     setIds(d.ids.filter((id) => saved.some((p) => p.id === id)));
     setTeamOfState(d.teamOf); if (d.teamColors) setTeamColors(d.teamColors); setTeamNames(d.teamNames ?? {}); setLetters(d.letters); setNoTeams(d.noTeams); setHolder(d.holder);
     setCount(d.count); setStep(d.step);
@@ -170,7 +174,7 @@ export default function NewEvent() {
   // Rounds with a game chosen: only those have matchups to set now.
   const withGame = plans.map((p, i) => (p.draft ? i : -1)).filter((i) => i >= 0);
   // Round 1's matchups must be set; later rounds can be decided as the event is played.
-  const matchupProblems = plans.map((p, i) => (!p.draft ? null : i > withGame[0] && p.tbd ? null : draftProblem(p.draft, players)));
+  const matchupProblems = plans.map((p, i) => (!p.draft || isFedex ? null : i > withGame[0] && p.tbd ? null : draftProblem(p.draft, players)));
 
   const canGo = (s: Step) =>
     s === 'details' ||
@@ -232,7 +236,11 @@ export default function NewEvent() {
       teamColors: teams && Object.keys(teamColors).length ? teamColors : undefined,
       teamNames: teams && Object.values(teamNames).some((v) => v.trim()) ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : undefined,
       teamLetters: teams ? letters : undefined,
-      rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
+      // Points Race: every round is Stableford, with whoever plays that day.
+      rounds: plans.map((p, i) => (isFedex
+        ? { id: p.id, number: i + 1, date: p.date, draft: { ...newDraft('stableford', players, undefined), stablefordSystem: fedex!.system }, matchupsLater: true }
+        : { id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
+      fedex: isFedex ? fedex! : undefined,
       expenses: type === 'trip' && tripMoney.on ? { ...tripMoney, settle: tripMoney.settle ?? 'optimize', organizer: tripMoney.organizer ?? me?.id } : undefined,
     };
     addEvent(e);
@@ -299,7 +307,10 @@ export default function NewEvent() {
         setStep('players');
       }} />
     )
-    : step === 'players' ? nextBtn('teams', 'Next: teams', playersProblem)
+    : step === 'players' ? (isFedex
+      // Points Race: everyone plays for themselves, so there are no teams to set.
+      ? <Button title="Next: rounds" disabled={!!playersProblem} onPress={() => { setNoTeams(true); setStep('rounds'); }} />
+      : nextBtn('teams', 'Next: teams', playersProblem))
     : step === 'teams' ? (
       <Button
         title={teamsDone && !noTeams ? 'Next: rounds' : `Put every player on a team (${ids.filter((id) => !assigned(id)).length} left)`}
@@ -307,7 +318,7 @@ export default function NewEvent() {
         onPress={() => { setNoTeams(false); setStep('rounds'); }}
       />
     )
-    : step === 'rounds' ? (withGame.length === 0
+    : step === 'rounds' ? (withGame.length === 0 || isFedex
       ? <Button title={fromRound ? 'Create season and go back to my round' : 'Create event'} onPress={create} />
       : <Button title="Next: matchups" onPress={() => { setCurrent(withGame[0]); setStep('matchups'); }} />)
     : step === 'matchups' && plan ? (nextWithGame !== undefined ? (
@@ -423,6 +434,9 @@ export default function NewEvent() {
             </Card>
           )}
 
+          {isSeason && <SeasonScoring value={fedex} onChange={(v) => { setFedex(v); if (v) setNoTeams(true); }} defaultHalf={seasonDates[Math.floor(seasonDates.length / 2)] ?? addDays(start, Math.round(daysBetween(start, end).length / 2))} />}
+          {isFedex && fedex && <FedexSettings value={fedex} onChange={setFedex} start={start} end={end} roundDates={asYouGo ? [] : seasonDates} />}
+
           <Card>
             <Toggle label="Lock handicaps at the start" hint="Everyone plays the whole event off today's index, even if it changes on Golf Canada." value={lock} onChange={setLock} />
           </Card>
@@ -503,8 +517,15 @@ export default function NewEvent() {
             <Text style={{ color: c.muted, fontSize: 13 }}>{sameGame && plans.length > 1 ? 'Choose the game for every round.' : 'Choose the format for each round.'} {withGame.length ? 'You’ll set the matchups next.' : 'Leave it as Decide later to choose when each round is set up.'}</Text>
           </Card>
 
+          {isFedex && fedex && (
+            <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent, gap: 4 }}>
+              <Text style={{ fontFamily: fonts.serif, fontSize: 17, fontWeight: '700', color: c.text }}>Every round is {fedex.system === 'modified' ? 'Modified ' : ''}Stableford</Text>
+              <Text style={{ color: c.muted, fontSize: 13 }}>Whoever shows up plays: pick the players when each round is set up. Cup points and standings are worked out automatically.</Text>
+            </Card>
+          )}
+
           {/* Its own card, just under the number of rounds, so it's easy to spot (off by default). */}
-          {plans.length > 1 && (
+          {plans.length > 1 && !isFedex && (
             <Card style={{ borderLeftWidth: 4, borderLeftColor: c.accent }}>
               <Checkbox
                 label="Same game for all rounds"
@@ -519,7 +540,7 @@ export default function NewEvent() {
             </Card>
           )}
 
-          {sameGame && plans.length > 1 && (
+          {sameGame && plans.length > 1 && !isFedex && (
             <Card>
               <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>Game for all {plans.length} rounds</Text>
               <GamePicker
@@ -555,7 +576,9 @@ export default function NewEvent() {
                   })}
                 </ScrollView>
               )}
-              {sameGame && plans.length > 1 ? (
+              {isFedex ? (
+                <Text style={{ color: c.muted, fontSize: 13 }}>Stableford · players picked on the day</Text>
+              ) : sameGame && plans.length > 1 ? (
                 <Text style={{ color: c.muted, fontSize: 13 }}>{p.draft ? gameInfo(p.draft.kind).name : 'Game: decide later'}</Text>
               ) : (
                 <GamePicker

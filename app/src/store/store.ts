@@ -11,7 +11,7 @@ import {
 } from '@golf/engine';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { TripMoney } from '@golf/engine';
+import type { FedexConfig, TripMoney } from '@golf/engine';
 
 import type { Recurrence } from '@/lib/dates';
 import type { GameDraft } from '@/lib/games';
@@ -200,6 +200,8 @@ export interface EventRecord {
   story?: { text: string; key: string };
   /** Trips: shared bills are tracked (Pro), in this currency. */
   expenses?: TripMoney;
+  /** Seasons scored points-race style (Stableford every round, finishing bonus, best rounds per half). Pro. */
+  fedex?: FedexConfig;
 }
 
 interface State {

@@ -188,6 +188,12 @@ export default function NewRound() {
       : [];
   const plannedDraftSet = useRef(false);
   useEffect(() => {
+    // A round added to a Points Race season: always Stableford, with whoever is playing.
+    if (event?.fedex && !planned && addingRound) {
+      if (draft || players.length === 0) return;
+      setDraft({ ...newDraft('stableford', players, undefined), stablefordSystem: event.fedex.system });
+      return;
+    }
     // TBD matchups: keep the round's format and options, and suggest matchups for whoever is playing.
     if (planned?.draft && planned.matchupsLater) {
       if (draft || players.length === 0) return;

@@ -25,6 +25,7 @@ import { Tip } from '@/components/tip';
 import { AddEventPlayer } from '@/components/add-event-player';
 import { EventStory } from '@/components/event-story';
 import { TripExpenses } from '@/components/trip-expenses';
+import { FedexStandings } from '@/components/fedex-standings';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
@@ -198,7 +199,7 @@ export default function EventScreen() {
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
         {(e.startDate || e.recurrence) && (
           <View style={{ alignItems: 'center', gap: 2 }}>
-            <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{e.type === 'cup' ? 'RYDER CUP' : e.type === 'season' ? 'SEASON' : 'TRIP'}</Text>
+            <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{e.type === 'cup' ? 'RYDER CUP' : e.type === 'season' ? (e.fedex ? 'SEASON · POINTS RACE' : 'SEASON') : 'TRIP'}</Text>
             {e.startDate && (
               <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>
                 {formatDate(e.startDate, { month: 'short', day: 'numeric' })}
@@ -298,12 +299,14 @@ export default function EventScreen() {
               );
             })()}
             <NextRound e={e} />
+            {/* Points Race seasons: the 1st half / 2nd half / season standings come first. */}
+            {e.fedex ? <FedexStandings e={e} rounds={rounds} /> : null}
             <EventStory e={e} rounds={rounds} />
             {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
             {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
-            {standingsCard}
+            {e.fedex ? null : standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
-            <MatchResults e={e} matches={matches} rounds={rounds} name={name} />
+            {e.fedex ? null : <MatchResults e={e} matches={matches} rounds={rounds} name={name} />}
           </>
         )}
 
