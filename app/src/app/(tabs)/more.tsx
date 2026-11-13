@@ -39,15 +39,15 @@ export default function More() {
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Card style={{ paddingVertical: 0 }}>
           <Row title="Account Settings" href="/account" />
-          <Row title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade to Clutch Up Pro'} onPress={() => router.push('/pro')} />
-          <Row title="Recently deleted" href="/recently-deleted" />
-          <Row title="How Clutch Up works" onPress={() => openTutorial()} />
-          {team.admin && <Row title={`Course changes${team.open ? ` · ${team.open} to review` : ''}`} href="/course-changes" />}
-          <Row title="Contact support" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
-          <Row title="Privacy policy & terms" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
+          <Row title="How Clutch Up Works" onPress={() => openTutorial()} />
+          <Row title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade To Clutch Up Pro'} onPress={() => router.push('/pro')} />
+          <Row title="Recently Deleted" href="/recently-deleted" />
+          {team.admin && <Row title={`Course Changes${team.open ? ` · ${team.open} To Review` : ''}`} href="/course-changes" />}
+          <Row title="Contact Support" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
+          <Row title="Privacy Policy & Terms" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
         </Card>
-        {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
-        <Body muted style={{ textAlign: 'center' }}>Clutch Up · preview build</Body>
+        {signedIn && <Button title="Sign Out" kind="danger" onPress={() => setAsking(true)} />}
+        <Body muted style={{ textAlign: 'center' }}>Clutch Up · Preview Build</Body>
       </ScrollView>
       <ConfirmDialog
         visible={asking}
