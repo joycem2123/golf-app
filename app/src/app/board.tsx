@@ -9,7 +9,7 @@
 import { applyScoreEntry } from '@golf/engine';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/logo';
 import { QrCode } from '@/components/qr-code';
@@ -29,9 +29,19 @@ import { fonts, teamColor, useColors } from '@/theme';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
-const BG = '#0E2A20';
-/** Side panels: near-black so they stand out against the green. */
-const PANEL = '#0A0C0C';
+const BG = '#0B2219';
+/** Side panels: near-black glass so they stand out against the green. */
+const PANEL = 'rgba(4,8,6,0.78)';
+const LINE = 'rgba(255,255,255,0.09)';
+
+// The board runs in a web browser, so it can use real CSS for depth: gradients, glass blur and soft shadows.
+const css = (o: Record<string, string>): object => (Platform.OS === 'web' ? o : {});
+const PAGE_BG = css({ backgroundImage: 'radial-gradient(1400px 700px at 12% -10%, #1E5A40 0%, rgba(30,90,64,0) 60%), radial-gradient(1000px 600px at 105% 115%, #154A33 0%, rgba(21,74,51,0) 60%), linear-gradient(180deg, #0E2A1F 0%, #071710 100%)' });
+const GLASS = css({ backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' });
+const SHADOW = css({ boxShadow: '0 18px 40px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.25)' });
+const TABULAR = { fontVariant: ['tabular-nums' as const] };
+/** A team colour with a little depth: lighter top-left to darker bottom-right. */
+const sheen = (c: string) => css({ backgroundImage: `linear-gradient(180deg, ${lighten(c, 0.14)} 0%, ${c} 50%, ${darken(c, 0.14)} 100%)` });
 const GOLD = '#C9A227';
 const INK = '#14261E';
 const REFRESH_MS = 20_000;
@@ -80,7 +90,7 @@ export default function Board() {
   const u = Math.max(0.45, Math.min(width / 1920, height / 1080));
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG, minHeight: '100%' }}>
+    <View style={{ flex: 1, backgroundColor: BG, minHeight: '100%', ...PAGE_BG }}>
       <Stack.Screen options={{ headerShown: false, title: 'Clutch Up · TV' }} />
       {code.length !== 6 ? (
         <Message u={u} title="Clutch Up TV board" sub="Open this page from an event's “Show on TV” button." />
@@ -99,7 +109,7 @@ function Message({ u, title, sub }: { u: number; title: string; sub: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 * u, padding: 40 * u }}>
       <LogoMark size={120 * u} />
-      <Text style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 56 * u, fontWeight: '700', textAlign: 'center' }}>{title}</Text>
+      <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 56 * u, textAlign: 'center' }}>{title}</Text>
       {sub ? <Text style={{ color: '#FFFFFFAA', fontSize: 28 * u, textAlign: 'center' }}>{sub}</Text> : null}
     </View>
   );
@@ -166,28 +176,34 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
   const joinUrl = `https://clutchupgolf.com/join?c=${code}`;
 
   return (
-    <View style={{ flex: 1, padding: 28 * u, gap: 22 * u }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 * u }}>
-        <LogoMark size={64 * u} />
-        <Text style={{ color: GOLD, fontFamily: fonts.brand, fontSize: 26 * u, letterSpacing: 4 * u }}>CLUTCH UP</Text>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.serif, fontSize: 54 * u, fontWeight: '700' }}>{e.name}</Text>
-          {subtitle ? <Text style={{ color: '#FFFFFFB0', fontSize: 26 * u, fontWeight: '600' }}>{subtitle}</Text> : null}
+    <View style={{ flex: 1 }}>
+      {/* Top bar: brand, event, live status — glass over the page */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22 * u, paddingHorizontal: 32 * u, paddingVertical: 16 * u, backgroundColor: 'rgba(0,0,0,0.38)', borderBottomWidth: 1, borderColor: LINE, ...GLASS }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 * u }}>
+          <LogoMark size={46 * u} />
+          <Text style={{ color: GOLD, fontFamily: fonts.brand, fontSize: 20 * u, letterSpacing: 4 * u }}>CLUTCH UP</Text>
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 4 * u, minWidth: 220 * u }}>
-          {isLive ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * u, backgroundColor: '#C0392B', paddingHorizontal: 14 * u, paddingVertical: 6 * u, borderRadius: 8 * u }}>
-              <View style={{ width: 12 * u, height: 12 * u, borderRadius: 6 * u, backgroundColor: '#fff' }} />
-              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22 * u, letterSpacing: 2 * u }}>LIVE</Text>
-            </View>
-          ) : null}
-          <Text style={{ color: stale ? '#F5B041' : '#FFFFFF80', fontSize: 16 * u }}>
-            {stale ? 'Reconnecting…' : updated ? `Updated ${updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
-          </Text>
+        <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: LINE }} />
+        <View style={{ flex: 1, gap: 2 * u }}>
+          <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 40 * u, letterSpacing: -0.5 * u }}>{e.name}</Text>
+          {subtitle ? <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.6)', fontFamily: fonts.brandMedium, fontSize: 18 * u, letterSpacing: 1.5 * u }}>{subtitle.toUpperCase()}</Text> : null}
         </View>
+        <Text style={{ color: stale ? '#F5B041' : 'rgba(255,255,255,0.5)', fontSize: 15 * u, fontFamily: fonts.brandMedium }}>
+          {stale ? 'Reconnecting…' : updated ? `Updated ${updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
+        </Text>
+        {isLive ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 * u, backgroundColor: 'rgba(231,76,60,0.16)', borderWidth: 1, borderColor: 'rgba(231,76,60,0.55)', paddingHorizontal: 16 * u, paddingVertical: 7 * u, borderRadius: 999 }}>
+            <LiveDot size={12 * u} />
+            <Text style={{ color: '#FF6B5A', fontFamily: fonts.brand, fontSize: 18 * u, letterSpacing: 3 * u }}>LIVE</Text>
+          </View>
+        ) : (
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 16 * u, paddingVertical: 7 * u, borderRadius: 999 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontFamily: fonts.brand, fontSize: 16 * u, letterSpacing: 3 * u }}>FINAL</Text>
+          </View>
+        )}
       </View>
 
+    <View style={{ flex: 1, padding: 26 * u, gap: 22 * u }}>
       <View style={{ flex: 1, flexDirection: 'row', gap: 26 * u }}>
         {/* Main: team score and matches (or the leaderboard), a round's details, or one match's scorecard */}
         <View style={{ flex: 7, gap: 18 * u }}>
@@ -210,24 +226,56 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
           </Panel>
           <NextUp e={e} names={names} u={u} picks={picks} />
           {sides ? <Contributions e={e} rounds={rounds} names={names} u={u} picks={picks} /> : <View style={{ flex: 1 }} />}
-          <View style={{ backgroundColor: '#fff', borderRadius: 18 * u, padding: 14 * u, flexDirection: 'row', alignItems: 'center', gap: 14 * u }}>
-            <QrCode value={joinUrl} size={104 * u} color={INK} />
-            <View style={{ flex: 1, gap: 2 * u }}>
-              <Text style={{ color: INK, fontWeight: '900', fontSize: 20 * u }}>Follow live on your phone</Text>
-              <Text style={{ color: '#4A5A52', fontSize: 15 * u }}>Scan, or open Clutch Up and tap Join with Code:</Text>
-              <Text style={{ color: INK, fontFamily: fonts.serif, fontWeight: '700', fontSize: 32 * u, letterSpacing: 6 * u }}>{code}</Text>
+          <View style={{ backgroundColor: PANEL, borderRadius: 22 * u, padding: 14 * u, flexDirection: 'row', alignItems: 'center', gap: 16 * u, borderWidth: 1, borderColor: LINE, ...GLASS, ...SHADOW }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 14 * u, padding: 6 * u }}>
+              <QrCode value={joinUrl} size={96 * u} color={INK} />
+            </View>
+            <View style={{ flex: 1, gap: 4 * u }}>
+              <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 20 * u }}>Follow live on your phone</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 * u }}>Scan, or tap Join with Code in Clutch Up</Text>
+              <Text style={{ color: GOLD, fontFamily: fonts.brand, fontSize: 32 * u, letterSpacing: 8 * u }}>{code}</Text>
             </View>
           </View>
         </View>
       </View>
+    </View>
+    </View>
+  );
+}
+
+/** The pulsing red dot in the LIVE pill. */
+function LiveDot({ size }: { size: number }) {
+  const [pulse] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.in(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={{ position: 'absolute', width: size * 2.2, height: size * 2.2, borderRadius: size * 1.1, backgroundColor: '#FF4D3A', opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }} />
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#FF4D3A' }} />
+    </View>
+  );
+}
+
+function PanelTitle({ u, title, right }: { u: number; title: string; right?: React.ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 * u }}>
+      <View style={{ width: 4 * u, height: 16 * u, borderRadius: 2 * u, backgroundColor: GOLD }} />
+      <Text style={{ flex: 1, color: 'rgba(255,255,255,0.75)', fontFamily: fonts.brand, fontSize: 15 * u, letterSpacing: 3 * u }}>{title}</Text>
+      {right}
     </View>
   );
 }
 
 function Panel({ u, title, children }: { u: number; title: string; children: React.ReactNode }) {
   return (
-    <View style={{ backgroundColor: PANEL, borderRadius: 18 * u, padding: 20 * u, gap: 12 * u, borderWidth: 1, borderColor: '#FFFFFF24' }}>
-      <Text style={{ color: GOLD, fontWeight: '900', fontSize: 18 * u, letterSpacing: 3 * u }}>{title}</Text>
+    <View style={{ backgroundColor: PANEL, borderRadius: 22 * u, padding: 22 * u, gap: 14 * u, borderWidth: 1, borderColor: LINE, ...GLASS, ...SHADOW }}>
+      <PanelTitle u={u} title={title} />
       {children}
     </View>
   );
@@ -251,18 +299,19 @@ function TeamBar({ sides, u }: { sides: [Side, Side]; u: number }) {
   const lead = A.points > B.points ? 'A' : B.points > A.points ? 'B' : null;
   const projLead = A.projected > B.projected ? 'A' : B.projected > A.projected ? 'B' : null;
   const name = (s: Side, align: 'right' | 'left') => (
-    <View style={{ flex: 1, height: h, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 30 * u, borderTopLeftRadius: align === 'right' ? 16 * u : 0, borderBottomLeftRadius: align === 'right' ? 16 * u : 0, borderTopRightRadius: align === 'left' ? 16 * u : 0, borderBottomRightRadius: align === 'left' ? 16 * u : 0 }}>
-      <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: s.color, fontWeight: '900', fontSize: 48 * u, textAlign: align }}>{s.name}</Text>
+    <View style={{ flex: 1, height: h, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 32 * u, gap: 2 * u, ...css({ backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #EEF2EF 100%)' }) }}>
+      <Text style={{ color: '#8A978F', fontFamily: fonts.brandMedium, fontSize: 15 * u, letterSpacing: 3 * u, textAlign: align }}>{lead === s.letter ? 'LEADS' : lead ? 'TRAILS' : 'TIED'}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: s.color, fontFamily: fonts.brand, fontSize: 50 * u, letterSpacing: -0.5 * u, textAlign: align }}>{s.name}</Text>
     </View>
   );
   const score = (s: Side) => (
-    <View style={{ width: 210 * u, height: h, backgroundColor: s.color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 84 * u }}>{formatPoints(s.points)}</Text>
+    <View style={{ width: 210 * u, height: h, backgroundColor: s.color, alignItems: 'center', justifyContent: 'center', ...sheen(s.color) }}>
+      <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 88 * u, ...TABULAR, ...css({ textShadow: '0 2px 10px rgba(0,0,0,0.25)' }) }}>{formatPoints(s.points)}</Text>
     </View>
   );
   return (
     <View style={{ gap: 10 * u }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 22 * u, overflow: 'hidden', ...SHADOW }}>
         {name(A, 'right')}
         {lead === 'A' ? <Arrow dir="left" color={A.color} h={h} /> : null}
         {score(A)}
@@ -271,16 +320,24 @@ function TeamBar({ sides, u }: { sides: [Side, Side]; u: number }) {
         {name(B, 'left')}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40 * u }}>
-        <View style={{ backgroundColor: A.color, borderRadius: 10 * u, paddingHorizontal: 22 * u, paddingVertical: 2 * u, minWidth: 110 * u, alignItems: 'center', opacity: projLead === 'B' ? 0.7 : 1, borderWidth: 2 * u, borderColor: '#FFFFFF40' }}>
-          <Text style={{ color: '#fff', fontWeight: '900', fontSize: 44 * u }}>{formatPoints(A.projected)}</Text>
+        <View style={{ backgroundColor: A.color, borderRadius: 999, paddingHorizontal: 26 * u, paddingVertical: 4 * u, minWidth: 120 * u, alignItems: 'center', opacity: projLead === 'B' ? 0.75 : 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', ...sheen(A.color), ...SHADOW }}>
+          <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 38 * u, ...TABULAR }}>{formatPoints(A.projected)}</Text>
         </View>
-        <Text style={{ color: '#fff', fontWeight: '900', fontSize: 22 * u, letterSpacing: 4 * u }}>PROJECTED</Text>
-        <View style={{ backgroundColor: B.color, borderRadius: 10 * u, paddingHorizontal: 22 * u, paddingVertical: 2 * u, minWidth: 110 * u, alignItems: 'center', opacity: projLead === 'A' ? 0.7 : 1, borderWidth: 2 * u, borderColor: '#FFFFFF40' }}>
-          <Text style={{ color: '#fff', fontWeight: '900', fontSize: 44 * u }}>{formatPoints(B.projected)}</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.8)', fontFamily: fonts.brand, fontSize: 18 * u, letterSpacing: 5 * u }}>PROJECTED</Text>
+        <View style={{ backgroundColor: B.color, borderRadius: 999, paddingHorizontal: 26 * u, paddingVertical: 4 * u, minWidth: 120 * u, alignItems: 'center', opacity: projLead === 'A' ? 0.75 : 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', ...sheen(B.color), ...SHADOW }}>
+          <Text style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 38 * u, ...TABULAR }}>{formatPoints(B.projected)}</Text>
         </View>
       </View>
     </View>
   );
+}
+
+function darken(hex: string, by = 0.2): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (v: number) => Math.round(v * (1 - by)).toString(16).padStart(2, '0');
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
 }
 
 function lighten(hex: string, by = 0.35): string {
@@ -325,7 +382,7 @@ function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress, open
     <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 18 * u, gap: 2 * u }}>
       {ids.map((id) => (
         <View key={id} style={{ flexDirection: align === 'left' ? 'row' : 'row-reverse', alignItems: 'baseline', gap: 10 * u }}>
-          <Text numberOfLines={1} style={{ color, fontWeight: '800', fontSize: (ids.length > 1 ? 24 : 30) * u, flexShrink: 1 }}>{names.get(id)?.name ?? '?'}</Text>
+          <Text numberOfLines={1} style={{ color, fontFamily: fonts.brandMedium, fontSize: (ids.length > 1 ? 24 : 30) * u, flexShrink: 1 }}>{names.get(id)?.name ?? '?'}</Text>
           {names.get(id)?.hcp !== undefined ? <Text style={{ color: '#7A8A82', fontWeight: '700', fontSize: 15 * u }}>HCP {formatIndex(names.get(id)!.hcp!)}</Text> : null}
         </View>
       ))}
@@ -333,12 +390,12 @@ function MatchRow({ r, results, m, leftLetter, names, u, picks, h, onPress, open
   );
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? (open ? 'Close this match’s scorecard' : 'Open this match’s scorecard') : undefined} accessibilityState={{ expanded: !!open }}
-      style={(st) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: hov(st) ? '#F1F5F2' : '#fff', borderRadius: 12 * u, borderBottomLeftRadius: open ? 0 : 12 * u, borderBottomRightRadius: open ? 0 : 12 * u, overflow: 'hidden' })}>
+      style={(st) => ({ flexDirection: 'row', alignItems: 'center', height: h, backgroundColor: hov(st) ? '#F3F7F4' : '#fff', borderRadius: 18 * u, borderBottomLeftRadius: open ? 0 : 18 * u, borderBottomRightRadius: open ? 0 : 18 * u, overflow: 'hidden', ...(open ? {} : SHADOW), ...css({ transition: 'background-color 150ms ease' }) })}>
       {people(v.left.members, 'left', v.lc)}
       {v.ahead === 'L' ? <Arrow dir="left" color={v.cellColor} h={h} /> : null}
-      <View style={{ width: 170 * u, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: '#DDE3DF' }}>
-        <Text style={{ color: v.cellText, fontWeight: '900', fontSize: 38 * u }}>{v.big}</Text>
-        <Text style={{ color: v.cellText, opacity: 0.85, fontWeight: '800', fontSize: 15 * u, letterSpacing: 2 * u }}>{v.small}</Text>
+      <View style={{ width: 170 * u, height: h, backgroundColor: v.cellColor, alignItems: 'center', justifyContent: 'center', borderLeftWidth: v.ahead ? 0 : 1, borderRightWidth: v.ahead ? 0 : 1, borderColor: '#E3E8E5', ...(v.ahead || v.done ? sheen(v.cellColor) : css({ backgroundImage: 'linear-gradient(180deg, #F7F9F8 0%, #E9EEEB 100%)' })) }}>
+        <Text style={{ color: v.cellText, fontFamily: fonts.brand, fontSize: 38 * u }}>{v.big}</Text>
+        <Text style={{ color: v.cellText, opacity: 0.85, fontFamily: fonts.brandMedium, fontSize: 15 * u, letterSpacing: 2 * u }}>{v.small}</Text>
       </View>
       {v.ahead === 'R' ? <Arrow dir="right" color={v.cellColor} h={h} /> : null}
       {people(v.right.members, 'right', v.rc)}
@@ -369,7 +426,7 @@ function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRe
   const columns = Array.from({ length: cols }, (_, i) => rows.slice(i * perCol, (i + 1) * perCol));
   return (
     <View style={{ flex: 1, minHeight: 0, gap: 8 * u }}>
-      <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: 'row', gap: 16 * u }}>
+      <ScrollView ref={scroller} style={{ flex: 1, marginHorizontal: -14 * u }} contentContainerStyle={{ flexDirection: 'row', gap: 16 * u, paddingHorizontal: 14 * u, paddingTop: 4 * u, paddingBottom: 30 * u }}>
         {columns.map((list, i) => (
           <View key={i} style={{ flex: 1, gap: 10 * u }}>
             {list.map((m) => (
@@ -389,14 +446,14 @@ function Matches({ r, leftLetter, names, u, picks, open, onMatch }: { r: RoundRe
 function BackBar({ u, title, sub, back, onBack, onHome }: { u: number; title: string; sub?: string; back: string; onBack: () => void; onHome?: () => void }) {
   const btn = (label: string, on: () => void) => (
     <Pressable onPress={on} accessibilityRole="button" style={(st) => ({ backgroundColor: hov(st) ? '#FFFFFF33' : '#FFFFFF1A', borderRadius: 10 * u, paddingHorizontal: 16 * u, paddingVertical: 8 * u })}>
-      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 20 * u }}>{label}</Text>
+      <Text style={{ color: '#fff', fontFamily: fonts.brandMedium, fontSize: 20 * u }}>{label}</Text>
     </Pressable>
   );
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 * u }}>
       {btn(`← ${back}`, onBack)}
       <View style={{ flex: 1 }}>
-        <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.serif, fontWeight: '700', fontSize: 38 * u }}>{title}</Text>
+        <Text numberOfLines={1} style={{ color: '#fff', fontFamily: fonts.brand, fontSize: 36 * u, letterSpacing: -0.5 * u }}>{title}</Text>
         {sub ? <Text numberOfLines={1} style={{ color: '#FFFFFFB0', fontSize: 20 * u, fontWeight: '600' }}>{sub}</Text> : null}
       </View>
       {onHome ? btn('Main board', onHome) : null}
@@ -462,13 +519,13 @@ function Scorecard({ r, results, m, leftLetter, names, u, picks }: { r: RoundRec
   const cell = (key: string | number, text: string | number | null, o: { bg?: string; color?: string; bold?: boolean; ring?: string; w?: number } = {}) => (
     <View key={key} style={{ width: o.w ?? cellW, height: rowH, alignItems: 'center', justifyContent: 'center', backgroundColor: o.bg }}>
       <View style={o.ring ? { borderWidth: 2 * u, borderColor: o.ring, borderRadius: 14 * u, minWidth: 28 * u, height: 28 * u, alignItems: 'center', justifyContent: 'center' } : undefined}>
-        <Text style={{ color: o.color ?? INK, fontWeight: o.bold ? '900' : '700', fontSize: 17 * u }}>{text ?? ''}</Text>
+        <Text style={{ color: o.color ?? INK, fontFamily: o.bold ? fonts.brand : fonts.brandMedium, ...TABULAR, fontSize: 17 * u }}>{text ?? ''}</Text>
       </View>
     </View>
   );
   const label = (text: string, color = INK, small = false) => (
     <View style={{ width: labelW, height: rowH, justifyContent: 'center', paddingHorizontal: 10 * u }}>
-      <Text numberOfLines={1} style={{ color, fontWeight: '900', fontSize: (small ? 13 : 17) * u, letterSpacing: small ? 2 * u : 0 }}>{text}</Text>
+      <Text numberOfLines={1} style={{ color, fontFamily: fonts.brand, fontSize: (small ? 13 : 17) * u, letterSpacing: small ? 2 * u : 0 }}>{text}</Text>
     </View>
   );
   const sumCell = (col: Extract<Col, { k: 'sum' }>, text: string | number | null, o: { color?: string; bold?: boolean; bg?: string } = {}) =>
@@ -511,8 +568,8 @@ function Scorecard({ r, results, m, leftLetter, names, u, picks }: { r: RoundRec
     </View>
   );
   return (
-    <View style={{ backgroundColor: '#E9EEEB', borderBottomLeftRadius: 12 * u, borderBottomRightRadius: 12 * u, paddingVertical: 12 * u, paddingHorizontal: 12 * u, gap: 8 * u, alignItems: 'center' }}>
-      <Text style={{ color: '#4A5A52', fontWeight: '800', fontSize: 14 * u, letterSpacing: 2 * u }}>{sub.toUpperCase()}</Text>
+    <View style={{ backgroundColor: '#F1F4F2', borderBottomLeftRadius: 18 * u, borderBottomRightRadius: 18 * u, borderTopWidth: 1, borderColor: '#DDE3DF', ...SHADOW, paddingVertical: 12 * u, paddingHorizontal: 12 * u, gap: 8 * u, alignItems: 'center' }}>
+      <Text style={{ color: '#4A5A52', fontFamily: fonts.brandMedium, fontSize: 14 * u, letterSpacing: 2 * u }}>{sub.toUpperCase()}</Text>
       {holes.length ? (
         <>
           {table}
@@ -532,14 +589,14 @@ function Leaderboard({ e, rounds, names, u }: { e: EventRecord; rounds: RoundRec
     <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 18 * u, padding: 20 * u, gap: 6 * u }}>
       <View style={{ flexDirection: 'row', paddingHorizontal: 12 * u }}>
         {['POS', 'PLAYER', 'PTS', 'W–H–L'].map((t, i) => (
-          <Text key={t} style={{ flex: i === 1 ? 4 : 1, color: '#7A8A82', fontWeight: '900', fontSize: 18 * u, letterSpacing: 2 * u, textAlign: i === 1 ? 'left' : 'center' }}>{t}</Text>
+          <Text key={t} style={{ flex: i === 1 ? 4 : 1, color: '#7A8A82', fontFamily: fonts.brand, fontSize: 18 * u, letterSpacing: 2 * u, textAlign: i === 1 ? 'left' : 'center' }}>{t}</Text>
         ))}
       </View>
       {rows.map((r, i) => (
         <View key={r.playerId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 * u, paddingHorizontal: 12 * u, borderRadius: 10 * u, backgroundColor: i === 0 ? '#F6EFD9' : i % 2 ? '#F4F6F5' : '#fff' }}>
-          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontWeight: '900', fontSize: 30 * u }}>{r.position}</Text>
-          <Text numberOfLines={1} style={{ flex: 4, color: INK, fontWeight: '800', fontSize: 32 * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
-          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontWeight: '900', fontSize: 34 * u }}>{formatPoints(r.points)}</Text>
+          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontFamily: fonts.brand, fontSize: 30 * u }}>{r.position}</Text>
+          <Text numberOfLines={1} style={{ flex: 4, color: INK, fontFamily: fonts.brandMedium, fontSize: 32 * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
+          <Text style={{ flex: 1, textAlign: 'center', color: INK, fontFamily: fonts.brand, fontSize: 34 * u }}>{formatPoints(r.points)}</Text>
           <Text style={{ flex: 1, textAlign: 'center', color: '#4A5A52', fontWeight: '700', fontSize: 24 * u }}>{r.wins}–{r.halves}–{r.losses}</Text>
         </View>
       ))}
@@ -563,13 +620,13 @@ function RoundsList({ e, rounds, sides, u, selected, onRound }: { e: EventRecord
             style={(st) => ({ flexDirection: 'row', alignItems: 'center', gap: 10 * u, paddingVertical: 4 * u, paddingHorizontal: 8 * u, marginHorizontal: -8 * u, borderRadius: 8 * u, backgroundColor: selected === r!.id ? '#FFFFFF26' : hov(st) ? '#FFFFFF14' : 'transparent' })}>
             <Text numberOfLines={1} style={{ flex: 1, color: '#fff', fontWeight: '700', fontSize: 21 * u }}>{r!.label ?? (p ? `Round ${p.number}` : 'Round')}</Text>
             {sides && score ? (
-              <Text style={{ fontWeight: '900', fontSize: 22 * u }}>
+              <Text style={{ fontFamily: fonts.brand, fontSize: 22 * u }}>
                 <Text style={{ color: lighten(sides[0].color) }}>{formatPoints(of(sides[0].letter))}</Text>
                 <Text style={{ color: '#FFFFFF80' }}> – </Text>
                 <Text style={{ color: lighten(sides[1].color) }}>{formatPoints(of(sides[1].letter))}</Text>
               </Text>
             ) : null}
-            <Text style={{ width: 64 * u, textAlign: 'right', color: r!.status === 'active' ? '#E74C3C' : '#FFFFFF80', fontWeight: '800', fontSize: 15 * u }}>{r!.status === 'active' ? 'LIVE' : 'FINAL'}</Text>
+            <Text style={{ width: 64 * u, textAlign: 'right', color: r!.status === 'active' ? '#E74C3C' : '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 15 * u }}>{r!.status === 'active' ? 'LIVE' : 'FINAL'}</Text>
             <Text style={{ color: '#FFFFFF66', fontSize: 20 * u }}>›</Text>
           </Pressable>
         );
@@ -591,20 +648,20 @@ function NextUp({ e, names, u, picks }: { e: EventRecord; names: Names; u: numbe
   const matches = !next.matchupsLater ? (d?.matches ?? []).filter((m) => m.a.length && m.b.length) : [];
   const first = (id: string) => names.get(id)?.name ?? '?';
   const side = (ids: string[], letter: string | undefined, align: 'left' | 'right') => (
-    <Text numberOfLines={1} style={{ flex: 1, textAlign: align, color: letter ? lighten(teamColor(letter, picks).color, 0.5) : '#fff', fontWeight: '800', fontSize: (matches.length > 4 ? 16 : 18) * u }}>{ids.map(first).join(' & ')}</Text>
+    <Text numberOfLines={1} style={{ flex: 1, textAlign: align, color: letter ? lighten(teamColor(letter, picks).color, 0.5) : '#fff', fontFamily: fonts.brandMedium, fontSize: (matches.length > 4 ? 16 : 18) * u }}>{ids.map(first).join(' & ')}</Text>
   );
   return (
     <Panel u={u} title="UP NEXT">
       <View style={{ gap: 2 * u }}>
-        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 26 * u }}>Round {next.number} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
-        {format || course ? <Text style={{ color: GOLD, fontWeight: '800', fontSize: 19 * u }}>{[format, course].filter(Boolean).join(' · ')}</Text> : null}
+        <Text style={{ color: '#fff', fontFamily: fonts.brandMedium, fontSize: 26 * u }}>Round {next.number} · {formatDate(next.date!, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
+        {format || course ? <Text style={{ color: GOLD, fontFamily: fonts.brandMedium, fontSize: 19 * u }}>{[format, course].filter(Boolean).join(' · ')}</Text> : null}
       </View>
       {matches.length ? (
         <View style={{ gap: 4 * u }}>
           {matches.slice(0, 6).map((m, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * u }}>
               {side(m.a, m.ta, 'right')}
-              <Text style={{ color: '#FFFFFF80', fontWeight: '800', fontSize: 14 * u }}>vs</Text>
+              <Text style={{ color: '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 14 * u }}>vs</Text>
               {side(m.b, m.tb, 'left')}
             </View>
           ))}
@@ -624,11 +681,11 @@ function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds:
   if (!rows.length) return <View style={{ flex: 1 }} />;
   const fs = rows.length > 12 ? 16 : 18;
   return (
-    <View style={{ flex: 1, minHeight: 0, backgroundColor: PANEL, borderRadius: 18 * u, padding: 16 * u, gap: 8 * u, borderWidth: 1, borderColor: '#FFFFFF24' }}>
+    <View style={{ flex: 1, minHeight: 0, backgroundColor: PANEL, borderRadius: 22 * u, padding: 20 * u, gap: 10 * u, borderWidth: 1, borderColor: LINE, ...GLASS, ...SHADOW }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={{ flex: 1, color: GOLD, fontWeight: '900', fontSize: 16 * u, letterSpacing: 3 * u }}>INDIVIDUAL CONTRIBUTIONS</Text>
-        <Text style={{ width: 56 * u, textAlign: 'right', color: '#FFFFFF80', fontWeight: '800', fontSize: 13 * u, letterSpacing: 1 * u }}>PTS</Text>
-        <Text style={{ width: 80 * u, textAlign: 'right', color: '#FFFFFF80', fontWeight: '800', fontSize: 13 * u, letterSpacing: 1 * u }}>W–H–L</Text>
+        <View style={{ flex: 1 }}><PanelTitle u={u} title="INDIVIDUAL CONTRIBUTIONS" /></View>
+        <Text style={{ width: 56 * u, textAlign: 'right', color: '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 13 * u, letterSpacing: 1 * u }}>PTS</Text>
+        <Text style={{ width: 80 * u, textAlign: 'right', color: '#FFFFFF80', fontFamily: fonts.brandMedium, fontSize: 13 * u, letterSpacing: 1 * u }}>W–H–L</Text>
       </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 3 * u }}>
         {rows.map((r) => {
@@ -638,7 +695,7 @@ function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds:
             <View key={r.playerId} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * u }}>
               <View style={{ width: 6 * u, height: 22 * u, borderRadius: 3 * u, backgroundColor: color }} />
               <Text numberOfLines={1} style={{ flex: 1, color: '#fff', fontWeight: '700', fontSize: fs * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
-              <Text style={{ width: 56 * u, textAlign: 'right', color: L ? lighten(color, 0.45) : '#fff', fontWeight: '900', fontSize: (fs + 2) * u }}>{formatPoints(r.points)}</Text>
+              <Text style={{ width: 56 * u, textAlign: 'right', color: L ? lighten(color, 0.45) : '#fff', fontFamily: fonts.brand, fontSize: (fs + 2) * u }}>{formatPoints(r.points)}</Text>
               <Text style={{ width: 80 * u, textAlign: 'right', color: '#FFFFFFB0', fontWeight: '700', fontSize: fs * u }}>{r.wins}–{r.halves}–{r.losses}</Text>
             </View>
           );
