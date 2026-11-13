@@ -1,9 +1,11 @@
 /** Edit an event's details (name, dates, team names), at any time: before, during or after it. */
+import type { TripMoney } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
+import { DEFAULT_TRIP_MONEY, TripMoneyOption } from '@/components/trip-money-option';
 import { Button, Card, Field, Toggle } from '@/components/ui';
 import { TeamEditor } from '@/components/team-editor';
 import { AddEventPlayer } from '@/components/add-event-player';
@@ -30,6 +32,7 @@ export default function EditEvent() {
     e?.teams ? Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])]) : { ...(e?.teamOf ?? {}) },
   );
   const [applyLive, setApplyLive] = useState(false);
+  const [tripMoney, setTripMoney] = useState<TripMoney>(() => e?.expenses ?? DEFAULT_TRIP_MONEY);
   // Teams as they are now (players just added below included), with my changes on top.
   const liveTeams: Record<string, string> = e?.teams
     ? Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])])
@@ -61,6 +64,8 @@ export default function EditEvent() {
       teamOf: fresh.teamOf ? { ...fresh.teamOf, ...teamsNow } : fresh.teamOf,
       teamNames: letters.length ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : fresh.teamNames,
       teamColors: letters.length && Object.keys(teamColors).length ? teamColors : fresh.teamColors,
+      // Turning it off keeps the settings (and the expenses stay on the server), so turning it back on loses nothing.
+      expenses: fresh.type === 'trip' && (tripMoney.on || fresh.expenses) ? tripMoney : fresh.expenses,
     });
     // Rounds being played now: only if asked (each round can also be changed from its own Edit teams).
     if (applyLive && letters.length) {
@@ -85,6 +90,7 @@ export default function EditEvent() {
             <DateField label="Ends" value={end} onChange={setEnd} min={start} />
           </View>
           <Text style={{ color: c.muted, fontSize: 13 }}>{daysBetween(start, end).length} day{daysBetween(start, end).length === 1 ? '' : 's'}</Text>
+          {e.type === 'trip' && <TripMoneyOption value={tripMoney} onChange={setTripMoney} organiserPays={!!e.remote && e.remote.role !== 'owner'} />}
         </Card>
       ) : null}
       {letters.length > 0 && (

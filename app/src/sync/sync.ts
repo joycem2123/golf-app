@@ -47,7 +47,7 @@ function roundFromRow(row: RoundRow, role: Remote['role']): RoundRecord {
 
 type EventDoc = Omit<EventRecord, 'remote'> & { playerInfo: { id: string; name: string; handicapIndex: number; gender: 'M' | 'F' }[] };
 
-function eventDoc(e: EventRecord): EventDoc {
+export function eventDoc(e: EventRecord): EventDoc {
   const { remote: _r, ...rest } = e;
   const saved = useStore.getState().players;
   return { ...rest, playerInfo: saved.filter((p) => e.playerIds.includes(p.id)) };

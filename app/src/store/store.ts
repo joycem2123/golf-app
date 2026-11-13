@@ -11,6 +11,7 @@ import {
 } from '@golf/engine';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import type { TripMoney } from '@golf/engine';
 
 import type { Recurrence } from '@/lib/dates';
 import type { GameDraft } from '@/lib/games';
@@ -197,6 +198,8 @@ export interface EventRecord {
   rounds?: EventRound[];
   /** AI overview of the event, and which completed results it was written from. */
   story?: { text: string; key: string };
+  /** Trips: shared bills are tracked (Pro), in this currency. */
+  expenses?: TripMoney;
 }
 
 interface State {

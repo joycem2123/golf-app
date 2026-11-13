@@ -64,6 +64,7 @@ export default function RootLayout() {
         <Stack.Screen name="round/[id]/upload-card" options={{ title: 'Upload scorecard', presentation: 'modal' }} />
         <Stack.Screen name="event/[id]/add-round" options={{ title: 'Add round to event', presentation: 'modal' }} />
         <Stack.Screen name="event/[id]/edit" options={{ title: 'Edit event', presentation: 'modal' }} />
+        <Stack.Screen name="event/[id]/expense" options={{ title: "Add Expense", presentation: "modal" }} />
         <Stack.Screen name="head-to-head" options={{ title: 'Head to Head' }} />
         <Stack.Screen name="join" options={{ title: 'Join with Code', presentation: 'modal' }} />
         <Stack.Screen name="pro" options={{ title: 'Clutch Up Pro', presentation: 'modal' }} />

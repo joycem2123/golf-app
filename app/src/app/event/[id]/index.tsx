@@ -24,6 +24,7 @@ import { namesFor, teamName } from '@/lib/team-colors';
 import { Tip } from '@/components/tip';
 import { AddEventPlayer } from '@/components/add-event-player';
 import { EventStory } from '@/components/event-story';
+import { TripExpenses } from '@/components/trip-expenses';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
@@ -121,6 +122,7 @@ export default function EventScreen() {
   const saved = useStore((s) => s.players);
   const deleteEvent = useStore((s) => s.deleteEvent);
   const c = useColors();
+  const [tab, setTab] = useState<'event' | 'expenses'>('event');
   useAutoIdentity(e && e.remote && e.remote.role !== 'owner' ? e.playerIds.map((pid) => ({ id: pid, name: saved.find((p) => p.id === pid)?.name ?? '' })) : []);
   if (!e) return <Body>Event not found.</Body>;
 
@@ -130,6 +132,7 @@ export default function EventScreen() {
   const live = eventRounds.filter((r) => r.status === 'active');
   // Anyone who can edit the event can add a player while it's under way.
   const canAdd = e.remote?.role !== 'viewer' && e.status !== 'complete';
+  const expensesOn = e.type === 'trip' && !!e.expenses?.on;
 
   // Each player's record, with their team (Ryder Cup: its team names and colours; other events: Team A, B…).
   const teamTag = (pid: string): { label: string; color: string } | null => {
@@ -180,6 +183,18 @@ export default function EventScreen() {
           ),
         }}
       />
+      {/* Trips tracking expenses: Event | Trip Expenses tabs. Everything else on the page is unchanged. */}
+      {expensesOn ? (
+        <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg }}>
+          {([['event', 'Event'], ['expenses', 'Trip Expenses']] as const).map(([k, label]) => (
+            <Pressable key={k} onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: tab === k }}
+              style={{ flex: 1, alignItems: 'center', paddingTop: 12, paddingBottom: 9, borderBottomWidth: 3, borderBottomColor: tab === k ? c.primary : 'transparent' }}>
+              <Text style={{ fontFamily: fonts.serif, fontWeight: '700', fontSize: 16, color: tab === k ? c.primary : c.muted }}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      {expensesOn && tab === 'expenses' ? <TripExpenses e={e} /> : (
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }}>
         {(e.startDate || e.recurrence) && (
           <View style={{ alignItems: 'center', gap: 2 }}>
@@ -310,6 +325,7 @@ export default function EventScreen() {
           }
         />}
       </ScrollView>
+      )}
       <Tip
         id="event"
         title="Your event"

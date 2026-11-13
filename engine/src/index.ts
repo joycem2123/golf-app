@@ -9,3 +9,4 @@ export * from './sync';
 export * from './stats';
 export * from './courses';
 export * from './play';
+export * from './expenses';

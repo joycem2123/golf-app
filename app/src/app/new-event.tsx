@@ -1,4 +1,4 @@
-import { lockHandicaps, type Player } from '@golf/engine';
+import { lockHandicaps, type Player, type TripMoney } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -6,6 +6,7 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DateField } from '@/components/date-field';
+import { DEFAULT_TRIP_MONEY, TripMoneyOption } from '@/components/trip-money-option';
 import { SetupSaved } from '@/components/setup-saved';
 import { TeamColors } from '@/lib/team-colors';
 import { GameOptions } from '@/components/game-options';
@@ -52,6 +53,7 @@ export default function NewEvent() {
   const [end, setEnd] = useState(addDays(today(), params.type === 'season' ? 91 : 2));
   const [rec, setRec] = useState<Recurrence>({ every: fromRound ? 'asYouGo' : 'weekly', days: [], week: 1 });
   const [lock, setLock] = useState(true);
+  const [tripMoney, setTripMoney] = useState<TripMoney>(DEFAULT_TRIP_MONEY);
   // Players & teams
   const [ids, setIds] = useState<string[]>(me ? [me.id] : []);
   const [teamOf, setTeamOfState] = useState<TeamOf>({});
@@ -129,7 +131,7 @@ export default function NewEvent() {
   // ------------------------------------------------------------------ draft
   // Saved as you go, so closing the screen by accident loses nothing ("Pick up where you left off").
   const saveDraft = useStore((s) => s.saveDraft);
-  const snapshot = { step, type, name, start, end, rec, lock, ids, teamOf, teamColors, letters, noTeams, teamNames, holder, count, plans, current };
+  const snapshot = { step, type, name, start, end, rec, lock, tripMoney, ids, teamOf, teamColors, letters, noTeams, teamNames, holder, count, plans, current };
   const started = !!name.trim() || ids.length > 1 || step !== 'details';
   useEffect(() => {
     if (fromRound || !started) return;
@@ -145,7 +147,7 @@ export default function NewEvent() {
     setRestorePlans(null);
   }, [restorePlans]);
   const resume = (d: typeof snapshot) => {
-    setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock);
+    setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock); if (d.tripMoney) setTripMoney(d.tripMoney);
     setIds(d.ids.filter((id) => saved.some((p) => p.id === id)));
     setTeamOfState(d.teamOf); if (d.teamColors) setTeamColors(d.teamColors); setTeamNames(d.teamNames ?? {}); setLetters(d.letters); setNoTeams(d.noTeams); setHolder(d.holder);
     setCount(d.count); setStep(d.step);
@@ -231,6 +233,7 @@ export default function NewEvent() {
       teamNames: teams && Object.values(teamNames).some((v) => v.trim()) ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : undefined,
       teamLetters: teams ? letters : undefined,
       rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
+      expenses: type === 'trip' && tripMoney.on ? tripMoney : undefined,
     };
     addEvent(e);
     if (!fromRound) saveDraft('event', null);
@@ -365,6 +368,7 @@ export default function NewEvent() {
               <DateField label="Ends" value={end} onChange={setEnd} min={start} />
             </View>
             {!isSeason && <Text style={{ color: c.muted, fontSize: 13 }}>{eventDays.length} day{eventDays.length === 1 ? '' : 's'}</Text>}
+            {type === 'trip' && <TripMoneyOption value={tripMoney} onChange={setTripMoney} />}
           </Card>
 
           {isSeason && (

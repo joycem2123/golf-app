@@ -185,7 +185,7 @@ let paywalledAt = 0;
 /** Free rounds hold up to this many players; bigger groups are part of Pro (rounds in an event are free for everyone). */
 export const FREE_MAX_PLAYERS = 8;
 
-export function openPaywall(reason: 'event' | 'story' | 'scorecard' | 'group') {
+export function openPaywall(reason: 'event' | 'story' | 'scorecard' | 'group' | 'expenses') {
   paywalledAt = Date.now();
   router.push({ pathname: '/pro', params: { reason } });
 }
