@@ -222,6 +222,9 @@ interface State {
   saveDraft: (key: string, d: SetupDraft | null) => void;
   /** Round setups saved to play again (course, players, tees, teams, games). */
   favourites: Favourite[];
+  /** Courses I've starred (course ids), shown first when choosing a course. */
+  favouriteCourses: string[];
+  toggleFavouriteCourse: (id: string) => void;
   addFavourite: (f: Favourite) => void;
   removeFavourite: (id: string) => void;
   setLegacyDismissed: (v: boolean) => void;
@@ -365,6 +368,7 @@ export const EMPTY_DATA = {
   legacyDismissed: false,
   drafts: {} as Record<string, SetupDraft>,
   favourites: [] as Favourite[],
+  favouriteCourses: [] as string[],
   myUsername: null as string | null,
   names: {} as Record<string, string>,
   outbox: [] as OutboxItem[],
@@ -406,6 +410,8 @@ export const useStore = create<State>()(
         return { drafts };
       }),
       favourites: [],
+      favouriteCourses: [],
+      toggleFavouriteCourse: (id) => set((s) => ({ favouriteCourses: (s.favouriteCourses ?? []).includes(id) ? s.favouriteCourses.filter((x) => x !== id) : [...(s.favouriteCourses ?? []), id] })),
       addFavourite: (f) => set((s) => ({ favourites: [f, ...s.favourites.filter((x) => x.id !== f.id)] })),
       removeFavourite: (id) => set((s) => ({ favourites: s.favourites.filter((x) => x.id !== id) })),
       setMyPlayer: (id) => set({ myPlayerId: id }),
@@ -796,7 +802,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => AsyncStorage),
       version: STORE_VERSION,
       migrate: (state) =>
-        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], tipsSeen: [], tutorialOffered: false, myUsername: null, legacyDismissed: false, drafts: {}, favourites: [], ...(state as object) }) as unknown as State,
+        ({ events: [], names: {}, outbox: [], dirtyRounds: [], dirtyEvents: [], me: null, onboarded: false, myPlayerId: null, meAliases: [], identityDismissed: [], tipsSeen: [], tutorialOffered: false, myUsername: null, legacyDismissed: false, drafts: {}, favourites: [], favouriteCourses: [], ...(state as object) }) as unknown as State,
     },
   ),
 );

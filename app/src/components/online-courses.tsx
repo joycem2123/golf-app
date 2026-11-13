@@ -6,13 +6,14 @@ import type { Course } from '@golf/engine';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { Star } from '@/components/star';
 import { Label } from '@/components/ui';
 import { importCatalogCourse, searchCatalog, type CatalogHit } from '@/lib/catalog';
 import { fonts, radius, space, useColors } from '@/theme';
 
 const norm = (s: string) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').replace(/\b(golf|country|club|and|the|g|cc|gc|course)\b/g, ' ').replace(/\s+/g, ' ').trim();
 
-export function OnlineCourses({ query, have, onPick }: { query: string; have: Course[]; onPick: (c: Course) => void }) {
+export function OnlineCourses({ query, have, onPick, onStar }: { query: string; have: Course[]; onPick: (c: Course) => void; /** Star: bring the course in and keep it in Favourites (without choosing it). */ onStar?: (c: Course) => void }) {
   const c = useColors();
   // Results (or the error) for the words they were searched for, so older ones never show for newer words.
   const [res, setRes] = useState<{ q: string; hits: CatalogHit[]; err: string | null } | null>(null);
@@ -44,11 +45,13 @@ export function OnlineCourses({ query, have, onPick }: { query: string; have: Co
   const haveNames = new Set(have.map((x) => norm(x.name)));
   const fresh = hits.filter((h) => !haveIds.has(h.id) && !haveNames.has(norm(h.name)));
 
-  const open = async (h: CatalogHit) => {
+  const open = async (h: CatalogHit, star = false) => {
     setOpening(h.id);
     setOpenErr(null);
     try {
-      onPick(await importCatalogCourse(h.id));
+      const co = await importCatalogCourse(h.id);
+      if (star) onStar?.(co);
+      else onPick(co);
     } catch (e) {
       setOpenErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -72,7 +75,12 @@ export function OnlineCourses({ query, have, onPick }: { query: string; have: Co
             <Text style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 17 }}>{h.name}</Text>
             <Text style={{ color: c.muted, fontSize: 13 }}>{[h.city, h.region].filter(Boolean).join(', ')}</Text>
           </View>
-          {opening === h.id ? <ActivityIndicator color={c.primary} /> : <Text style={{ color: c.primary, fontWeight: '800', fontSize: 14 }}>＋ Add</Text>}
+          {opening === h.id ? <ActivityIndicator color={c.primary} /> : (
+            <>
+              <Text style={{ color: c.primary, fontWeight: '800', fontSize: 14 }}>＋ Add</Text>
+              {onStar ? <Star on={false} onPress={() => void open(h, true)} label={`Add ${h.name} to favourites`} /> : null}
+            </>
+          )}
         </Pressable>
       ))}
     </View>

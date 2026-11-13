@@ -41,7 +41,7 @@ function toAppCourse(c: ApiCourse) {
       tees.push({ id, name: t.tee_name, gender: G, courseRating: t.course_rating ?? 0, slope: t.slope_rating ?? 113, par: t.par_total ?? holes.reduce((s, h) => s + h.par, 0), holes });
     }
   }
-  return { id: appId(c.id), name: title(c), city: c.location?.city, region: c.location?.state, country: country(c.location?.country), tees, source: 'Online course database (GolfCourseAPI)', verified: false };
+  return { id: appId(c.id), name: title(c), city: c.location?.city, region: c.location?.state, country: country(c.location?.country), tees, source: 'Online course database (GolfCourseAPI)' };
 }
 
 async function provider(path: string): Promise<{ ok: true; body: unknown } | { ok: false; status: number }> {

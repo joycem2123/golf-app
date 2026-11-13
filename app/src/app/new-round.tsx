@@ -1,4 +1,4 @@
-import { courseHandicap, searchCourses, validateCourse, type Course, type Player, type Tee } from '@golf/engine';
+import { courseHandicap, type Course, type Player, type Tee } from '@golf/engine';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -24,7 +24,7 @@ import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { formatDate, today } from '@/lib/dates';
 import { canStartOn } from '@/lib/event-calendar';
 import { getCourse, useCourses } from '@/lib/courses';
-import { OnlineCourses } from '@/components/online-courses';
+import { CoursePicker } from '@/components/course-picker';
 import { track } from '@/lib/usage';
 import { getPendingScan, guessRows, holesFromCard, ledgerFromCard, playedAt, setPendingScan } from '@/lib/round-scan';
 import { evaluate, gameHoles, isResult, recordedMatches, scoreKeys, shortCourseName } from '@/lib/round';
@@ -510,23 +510,8 @@ export default function NewRound() {
           <Field label="Search courses" value={query} onChangeText={setQuery} placeholder="Course name or city" />
           {/* Course not in the list: add it (scan the card or type it in). */}
           <Button title="Upload New Course" onPress={() => router.push('/course/new')} />
-          {searchCourses(query, courses).map((co) => {
-            const unfinished = validateCourse(co).length > 0;
-            return (
-            <Pressable
-              key={co.id}
-              disabled={unfinished}
-              onPress={() => pickCourse(co)}>
-              <Card style={{ ...(course?.id === co.id ? { borderColor: c.primary, borderWidth: 2 } : {}), opacity: unfinished ? 0.55 : 1 }}>
-                <H2>{co.name}</H2>
-                <Body muted>{[co.city, co.region].filter(Boolean).join(', ')} · Par {co.tees[0]?.par ?? '–'} · {co.tees.length} tees</Body>
-                {unfinished && <Body style={{ color: c.danger, fontSize: 13 }}>Finish setting this course up in More → Courses.</Body>}
-              </Card>
-            </Pressable>
-            );
-          })}
-          {/* Not in the app yet: matching courses from the online course database. */}
-          <OnlineCourses query={query} have={courses} onPick={pickCourse} />
+          {/* Favourites and previously played; typing searches (with a star to keep a course in Favourites). */}
+          <CoursePicker query={query} courses={courses} selectedId={course?.id} onPick={pickCourse} />
         </>
       )}
 
