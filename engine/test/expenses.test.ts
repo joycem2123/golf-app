@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tripBalances, settleUp, splitCents, tripTotal, parseCents, formatMoney, type TripEntry, type TripMoney } from '../src/expenses';
+import { settleViaOrganizer, tripBalances, settleUp, splitCents, tripTotal, parseCents, formatMoney, type TripEntry, type TripMoney } from '../src/expenses';
 const M: TripMoney = { on: true, currency: 'USD', alt: { currency: 'CAD', rate: 1.33 } };
 const P = ['Jim','Dale','Brent','Bill','Ernst','DaveB','Rich','Dan','DaveM'];
 const all = (extra: Record<string, number> = {}, without: string[] = []) => ({ ...Object.fromEntries(P.filter((p) => !without.includes(p)).map((p) => [p, 1])), ...extra });
@@ -25,6 +25,15 @@ describe('trip expenses', () => {
     const after = tripBalances([...trip, ...t.map((p, i) => ({ id: 'p' + i, kind: 'payment' as const, ...p, status: 'sent' as const, sentAt: 0 }))], M, P);
     expect(Object.values(after).every((c) => c === 0)).toBe(true);
     expect(settleUp(after)).toEqual([]);
+  });
+  it('settles through the organiser', () => {
+    const b = tripBalances(trip, M, P);
+    const t = settleViaOrganizer(b, 'Jim');
+    expect(t.every((x) => x.from === 'Jim' || x.to === 'Jim')).toBe(true);
+    expect(t.length).toBe(8);
+    expect(t.find((x) => x.to === 'Rich')).toMatchObject({ from: 'Jim' });
+    const after = tripBalances([...trip, ...t.map((p, i) => ({ id: 'q' + i, kind: 'payment' as const, ...p, status: 'sent' as const, sentAt: 0 }))], M, P);
+    expect(Object.values(after).every((c) => c === 0)).toBe(true);
   });
   it('splits cents exactly', () => {
     expect(Object.values(splitCents(1000, { a: 1, b: 1, c: 1 })).reduce((a, c) => a + c, 0)).toBe(1000);

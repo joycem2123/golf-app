@@ -233,7 +233,7 @@ export default function NewEvent() {
       teamNames: teams && Object.values(teamNames).some((v) => v.trim()) ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : undefined,
       teamLetters: teams ? letters : undefined,
       rounds: plans.map((p, i) => ({ id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
-      expenses: type === 'trip' && tripMoney.on ? tripMoney : undefined,
+      expenses: type === 'trip' && tripMoney.on ? { ...tripMoney, settle: tripMoney.settle ?? 'optimize', organizer: tripMoney.organizer ?? me?.id } : undefined,
     };
     addEvent(e);
     if (!fromRound) saveDraft('event', null);

@@ -43,6 +43,10 @@ export interface TripMoney {
   currency: string;
   /** A second currency to show amounts in, and how many of it one of the trip's currency buys (USD → CAD 1.33). */
   alt?: { currency: string; rate: number };
+  /** How the trip settles: 'optimize' (fewest payments between players, the default) or 'organizer' (everyone settles with one person). */
+  settle?: 'optimize' | 'organizer';
+  /** The player everyone settles with when settle is 'organizer' (the trip's organiser). */
+  organizer?: string;
 }
 
 export const CURRENCIES = ['CAD', 'USD', 'EUR', 'GBP', 'MXN', 'AUD'] as const;
@@ -127,6 +131,20 @@ export function settleUp(bal: Record<string, number>): Transfer[] {
   }
   return out;
 }
+
+/** Settling through one person: everyone who owes pays them, and they pay everyone who is owed. */
+export function settleViaOrganizer(bal: Record<string, number>, organizer: string): Transfer[] {
+  const out: Transfer[] = [];
+  for (const [id, c] of Object.entries(bal).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))) {
+    if (id === organizer || c === 0) continue;
+    out.push(c < 0 ? { from: id, to: organizer, amount: -c } : { from: organizer, to: id, amount: c });
+  }
+  return out;
+}
+
+/** The payments for this trip's chosen way of settling. */
+export const settlePlan = (bal: Record<string, number>, money: TripMoney): Transfer[] =>
+  money.settle === 'organizer' && money.organizer ? settleViaOrganizer(bal, money.organizer) : settleUp(bal);
 
 /** The trip total in its currency (cents). */
 export const tripTotal = (entries: TripEntry[], money: TripMoney) =>

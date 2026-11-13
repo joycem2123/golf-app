@@ -3,7 +3,7 @@
  * payments that square everyone, and which have been paid). Everyone in the trip sees the same, live.
  * The app never moves money: people pay each other their own way and mark it here.
  */
-import { formatMoney, settleUp, sharesOf, tripBalances, tripTotal, type TripExpense, type TripMoney, type TripPayment } from '@golf/engine';
+import { formatMoney, settlePlan, sharesOf, tripBalances, tripTotal, type TripExpense, type TripMoney, type TripPayment } from '@golf/engine';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
@@ -129,7 +129,10 @@ export function TripExpenses({ e }: { e: EventRecord }) {
           )}
         </>
       ) : view === 'balances' ? (
-        <Balances e={e} bal={bal} people={people} expenses={expenses} payments={payments} money={money} name={name} isMe={isMe} />
+        <>
+          <Balances e={e} bal={bal} people={people} expenses={expenses} payments={payments} money={money} name={name} isMe={isMe} />
+          <SettleMethod e={e} money={money} name={name} canEdit={canEdit} />
+        </>
       ) : (
         <SettleUp e={e} bal={bal} payments={payments} money={money} name={name} short={short} isMe={isMe} canEdit={canEdit} alt={alt} />
       )}
@@ -203,10 +206,59 @@ function Pill({ text, kind }: { text: string; kind: 'paid' | 'confirm' | 'unpaid
   );
 }
 
+/** The trip's organiser by default: me if I set the trip up, else its first player. */
+export function defaultOrganizer(e: EventRecord, isMe: (id: string) => boolean): string | undefined {
+  const mine = e.playerIds.find(isMe);
+  return (!e.remote || e.remote.role === 'owner') && mine ? mine : e.playerIds[0];
+}
+
+/** How the trip settles up (for everyone in it): the fewest payments between players, or everyone through the organiser. */
+function SettleMethod({ e, money, name, canEdit }: { e: EventRecord; money: TripMoney; name: (id: string) => string; canEdit: boolean }) {
+  const c = useColors();
+  const updateEvent = useStore((s) => s.updateEvent);
+  const { isMe } = useMe();
+  const method = money.settle ?? 'optimize';
+  const organizer = money.organizer ?? defaultOrganizer(e, isMe);
+  const set = (next: Partial<TripMoney>) => {
+    const fresh = useStore.getState().events.find((x) => x.id === e.id) ?? e;
+    if (fresh.expenses) updateEvent({ ...fresh, expenses: { ...fresh.expenses, organizer, ...next } });
+  };
+  return (
+    <Card style={{ gap: space.sm }}>
+      <Label>How to settle up</Label>
+      {canEdit ? (
+        <Segmented<'optimize' | 'organizer'> options={[{ value: 'optimize', label: 'Optimize Payments' }, { value: 'organizer', label: 'Pay Organizer' }]} value={method} onChange={(v) => set({ settle: v })} />
+      ) : null}
+      <Text style={{ color: c.muted, fontSize: 13, lineHeight: 18 }}>
+        {method === 'organizer' && organizer
+          ? `Everyone who owes pays ${name(organizer)}, and ${name(organizer) === 'You' ? 'you pay' : `${name(organizer)} pays`} out everyone who is owed.`
+          : 'The fewest payments between players: people who owe pay the people who are owed directly.'}
+      </Text>
+      {method === 'organizer' && canEdit ? (
+        <View style={{ gap: 6 }}>
+          <Text style={{ color: c.text, fontWeight: '600', fontSize: 14 }}>Organizer</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {e.playerIds.map((pid) => {
+              const on = pid === organizer;
+              return (
+                <Pressable key={pid} onPress={() => set({ organizer: pid })} accessibilityRole="radio" accessibilityState={{ selected: on }}
+                  style={({ pressed }) => ({ paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: on ? c.primary : c.border, backgroundColor: on ? c.primarySoft : c.card, opacity: pressed ? 0.7 : 1 })}>
+                  <Text style={{ color: on ? c.primary : c.text, fontWeight: '700', fontSize: 13 }}>{name(pid)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
 function SettleUp({ e, bal, payments, money, name, short, isMe, canEdit, alt }: { e: EventRecord; bal: Record<string, number>; payments: (LedgerEntry & TripPayment)[]; money: TripMoney; name: (id: string) => string; short: (id: string) => string; isMe: (id: string) => boolean; canEdit: boolean; alt: (c: number) => string }) {
   const c = useColors();
   const [busy, setBusy] = useState(false);
-  const todo = settleUp(bal);
+  const todo = settlePlan(bal, money);
+  const hub = money.settle === 'organizer' ? money.organizer : undefined;
   const done = payments.filter((p) => p.status === 'received');
   const waiting = payments.filter((p) => p.status === 'sent');
   const totalCount = todo.length + payments.length;
@@ -264,7 +316,7 @@ function SettleUp({ e, bal, payments, money, name, short, isMe, canEdit, alt }: 
       <Card style={{ gap: space.sm }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: c.text, fontFamily: fonts.serif, fontWeight: '700', fontSize: 17 }}>
-            {todo.length === 0 && waiting.length === 0 ? 'All square ✓' : `${totalCount} payment${totalCount === 1 ? '' : 's'} settle the trip`}
+            {todo.length === 0 && waiting.length === 0 ? 'All square ✓' : hub ? `Everyone settles with ${name(hub)}` : `${totalCount} payment${totalCount === 1 ? '' : 's'} settle the trip`}
           </Text>
           <Text style={{ color: c.text, fontWeight: '700', fontSize: 14 }}>{done.length} of {totalCount} done</Text>
         </View>
