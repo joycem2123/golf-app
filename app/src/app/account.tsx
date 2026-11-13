@@ -1,7 +1,8 @@
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
+import { AppPreferences } from '@/components/app-preferences';
 import { Body, Button, Card, Field, H2, Label } from '@/components/ui';
 import { useMe } from '@/lib/me';
 import { useStore } from '@/store/store';
@@ -75,11 +76,13 @@ export default function Account() {
   if (!user || user.is_anonymous) {
     return (
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
+        <Stack.Screen options={{ title: 'Account Settings' }} />
         <Card>
           <H2>No account yet</H2>
           <Body muted>You’re using Clutch Up as a guest. Create an account to keep your history and change these details.</Body>
           <Button title="Create account or sign in" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
         </Card>
+        <AppPreferences />
       </ScrollView>
     );
   }
@@ -121,6 +124,7 @@ export default function Account() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
+      <Stack.Screen options={{ title: 'Account Settings' }} />
       <Card>
         <H2>Your account</H2>
         {[
@@ -135,6 +139,8 @@ export default function Account() {
         ))}
         <Text style={{ color: c.muted, fontSize: 12 }}>Change your name, username or handicap from the Profile tab.</Text>
       </Card>
+
+      <AppPreferences />
 
       <Card>
         <H2>Change email</H2>

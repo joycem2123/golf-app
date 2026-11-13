@@ -4,17 +4,13 @@ import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { TabHeader } from '@/components/tab-header';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { Body, Button, Card, Toggle } from '@/components/ui';
-import { useUsageSharing } from '@/lib/usage';
-import { liveActivitiesSupported, useLiveActivityPref } from '@/lib/live-activity';
-import { setPreviewFree, usePro } from '@/lib/pro';
+import { Body, Button, Card } from '@/components/ui';
+import { usePro } from '@/lib/pro';
 import { useAdmin } from '@/lib/admin';
 import { openTutorial } from '@/lib/tutorial';
-import { resetTips } from '@/components/tip';
 import { GUEST_KEY, switchAccount } from '@/store/accounts';
 import { useStore } from '@/store/store';
 import { signOut, useSession } from '@/sync/auth';
-import { SEED_COURSES } from '@golf/engine';
 import { space, useColors } from '@/theme';
 
 function Row({ title, sub, href, onPress }: { title: string; sub: string; href?: Href; onPress?: () => void }) {
@@ -37,12 +33,8 @@ function Row({ title, sub, href, onPress }: { title: string; sub: string; href?:
 export default function More() {
   const session = useSession();
   const [asking, setAsking] = useState(false);
-  const [sharingUsage, setSharingUsage] = useUsageSharing();
-  const [liveCard, setLiveCard] = useLiveActivityPref();
   const pro = usePro();
   const team = useAdmin();
-  const [tipsReset, setTipsReset] = useState(false);
-  const c = useColors();
   const signedIn = !!session?.user && !session.user.is_anonymous;
   const email = session?.user?.email;
   return (
@@ -50,29 +42,16 @@ export default function More() {
       <TabHeader title="More" />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl }}>
         <Card style={{ paddingVertical: 0 }}>
-          {signedIn ? (
-            <Row title="Account information" sub={email ? `${email} · change email or password` : 'Change email or password'} href="/account" />
-          ) : (
-            <Row title="Create account or sign in" sub="You’re using Clutch Up as a guest" onPress={() => { useStore.getState().setOnboarded(false); router.replace('/welcome'); }} />
-          )}
+          <Row title="Account Settings" sub={signedIn ? `${email ?? 'Your account'} · email, password and preferences` : 'Playing as a guest · create an account, preferences'} href="/account" />
           <Row
             title={pro.pro ? '★ Clutch Up Pro' : 'Upgrade to Clutch Up Pro'}
             sub={!pro.paywall && !pro.previewFree ? 'Every feature is free during the beta' : pro.pro ? 'Events, stories and scorecard uploads' : 'Events, stories and scorecard uploads · 7-day free trial'}
             onPress={() => router.push('/pro')}
           />
           <Row title="How Clutch Up works" sub="A two-minute video tour of the app" onPress={() => openTutorial()} />
-          <Row title="Friends" sub="Friend requests and your group's handicap indexes" href="/friends" />
-          <Row title="Courses" sub={`${SEED_COURSES.length} courses · edit ratings, slopes, pars and hole handicaps`} href="/courses" />
           {team.admin && <Row title={`Course changes${team.open ? ` · ${team.open} to review` : ''}`} sub="Team only · scorecard changes players have saved" href="/course-changes" />}
           <Row title="Contact support" sub="support@clutchupgolf.com · questions, problems or ideas" onPress={() => void Linking.openURL('mailto:support@clutchupgolf.com?subject=Clutch%20Up%20Golf%20support')} />
-          <Row title="Show tips again" sub="Bring back the one-time tips and the welcome video" onPress={() => void resetTips().then(() => setTipsReset(true))} />
           <Row title="Privacy policy & terms" sub="How your data is used" onPress={() => void Linking.openURL('https://clutchupgolf.com/privacy.html')} />
-        </Card>
-        {tipsReset && <Body style={{ color: c.primary, textAlign: 'center' }}>Tips are back. You’ll see each one again the next time you open that screen.</Body>}
-        <Card>
-          {!pro.paywall && <Toggle label="Preview as a free user (beta)" hint="See the app as someone without Clutch Up Pro would. Only on this phone; turn off to get everything back." value={pro.previewFree} onChange={setPreviewFree} />}
-          {liveActivitiesSupported() && <Toggle label="Live score on Lock Screen" hint="While you’re playing, your match shows on the Lock Screen and in the Dynamic Island." value={liveCard} onChange={setLiveCard} />}
-          <Toggle label="Share anonymous usage data" hint="Which features get used, never your name, email or scores. Helps us decide what to improve." value={sharingUsage} onChange={setSharingUsage} />
         </Card>
         {signedIn && <Button title="Sign out" kind="danger" onPress={() => setAsking(true)} />}
         <Body muted style={{ textAlign: 'center' }}>Clutch Up · preview build</Body>
