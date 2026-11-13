@@ -195,7 +195,7 @@ export default function Account() {
         onCancel={() => { setAskDelete(false); setDeletePw(''); setDeleteError(null); }}
         onConfirm={() => void reallyDelete()}
       >
-        <Field label="Current password" value={deletePw} onChangeText={(t) => { setDeletePw(t); setDeleteError(null); }} secureTextEntry autoComplete="current-password" textContentType="password" placeholder="Enter your password to confirm" />
+        <Field label="Current password" value={deletePw} onChangeText={(t) => { setDeletePw(t); setDeleteError(null); }} secureTextEntry autoComplete="current-password" textContentType="password" placeholder="Enter your password" containerStyle={{ flex: 0, alignSelf: 'stretch' }} style={{ minHeight: 48, fontSize: 16 }} />
         {deleteError ? <Text style={{ color: c.danger, fontSize: 13, textAlign: 'center' }}>{deleteError}</Text> : null}
       </ConfirmDialog>
     </ScrollView>

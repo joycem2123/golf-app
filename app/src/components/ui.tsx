@@ -173,9 +173,9 @@ export function Toggle({ label, value, onChange, hint }: { label: string; value:
 /** Placeholder (example) text colour: lighter than muted text. */
 const PLACEHOLDER = '#A9AEA5';
 
-export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { label: string; error?: string | null; /** Show an ✕ that empties the box (search boxes). */ onClear?: () => void }>(function Field(props, ref) {
+export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { label: string; error?: string | null; /** Show an ✕ that empties the box (search boxes). */ onClear?: () => void; /** Style for the outer box (e.g. { flex: 0 } where there's no height to fill, like a pop-up). */ containerStyle?: object }>(function Field(props, ref) {
   const c = useColors();
-  const { label, style, secureTextEntry, error, onClear, ...rest } = props;
+  const { label, style, secureTextEntry, error, onClear, containerStyle, ...rest } = props;
   // Boxes with an ✕ keep the same layout empty or not, so the text box isn't rebuilt (and the keyboard stays up).
   const clearable = !!onClear && !secureTextEntry;
   // Password boxes get an eye button to show or hide what was typed.
@@ -193,7 +193,7 @@ export const Field = forwardRef<ComponentRef<typeof TextInput>, TextInputProps &
     />
   );
   return (
-    <View style={{ gap: space.xs, flex: 1 }}>
+    <View style={[{ gap: space.xs, flex: 1 }, containerStyle]}>
       <Label>{label}</Label>
       {secureTextEntry ? (
         <View style={{ justifyContent: 'center' }}>

@@ -1,4 +1,4 @@
-import { Modal, Pressable, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
 
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -30,7 +30,8 @@ export function ConfirmDialog({
   const c = useColors();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={{ flex: 1, backgroundColor: '#00000066', alignItems: 'center', justifyContent: 'center', padding: space.xl }}>
+      {/* Moves up when the keyboard opens, so a box in the pop-up (e.g. a password) stays visible. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#00000066', alignItems: 'center', justifyContent: 'center', padding: space.xl }}>
         <View accessibilityRole="alert" style={{ width: '100%', maxWidth: 360, backgroundColor: c.card, borderRadius: radius.lg, overflow: 'hidden' }}>
           <View style={{ height: 3, backgroundColor: c.accent }} />
           <View style={{ padding: space.xl, gap: space.sm, alignItems: 'center' }}>
@@ -48,7 +49,7 @@ export function ConfirmDialog({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
