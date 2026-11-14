@@ -273,10 +273,12 @@ export default function Results() {
                   <Pressable onPress={() => router.push(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`} style={({ pressed }) => ({ gap: 6, opacity: pressed ? 0.7 : 1 })}>
                     <SideRow m={m} s={m.a} which="a" showTeam={teamRound} me={m.a.members.some((x) => myIds.includes(x))} />
                     <SideRow m={m} s={m.b} which="b" showTeam={teamRound} me={m.b.members.some((x) => myIds.includes(x))} />
-                    {/* Alternate shot: the full scorecard, right above the story. */}
-                    {(r.games[m.gi].type === 'matchPlay' || r.games[m.gi].type === 'nassau') && (r.games[m.gi] as { format?: string }).format === 'foursomes' ? (
-                      <ScorecardGrid r={r} results={results} focus={m.gi} />
-                    ) : null}
+                  </Pressable>
+                  {/* Alternate shot: the full scorecard, outside the tappable area so it scrolls sideways. */}
+                  {(r.games[m.gi].type === 'matchPlay' || r.games[m.gi].type === 'nassau') && (r.games[m.gi] as { format?: string }).format === 'foursomes' ? (
+                    <ScorecardGrid r={r} results={results} focus={m.gi} />
+                  ) : null}
+                  <Pressable onPress={() => router.push(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
                     <Text style={{ color: c.primary, fontWeight: '700', fontSize: 14, textAlign: 'right' }}>Match details & scorecard ›</Text>
                   </Pressable>
                 </View>
