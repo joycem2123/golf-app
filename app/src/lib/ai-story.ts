@@ -49,3 +49,30 @@ export async function requestAiStory(r: RoundRecord, res: GameResult, m: MatchOu
     return null;
   }
 }
+
+/**
+ * A written story for a game that isn't a head-to-head match (e.g. Wolf), from facts the caller builds.
+ * Saved on the round like match stories, so everyone in it sees the same one.
+ */
+export async function requestGameStory(r: RoundRecord, gi: number, facts: Record<string, unknown>): Promise<string | null> {
+  const gameId = r.games[gi].id ?? String(gi);
+  const tag = `${r.id}:${gameId}`;
+  if (r.stories?.[gameId]) return r.stories[gameId];
+  if (asked.has(tag)) return null;
+  asked.add(tag);
+  try {
+    if (!usePro.getState().pro) { asked.delete(tag); openPaywall('story'); return null; }
+    if (!r.remote) await shareRound(r.id);
+    let course = '';
+    try { course = courseFor(r).name; } catch { /* course missing */ }
+    const { data, error } = await supabase.functions.invoke('match-story', { body: { roundId: r.id, facts: { course, ...facts } } });
+    if (error && needsProError(error, data)) { asked.delete(tag); openPaywall('story'); return null; }
+    if (error || !data?.story) { asked.delete(tag); return null; }
+    useStore.getState().setStory(r.id, gameId, data.story as string);
+    track('ai_story_generated');
+    return data.story as string;
+  } catch {
+    asked.delete(tag);
+    return null;
+  }
+}

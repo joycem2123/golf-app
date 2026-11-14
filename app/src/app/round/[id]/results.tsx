@@ -1,7 +1,8 @@
 import { summarizeStats, type GameResult, type SkinsResult, type WolfResult } from '@golf/engine';
 import { PlayedWith } from '@/components/played-with';
 import { SkinsCard, skinsHeadline } from '@/components/skins-card';
-import { WolfCard, wolfHeadline } from '@/components/wolf-card';
+import { WolfCard, WolfStory, wolfHeadline } from '@/components/wolf-card';
+import { ScorecardGrid } from '@/components/scorecard-grid';
 import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
@@ -255,6 +256,10 @@ export default function Results() {
                   <Pressable onPress={() => router.push(`/round/${r.id}/match/${m.gi}`)} accessibilityRole="button" accessibilityLabel={`${m.title} details`} style={({ pressed }) => ({ gap: 6, opacity: pressed ? 0.7 : 1 })}>
                     <SideRow m={m} s={m.a} which="a" showTeam={teamRound} me={m.a.members.some((x) => myIds.includes(x))} />
                     <SideRow m={m} s={m.b} which="b" showTeam={teamRound} me={m.b.members.some((x) => myIds.includes(x))} />
+                    {/* Alternate shot: the full scorecard, right above the story. */}
+                    {r.games[m.gi].type === 'matchPlay' && (r.games[m.gi] as { format?: string }).format === 'foursomes' ? (
+                      <ScorecardGrid r={r} results={results} focus={m.gi} />
+                    ) : null}
                     {isResult(results[m.gi] as GameResult | { error: string }) && (
                       <MatchStory r={r} res={results[m.gi] as GameResult} m={m} holes={storyHoles(r, results[m.gi] as GameResult, m, c)} compact />
                     )}
@@ -268,6 +273,7 @@ export default function Results() {
           {skinsRes ? <SkinsCard r={r} res={skinsRes} isMe={isMe} /> : null}
           {/* Wolf: the points, then hole by hole, above the player scores. */}
           {wolfRes ? <WolfCard r={r} res={wolfRes} isMe={isMe} title="Wolf points" /> : null}
+          {wolfRes ? <WolfStory r={r} gi={0} res={wolfRes} /> : null}
 
           {rows.length > 0 && !skinsRes && (
             <Card>

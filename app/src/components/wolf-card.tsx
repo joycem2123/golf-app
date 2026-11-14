@@ -3,7 +3,11 @@
  * hole, and the points each player made. With a points table on top. Used under the live scorecard and in results.
  */
 import type { WolfResult } from '@golf/engine';
-import { ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+
+import { requestGameStory } from '@/lib/ai-story';
+import { justPaywalled } from '@/lib/pro';
 
 import { Card, H2 } from '@/components/ui';
 import type { RoundRecord } from '@/store/store';
@@ -139,5 +143,60 @@ export function WolfCard({ r, res, isMe, title = 'Wolf', showTable = true }: { r
         PICK: the wolf’s partner, LW = lone wolf, BW = blind wolf. WON: the wolf’s side, the field, or a tie{holes.some((h) => h.multiplier > 1) ? ' (×2, ×3 when tied holes carry over)' : ''}. Shaded = the wolf (and partner) on that hole.
       </Text>
     </Card>
+  );
+}
+
+/** Facts about a Wolf game for the AI story: how it works, the final points, and every hole. */
+function wolfFacts(r: RoundRecord, res: WolfResult) {
+  const first = (id: string) => (r.players.find((p) => p.id === id)?.name ?? '?').split(' ')[0];
+  return {
+    format: 'Wolf',
+    howItWorks: 'Each hole one player is the wolf (rotating). The wolf picks a partner after tee shots, or goes lone wolf (alone after seeing tee shots), or blind wolf (alone before anyone tees off) for more points. The wolf side wins the hole if its best score beats the other side.',
+    finalPoints: Object.fromEntries(Object.entries(res.points).sort((a, b) => b[1] - a[1]).map(([id, p]) => [first(id), p])),
+    holes: res.holes.filter((h) => h.result).map((h) => ({
+      hole: h.hole,
+      wolf: first(h.wolfId),
+      pick: !h.decision ? null : h.decision.mode === 'lone' ? 'lone wolf' : h.decision.mode === 'blind' ? 'blind wolf' : `partnered ${h.decision.partnerId ? first(h.decision.partnerId) : '?'}`,
+      won: h.result === 'wolfSide' ? 'wolf side' : h.result === 'opponents' ? 'the field' : 'tied',
+      multiplier: h.multiplier > 1 ? h.multiplier : undefined,
+      points: Object.fromEntries(Object.entries(h.points).filter(([, p]) => p).map(([id, p]) => [first(id), p])),
+    })),
+  };
+}
+
+/** The story of the Wolf game: written by AI when someone taps Generate (Pro), then saved for everyone. */
+export function WolfStory({ r, gi, res }: { r: RoundRecord; gi: number; res: WolfResult }) {
+  const c = useColors();
+  const gameId = r.games[gi].id ?? String(gi);
+  const saved = r.stories?.[gameId];
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  if (!saved && (!res.finished || r.remote?.role === 'viewer')) return null;
+  const generate = async () => {
+    setLoading(true);
+    setFailed(false);
+    const text = await requestGameStory(r, gi, wolfFacts(r, res));
+    setLoading(false);
+    if (!text && !justPaywalled()) setFailed(true);
+  };
+  return (
+    <View style={{ backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, borderLeftWidth: 4, borderLeftColor: c.brandGold, padding: space.lg, gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Text style={{ color: c.brandGold, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>✨ THE STORY OF THE WOLF</Text>
+        {loading ? <ActivityIndicator size="small" color={c.brandGold} /> : null}
+      </View>
+      {saved ? (
+        <Text style={{ color: c.text, fontSize: 15, lineHeight: 22 }}>{saved}</Text>
+      ) : (
+        <>
+          <Text style={{ color: c.muted, fontSize: 14 }}>Get an AI write-up of the game: who ran with the pack, who went lone wolf, and how it was won.</Text>
+          <Pressable onPress={generate} disabled={loading} accessibilityRole="button"
+            style={({ pressed }) => ({ alignSelf: 'flex-start', backgroundColor: c.brand, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16, opacity: pressed || loading ? 0.6 : 1 })}>
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>{loading ? 'Writing the story…' : '✨ Generate story'}</Text>
+          </Pressable>
+        </>
+      )}
+      {failed ? <Text style={{ color: c.danger, fontSize: 12 }}>Couldn’t write it just now. Check your connection and try again.</Text> : null}
+    </View>
   );
 }
