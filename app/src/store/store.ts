@@ -336,6 +336,8 @@ interface State {
   addEventPlayer: (eventId: string, playerId: string, team?: string) => void;
   /** Put an existing round (finished or in progress) into an event as its next round. */
   linkRoundToEvent: (roundId: string, eventId: string) => void;
+  /** Take a round out of its event (its slot in the event's rounds goes too). */
+  unlinkRoundFromEvent: (roundId: string) => void;
   setEventStory: (eventId: string, story: { text: string; key: string }) => void;
   updateEvent: (e: EventRecord) => void;
   deleteEvent: (id: string) => void;
@@ -697,6 +699,25 @@ export const useStore = create<State>()(
             ),
             dirtyRounds: dirty(s, roundId),
             dirtyEvents: dirtyEvent(s, eventId),
+          };
+        }),
+      unlinkRoundFromEvent: (roundId) =>
+        set((s) => {
+          const r = s.rounds.find((x) => x.id === roundId);
+          const e = r?.eventId ? s.events.find((x) => x.id === r.eventId) : undefined;
+          if (!r?.eventId) return {};
+          const slot = e?.rounds?.find((x) => x.roundId === roundId);
+          // The event's own name for it ("Round 4") doesn't follow it out; a name someone typed does.
+          const auto = !r.label || (slot ? r.label === (slot.name?.trim() || `Round ${slot.number}`) : /^Round \d+$/.test(r.label));
+          const left = (e?.rounds ?? []).filter((x) => x.roundId !== roundId).map((x, i) => ({ ...x, number: i + 1 }));
+          const relabel = new Map(left.filter((x) => x.roundId).map((x) => [x.roundId!, x.name?.trim() || `Round ${x.number}`]));
+          return {
+            rounds: s.rounds.map((x) =>
+              x.id === roundId ? { ...x, eventId: undefined, label: auto ? undefined : x.label } : relabel.has(x.id) && x.label !== relabel.get(x.id) ? { ...x, label: relabel.get(x.id) } : x,
+            ),
+            events: e ? s.events.map((x) => (x.id === e.id ? { ...x, rounds: left } : x)) : s.events,
+            dirtyRounds: dirty(s, roundId),
+            dirtyEvents: e ? dirtyEvent(s, e.id) : s.dirtyEvents,
           };
         }),
       addEventRound: (eventId, round) =>
