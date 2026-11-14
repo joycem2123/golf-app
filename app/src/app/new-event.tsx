@@ -551,6 +551,7 @@ function NewEvent() {
             <Card>
               <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>Game for all {plans.length} rounds</Text>
               <GamePicker
+                noTeams={noTeams}
                 value={plans[0]?.draft?.kind ?? null}
                 playerIds={ids}
                 teamOf={teams}
@@ -589,6 +590,7 @@ function NewEvent() {
                 <Text style={{ color: c.muted, fontSize: 13 }}>{p.draft ? gameInfo(p.draft.kind).name : 'Game: decide later'}</Text>
               ) : (
                 <GamePicker
+                  noTeams={noTeams}
                   value={p.draft?.kind ?? null}
                   playerIds={ids}
                   teamOf={teams}

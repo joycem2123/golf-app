@@ -719,7 +719,7 @@ function NewRound() {
           {event && defaultRoundName ? (
             <Field label="Round name" value={roundName} onChangeText={setRoundNameEdit} placeholder={defaultRoundName} maxLength={40} error={nameProblem} />
           ) : null}
-          <GamePicker value={draft?.kind ?? null} playerIds={rosterIds} teamOf={noTeams ? undefined : teamOf} onPick={pickGame} />
+          <GamePicker value={draft?.kind ?? null} playerIds={rosterIds} teamOf={noTeams ? undefined : teamOf} onPick={pickGame} noTeams={noTeams} />
 
           {sameTeamMatches.length > 0 && (
             // Two players on the same team can't earn a team point: say so before the round starts.
