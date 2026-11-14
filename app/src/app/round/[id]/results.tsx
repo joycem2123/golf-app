@@ -1,6 +1,7 @@
-import { summarizeStats, type GameResult, type SkinsResult } from '@golf/engine';
+import { summarizeStats, type GameResult, type SkinsResult, type WolfResult } from '@golf/engine';
 import { PlayedWith } from '@/components/played-with';
 import { SkinsCard, skinsHeadline } from '@/components/skins-card';
+import { WolfCard, wolfHeadline } from '@/components/wolf-card';
 import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
@@ -79,7 +80,8 @@ export default function Results() {
   const myWins = matches.filter((m) => m.winner && m.winner === mySide(m));
   // A Skins round: its own headline and card (the skins game isn't repeated in the list of other games).
   const skinsRes = r.games[0]?.type === 'skins' && results[0] && isResult(results[0]) ? (results[0] as SkinsResult) : null;
-  const others = r.games.map((g, i) => ({ g, i })).filter(({ i }) => !matches.some((m) => m.gi === i) && !(skinsRes && i === 0));
+  const wolfRes = r.games[0]?.type === 'wolf' && results[0] && isResult(results[0]) ? (results[0] as WolfResult) : null;
+  const others = r.games.map((g, i) => ({ g, i })).filter(({ i }) => !matches.some((m) => m.gi === i) && !((skinsRes || wolfRes) && i === 0));
   // Other games I (or my team) won: stroke play, stableford, scramble…
   const wonOther = others.some(({ i }) => {
     const res = results[i];
@@ -98,6 +100,11 @@ export default function Results() {
     headline = 'All square';
     celebrate = myWins.length > 0;
     sub = myWins.length ? `The teams finished level, but you won your match ${myWins[0].detail}.` : 'The teams finished level.';
+  } else if (wolfRes) {
+    const w = wolfHeadline(wolfRes, name);
+    headline = w.headline;
+    sub = w.sub;
+    celebrate = w.winners.some((x) => myIds.includes(x));
   } else if (skinsRes) {
     const sk = skinsHeadline(skinsRes, name);
     headline = sk.headline;
@@ -259,6 +266,8 @@ export default function Results() {
           )}
 
           {skinsRes ? <SkinsCard r={r} res={skinsRes} isMe={isMe} /> : null}
+          {/* Wolf: the points, then hole by hole, above the player scores. */}
+          {wolfRes ? <WolfCard r={r} res={wolfRes} isMe={isMe} title="Wolf points" /> : null}
 
           {rows.length > 0 && !skinsRes && (
             <Card>

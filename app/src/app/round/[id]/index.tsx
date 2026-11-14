@@ -7,6 +7,7 @@ import { useState } from 'react';
 
 import { GameSummaryList } from '@/components/game-summary';
 import { ScorecardGrid } from '@/components/scorecard-grid';
+import { WolfCard } from '@/components/wolf-card';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { MeBadge, useAutoIdentity } from '@/components/people';
 import { canDeleteRound } from '@/components/swipe-to-delete';
@@ -358,6 +359,10 @@ export default function Scorecard() {
   const h = firstTee.holes[hole - 1];
   const done = (n: number) => keys.every((k) => grossAt(r, k.key, n) !== null);
   const allDone = allHolesScored(r);
+  // Wolf: the wolf's choice (partner, lone or blind) has to be made on a hole before moving on.
+  const wolfGames = r.games.map((g, i) => ({ g, i, res: results[i] })).filter((x): x is { g: WolfConfig; i: number; res: WolfResult } => x.g.type === 'wolf' && !!x.res && isResult(x.res) && x.res.type === 'wolf');
+  const wolfPending = (n: number) => wolfGames.some(({ g, res }) => res.holes.some((h) => h.hole === n) && !g.decisions[n - 1]);
+  const anyWolfPending = wolfGames.some(({ g, res }) => res.holes.some((h) => !g.decisions[h.hole - 1]));
   const tnames = namesFor(r, useStore.getState().events.find((e) => e.id === r.eventId));
   const sidesByGame = cardSides(r, results, (L) => teamName(L, tnames), (L) => teamColor(L, roundPicks(r)).color);
   const teams = teamGroups(r, c, gi);
@@ -513,6 +518,8 @@ export default function Scorecard() {
             <Label style={{ textTransform: 'none', letterSpacing: 0 }}>
               ○ birdie  ◎ eagle  □ bogey  ⧈ double+  · gold dot = gets a shot.{viewer ? '' : ' Tap a score to edit that hole.'}
             </Label>
+            {/* Wolf: who was the wolf, their pick, who won and everyone's points, hole by hole. */}
+            {wolfGames.map(({ i, res }) => <WolfCard key={i} r={r} res={res} isMe={isMeId} />)}
             {matchCards}
           </>
         ) : (
@@ -526,7 +533,7 @@ export default function Scorecard() {
                 <Text style={{ fontSize: 24, fontFamily: fonts.serif, fontWeight: '700', color: c.primary, lineHeight: 27 }}>Hole {hole}</Text>
                 <Text style={{ color: c.muted, fontWeight: '600', letterSpacing: 0.5, fontSize: 13 }}>Par {h.par} · Hcp {h.strokeIndex} · {h.yards} yds</Text>
               </View>
-              <Button small kind="secondary" title="Next ›" disabled={nextHole === null} onPress={() => nextHole && goHole(nextHole)} />
+              <Button small kind="secondary" title="Next ›" disabled={nextHole === null || (wolfPending(hole) && !locked)} onPress={() => nextHole && goHole(nextHole)} />
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -605,13 +612,13 @@ export default function Scorecard() {
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.border }}>
           {nextHole !== null ? (
             <Button
-              title={done(hole) || locked ? `Next hole: ${nextHole} ›` : `Enter every score for hole ${hole}`}
-              kind={done(hole) ? 'primary' : 'secondary'}
-              disabled={!done(hole) && !locked}
+              title={wolfPending(hole) && !locked ? `Pick the wolf’s partner for hole ${hole}` : done(hole) || locked ? `Next hole: ${nextHole} ›` : `Enter every score for hole ${hole}`}
+              kind={done(hole) && !wolfPending(hole) ? 'primary' : 'secondary'}
+              disabled={(!done(hole) || wolfPending(hole)) && !locked}
               onPress={() => goHole(nextHole)}
             />
           ) : (
-            <Button title="Finish round ›" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />
+            <Button title={anyWolfPending ? 'Pick the wolf’s partner on every hole first' : 'Finish round ›'} kind={allDone && !anyWolfPending ? 'primary' : 'secondary'} disabled={anyWolfPending} onPress={finish} />
           )}
         </View>
       )}
