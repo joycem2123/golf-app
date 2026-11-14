@@ -5,7 +5,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { roundSwipe } from '@/components/swipe-to-delete';
 import type { TipTarget } from '@/components/tip';
@@ -15,8 +15,9 @@ import { useMe } from '@/lib/me';
 import { gameId, playersIn, playsIn, usePendingRequests } from '@/lib/edit-rights';
 import { RequestRow } from '@/components/edit-lock';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
-import { useStore, type RoundRecord } from '@/store/store';
+import { isEventOrganizer, useStore, type RoundRecord } from '@/store/store';
 import { Countdown } from '@/components/countdown';
+import { CardMenu } from '@/components/card-menu';
 import type { CountdownTarget, PlannedItem } from '@/lib/event-calendar';
 import { gameInfo } from '@/lib/games';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -111,7 +112,16 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
                 {({ pressed }) => (
                   <View style={{ flex: 1, backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, overflow: 'hidden', opacity: pressed ? 0.85 : 1, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
                     <View style={{ height: 3, backgroundColor: c.accent }} />
-                    <View style={{ flexDirection: 'row', alignItems: 'center', padding: space.lg, gap: space.md }}>
+                    {/* ⋯ top-right: Hide (anyone), Delete (the organiser, while it can still go). */}
+                    {deletable ? (
+                      <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 5 }}>
+                        <CardMenu label="Round options" options={[
+                          { label: 'Hide', icon: '👁', onPress: () => useStore.getState().setHidden(r.id, true) },
+                          ...(swipe === 'delete' ? [{ label: 'Delete', icon: '🗑', danger: true, onPress: () => onDelete(r.id) }] : []),
+                        ]} />
+                      </View>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', padding: space.lg, gap: space.md, paddingRight: deletable ? 44 : space.lg }}>
                       <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           <Text numberOfLines={1} style={{ flexShrink: 1, color: c.under, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>● LIVE · {(eventName ?? course).toUpperCase()}</Text>
@@ -140,16 +150,7 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
                           )}
                         </View>
                       </View>
-                      {deletable && (
-                        <Pressable
-                          onPress={() => onDelete(r.id)}
-                          hitSlop={8}
-                          accessibilityRole="button"
-                          accessibilityLabel={swipe === 'delete' ? 'Delete this round' : 'Hide this round'}
-                          style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: swipe === 'delete' ? (pressed ? '#8E2A24' : c.danger) : pressed ? '#555' : '#6E746B', alignItems: 'center', justifyContent: 'center' })}>
-                          {Platform.OS === 'ios' ? <SymbolView name={swipe === 'delete' ? 'trash.fill' : 'eye.slash.fill'} tintColor="#fff" size={18} /> : <Text style={{ color: '#fff', fontSize: 16 }}>{swipe === 'delete' ? '🗑' : '👁'}</Text>}
-                        </Pressable>
-                      )}
+
                     </View>
                     {asks.length > 0 && (
                       <View style={{ borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.primarySoft, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.md }}>
@@ -167,9 +168,14 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
           );
         })}
         {countdown && (
-          <Pressable key="countdown" onPress={() => router.push(`/event/${countdown.event.id}`)} accessibilityRole="button" style={{ width: cardW }}>
-            <Countdown target={countdown} compact />
-          </Pressable>
+          <View key="countdown" style={{ width: cardW }}>
+            <Pressable onPress={() => router.push(`/event/${countdown.event.id}`)} accessibilityRole="button" style={{ flex: 1 }}>
+              <Countdown target={countdown} compact />
+            </Pressable>
+            <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 5 }}>
+              <CardMenu light label="Countdown options" options={[{ label: 'Hide', icon: '👁', onPress: () => useStore.getState().setHidden(countdownKey(countdown), true) }]} />
+            </View>
+          </View>
         )}
       </ScrollView>
       {total > 1 && (
@@ -205,7 +211,15 @@ function TodayCard({ item }: { item: PlannedItem }) {
       {({ pressed }) => (
         <View style={{ flex: 1, backgroundColor: c.card, borderRadius: radius.lg, borderWidth: 2, borderColor: c.brandGold, overflow: 'hidden', opacity: pressed ? 0.85 : 1, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
           <View style={{ height: 3, backgroundColor: c.accent }} />
-          <View style={{ flex: 1, padding: space.lg, gap: 4, justifyContent: 'center' }}>
+          <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 5 }}>
+            <CardMenu label="Options for today's round" options={[
+              { label: 'Hide', icon: '👁', onPress: () => useStore.getState().setHidden(plannedKey(item), true) },
+              ...(item.kind === 'round' && isEventOrganizer(item.event, useStore.getState().me)
+                ? [{ label: 'Delete round', icon: '🗑', danger: true, onPress: () => Alert.alert(`Delete ${item.title}?`, 'It’s taken out of the event for everyone.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => useStore.getState().removeEventRound(item.event.id, item.id) }]) }]
+                : []),
+            ]} />
+          </View>
+          <View style={{ flex: 1, padding: space.lg, paddingRight: 44, gap: 4, justifyContent: 'center' }}>
             <Text numberOfLines={1} style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>📅 TODAY · {item.event.name.toUpperCase()}</Text>
             <Text numberOfLines={1} style={{ color: c.muted, fontSize: 13 }}>{[item.title, fmt, matches].filter(Boolean).join(' · ')}</Text>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: fonts.serif, fontSize: 24, fontWeight: '700', color: c.primary }}>Game day! ⛳</Text>
@@ -220,3 +234,7 @@ function TodayCard({ item }: { item: PlannedItem }) {
     </Pressable>
   );
 }
+
+/** Hiding a today card or a countdown hides just that one (it comes back for the next round). */
+export const plannedKey = (item: PlannedItem) => `plan:${item.event.id}:${item.id}:${item.date}`;
+export const countdownKey = (t: CountdownTarget) => `cd:${t.event.id}:${t.date}`;

@@ -21,6 +21,7 @@ import { fonts, radius, space, useColors } from '@/theme';
 import { Tip, type TipTarget } from '@/components/tip';
 import { LiveCarousel } from '@/components/live-carousel';
 import { nextCountdown, plannedToday } from '@/lib/event-calendar';
+import { countdownKey, plannedKey } from '@/components/live-carousel';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
@@ -105,8 +106,17 @@ export default function Home() {
   const anyFriends = rounds.some((r) => r.status === 'active' && onHomeRound(r) && (!mineRound(r) || hasFollowed(r))) || events.some((e) => !mineEvent(e) && onHomeEvent(e));
   const active = rounds.filter((r) => r.status === 'active' && keepRound(r));
   // The event calendar: rounds planned for today (Start round), and a countdown to what's next.
-  const todays = plannedToday(events.filter(keepEvent), rounds);
-  const countdown = nextCountdown(events.filter(keepEvent), rounds);
+  // Today cards and countdowns hidden from the ⋯ menu stay hidden (just that one; the next round shows as usual).
+  const todays = plannedToday(events.filter(keepEvent), rounds).filter((t) => !hidden[plannedKey(t)]);
+  const countdown = (() => {
+    let pool = events.filter(keepEvent);
+    for (let i = 0; i < 6; i++) {
+      const cd = nextCountdown(pool, rounds);
+      if (!cd || !hidden[countdownKey(cd)]) return cd;
+      pool = pool.filter((e) => e.id !== cd.event.id);
+    }
+    return null;
+  })();
   const banner = active.length + todays.length + (countdown ? 1 : 0) > 0;
   const { me: myPlayer } = useMe();
   const incoming = useFriendRequests((s) => s.incoming);

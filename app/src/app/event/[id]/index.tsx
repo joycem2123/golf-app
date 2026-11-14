@@ -11,7 +11,7 @@ import { useAutoIdentity } from '@/components/people';
 import { ShareCard } from '@/components/share-card';
 import { TvButton } from '@/components/tv-button';
 import { Body, Button, Card, H2, Label, styles } from '@/components/ui';
-import { shareEvent } from '@/sync/sync';
+import { flush, shareEvent } from '@/sync/sync';
 import { describeRecurrence, formatDate } from '@/lib/dates';
 import { canDeleteEvent, cupScore, eventMatches, eventStandings, eventTeamTotals, formatPoints, type EventMatch } from '@/lib/events';
 import { headline } from '@/lib/headline';
@@ -27,7 +27,7 @@ import { EventStory } from '@/components/event-story';
 import { TripExpenses } from '@/components/trip-expenses';
 import { PlayedWith } from '@/components/played-with';
 import { HideButton, OrganizerLine } from '@/components/organizer';
-import { completeBlocker, eventSummary } from '@/lib/event-summary';
+import { eventSummary, leftovers } from '@/lib/event-summary';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { FedexStandings, RaceSummary, usePlayerName } from '@/components/fedex-standings';
 
@@ -143,32 +143,77 @@ function ChampionBanner({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }
 function CompleteEvent({ e, rounds }: { e: EventRecord; rounds: RoundRecord[] }) {
   const c = useColors();
   const setEventComplete = useStore((s) => s.setEventComplete);
-  const [ask, setAsk] = useState<'complete' | 'reopen' | null>(null);
-  const blocker = e.status === 'complete' ? null : completeBlocker(e, rounds);
+  const updateEvent = useStore((s) => s.updateEvent);
+  const deleteRound = useStore((s) => s.deleteRound);
+  const myUid = useStore((s) => s.me);
+  const [ask, setAsk] = useState<'complete' | 'cleanup' | 'reopen' | null>(null);
+  const organizer = isEventOrganizer(e, myUid);
+  const left = leftovers(e, rounds);
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const what = [
+    left.live.length ? `${plural(left.live.length, 'round in play', 'rounds in play')} (${left.live.map((r) => r.label ?? 'Round').join(', ')})` : null,
+    left.planned.length ? plural(left.planned.length, 'upcoming round', 'upcoming rounds') : null,
+    left.scheduled.length ? plural(left.scheduled.length, 'scheduled match', 'scheduled matches') : null,
+  ].filter(Boolean).join(' and ');
+
+  const complete = (cleanup: boolean) => {
+    if (cleanup) {
+      // Take out everything not played yet (finished rounds stay), without renumbering what's been played.
+      const fresh = useStore.getState().events.find((x) => x.id === e.id) ?? e;
+      const liveIds = new Set(left.live.map((r) => r.id));
+      const plannedIds = new Set(left.planned.map((p) => p.id));
+      updateEvent({
+        ...fresh,
+        rounds: (fresh.rounds ?? []).filter((p) => !plannedIds.has(p.id) && !(p.roundId && liveIds.has(p.roundId))),
+        schedule: (fresh.schedule ?? []).filter((m) => !!m.roundId),
+      });
+      for (const r of left.live) deleteRound(r.id, { now: true });
+    }
+    setEventComplete(e.id, true);
+    void flush();
+    router.push({ pathname: '/event/[id]/summary', params: { id: e.id, celebrate: '1' } });
+  };
+
+  if (e.status === 'complete')
+    return (
+      <>
+        {organizer ? <Button title="Reopen event" kind="ghost" onPress={() => setAsk('reopen')} /> : null}
+        <ConfirmDialog visible={ask === 'reopen'} title="Reopen this event?" message="It goes back to being in progress, so rounds can be added again." confirmLabel="Reopen" cancelLabel="Not yet" destructive={false}
+          onCancel={() => setAsk(null)} onConfirm={() => { setAsk(null); setEventComplete(e.id, false); }} />
+      </>
+    );
+
+  const note = !organizer
+    ? 'Only the organizer can complete the event.'
+    : !left.played
+      ? 'Play at least one round first.'
+      : left.count
+        ? `${what[0].toUpperCase()}${what.slice(1)} still to play. You can complete the event now and remove ${left.count === 1 ? 'it' : 'them'}.`
+        : 'Every round is done. Complete the event to crown the champion.';
   return (
     <>
-      {e.status === 'complete' ? (
-        <Button title="Reopen event" kind="ghost" onPress={() => setAsk('reopen')} />
-      ) : (
-        <Card style={{ gap: space.sm }}>
-          <Button title="🏆 Complete Event" disabled={!!blocker} onPress={() => setAsk('complete')} />
-          <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>{blocker ?? 'Every round is done. Complete the event to crown the champion.'}</Text>
-        </Card>
-      )}
+      <Card style={{ gap: space.sm }}>
+        <Button title="🏆 Complete Event" disabled={!organizer || !left.played} onPress={() => setAsk(left.count ? 'cleanup' : 'complete')} />
+        <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>{note}</Text>
+      </Card>
       <ConfirmDialog
-        visible={ask !== null}
-        title={ask === 'reopen' ? 'Reopen this event?' : 'Complete this event?'}
-        message={ask === 'reopen' ? 'It goes back to being in progress, so rounds can be added again.' : 'The standings become final and everyone sees the champion.'}
-        confirmLabel={ask === 'reopen' ? 'Reopen' : 'Complete'}
+        visible={ask === 'complete'}
+        title="Complete this event?"
+        message="The standings become final and everyone sees the champion."
+        confirmLabel="Complete"
         cancelLabel="Not yet"
         destructive={false}
         onCancel={() => setAsk(null)}
-        onConfirm={() => {
-          const completing = ask === 'complete';
-          setAsk(null);
-          setEventComplete(e.id, completing);
-          if (completing) router.push({ pathname: '/event/[id]/summary', params: { id: e.id, celebrate: '1' } });
-        }}
+        onConfirm={() => { setAsk(null); complete(false); }}
+      />
+      <ConfirmDialog
+        visible={ask === 'cleanup'}
+        title="Finish the event early?"
+        message={`There’s still ${what}. They’ll be deleted for everyone and the event completed with the results so far. Finished rounds are kept. Deleted rounds can be restored from Recently Deleted for 30 days.`}
+        confirmLabel="Delete & Complete"
+        cancelLabel="Not yet"
+        onCancel={() => setAsk(null)}
+        onConfirm={() => { setAsk(null); complete(true); }}
       />
     </>
   );

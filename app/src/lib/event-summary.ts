@@ -10,6 +10,15 @@ import { teamName, namesFor } from '@/lib/team-colors';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { teamColor } from '@/theme';
 
+/** What's still to play: rounds being played, planned rounds not played yet, and scheduled matches not started. */
+export function leftovers(e: EventRecord, rounds: RoundRecord[]) {
+  const mine = rounds.filter((r) => r.eventId === e.id);
+  const live = mine.filter((r) => r.status === 'active');
+  const planned = (e.rounds ?? []).filter((p) => !p.roundId || !mine.some((r) => r.id === p.roundId));
+  const scheduled = (e.schedule ?? []).filter((m) => !m.roundId);
+  return { live, planned, scheduled, count: live.length + planned.length + scheduled.length, played: mine.some((r) => r.status === 'complete') || !!e.fedex?.imported?.length };
+}
+
 /** Why the event can't be completed yet (null = it can). */
 export function completeBlocker(e: EventRecord, rounds: RoundRecord[]): string | null {
   const mine = rounds.filter((r) => r.eventId === e.id);
