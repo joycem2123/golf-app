@@ -1,4 +1,5 @@
 import { courseHandicap, type Course, type Player, type Tee } from '@golf/engine';
+import { AccountNeeded, useIsGuest } from '@/components/account-needed';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -40,7 +41,12 @@ function teesFor(course: Course, gender: 'M' | 'F') {
   return list.length ? list : course.tees;
 }
 
-export default function NewRound() {
+export default function NewRoundScreen() {
+  // Guests can only follow: starting things needs an account.
+  return useIsGuest() ? <AccountNeeded what="start a round" title="New Round" /> : <NewRound />;
+}
+
+function NewRound() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { eventId, matchId, eventRound, addRound: addingRound, scan: scanParam, fav, play } = useLocalSearchParams<{ eventId?: string; matchId?: string; eventRound?: string; addRound?: string; scan?: string; fav?: string; play?: string }>();

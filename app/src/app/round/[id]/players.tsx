@@ -52,6 +52,12 @@ export default function ChangeRoundPlayer() {
           <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>
             <Text style={{ fontWeight: '800' }}>Who played instead of {out.name}?</Text> Their scores so far, matches{r.teamOf?.[out.id] ? ' and team' : ''} move to the person you pick.
           </Text>
+          {/* A guest who's just made an account: link them, and they can keep score from their own phone. */}
+          {!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(out.id) && !saved.find((p) => p.id === out.id)?.userId ? (
+            <Text style={{ color: c.muted, fontSize: 13, lineHeight: 19, marginTop: 6 }}>
+              Has {out.name.split(' ')[0]} just joined Clutch Up? Add them as a friend, then pick their account here: their scores move over and they can keep score from their own phone.
+            </Text>
+          ) : null}
         </View>
         <Field label="Search" value={query} onChangeText={setQuery} onClear={() => setQuery('')} placeholder="Name" />
         <Card style={{ paddingVertical: space.xs }}>

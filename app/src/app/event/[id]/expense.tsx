@@ -2,6 +2,7 @@
  * Add (or change) a trip expense: what it was, how much, who paid (one person, or split between payers), and who
  * shares it (everyone by default; tap to leave someone out, press and hold for ×2 when they bring a guest).
  */
+import { AccountNeeded, useIsGuest } from '@/components/account-needed';
 import { centsText, formatMoney, parseCents, splitCents, type TripExpense, type TripMoney } from '@golf/engine';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -35,7 +36,12 @@ function Person({ label, on, weight, onPress, onLongPress }: { label: string; on
   );
 }
 
-export default function ExpenseScreen() {
+export default function ExpenseScreenScreen() {
+  // Guests can only follow: starting things needs an account.
+  return useIsGuest() ? <AccountNeeded what="add trip expenses" title="Add Expense" /> : <ExpenseScreen />;
+}
+
+function ExpenseScreen() {
   const c = useColors();
   const { id, expense } = useLocalSearchParams<{ id: string; expense?: string }>();
   const e = useEvent(id);

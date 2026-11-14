@@ -1,4 +1,5 @@
 import { lockHandicaps, type FedexConfig, type Player, type TripMoney } from '@golf/engine';
+import { AccountNeeded, useIsGuest } from '@/components/account-needed';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -34,7 +35,12 @@ const TYPES: { value: EventType; label: string; icon: string; blurb: string }[] 
   { value: 'season', label: 'Season', icon: '📅', blurb: 'Regular rounds on a repeating schedule, with season standings.' },
 ];
 
-export default function NewEvent() {
+export default function NewEventScreen() {
+  // Guests can only follow: starting things needs an account.
+  return useIsGuest() ? <AccountNeeded what="create an event" title="New Event" /> : <NewEvent />;
+}
+
+function NewEvent() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const saved = useStore((s) => s.players);

@@ -1,6 +1,7 @@
 /**
  * Upload scorecard: photo of a finished card → check the scores → set up the round as usual → results.
  */
+import { AccountNeeded, useIsGuest } from '@/components/account-needed';
 import { OnlineCourses } from '@/components/online-courses';
 import { searchCourses, type Course, type Tee } from '@golf/engine';
 import { router } from 'expo-router';
@@ -34,7 +35,12 @@ const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const BACK = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 
 
-export default function UploadScorecard() {
+export default function UploadScorecardScreen() {
+  // Guests can only follow: starting things needs an account.
+  return useIsGuest() ? <AccountNeeded what="upload a scorecard" title="Upload Scorecard" /> : <UploadScorecard />;
+}
+
+function UploadScorecard() {
   const c = useColors();
   const [phase, setPhase] = useState<'pick' | 'reading' | 'review'>('pick');
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { needsAccount, useIsGuest } from '@/components/account-needed';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, TextInput } from 'react-native';
+import { ScrollView, Text, TextInput } from 'react-native';
 
 import { Body, Button, Card, Field, Label, Segmented } from '@/components/ui';
 import { joinByCode } from '@/sync/sync';
@@ -19,13 +20,15 @@ export default function Join() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(linked.length === 6);
   const [error, setError] = useState<string | null>(null);
+  // Guests (no account) can only follow; keeping score needs an account.
+  const guest = useIsGuest();
   const clean = code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 
   const join = async (as: 'viewer' | 'scorer' = role) => {
     setBusy(true);
     setError(null);
     try {
-      const res = await joinByCode(clean, as, name);
+      const res = await joinByCode(clean, guest ? 'viewer' : as, name);
       track('joined_by_code', { kind: res.kind, role });
       router.replace(res.kind === 'round' ? `/round/${res.id}` : `/event/${res.id}`);
     } catch (e) {
@@ -49,7 +52,7 @@ export default function Join() {
     if (round) router.replace(`/round/${round.id}`);
     else if (event) router.replace(`/event/${event.id}`);
     else
-      joinByCode(linked, 'scorer')
+      joinByCode(linked, guest ? 'viewer' : 'scorer')
         .then((res) => (track('joined_by_link', { kind: res.kind }), router.replace(res.kind === 'round' ? `/round/${res.id}` : `/event/${res.id}`)))
         .catch((e) => (setError(e instanceof Error ? e.message : String(e)), setBusy(false)));
   }, [linked, hydrated]);
@@ -73,7 +76,11 @@ export default function Join() {
       />
       <Card>
         <Label>I want to</Label>
-        <Segmented options={[{ value: 'viewer', label: 'Follow the leaderboard' }, { value: 'scorer', label: 'Keep score' }]} value={role} onChange={setRole} />
+        {guest ? (
+          <Body muted>Follow the leaderboard live. To keep score, <Text onPress={() => needsAccount(true, 'keep score')} style={{ color: c.primary, fontWeight: '700' }}>create a free account</Text>.</Body>
+        ) : (
+          <Segmented options={[{ value: 'viewer', label: 'Follow the leaderboard' }, { value: 'scorer', label: 'Keep score' }]} value={role} onChange={setRole} />
+        )}
         <Field label="Your name (shown to the group)" value={name} onChangeText={setName} placeholder="Optional" autoCapitalize="words" />
       </Card>
       {error ? <Body style={{ color: c.danger }}>{error}</Body> : null}
