@@ -30,7 +30,7 @@ export default function EventSummaryScreen() {
   const name = usePlayerName();
   if (!e || !summary) return null;
   const dates = e.startDate ? `${formatDate(e.startDate, { month: 'short', day: 'numeric' })}${e.endDate && e.endDate !== e.startDate ? ` – ${formatDate(e.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}` : '';
-  const kind = e.type === 'cup' ? 'Ryder Cup' : e.type === 'season' ? (e.fedex ? 'Points Race' : 'Season') : 'Trip';
+  const kind = e.type === 'cup' ? 'Ryder Cup' : e.type === 'season' ? (e.fedex ? 'Points Race' : e.individual ? 'Individual Points' : 'Season') : 'Trip';
 
   const hero = (label: string, title: string, sub: string, color: string) => (
     <View style={{ backgroundColor: color, borderRadius: radius.lg, paddingVertical: space.xl, paddingHorizontal: space.lg, alignItems: 'center', gap: 6 }}>

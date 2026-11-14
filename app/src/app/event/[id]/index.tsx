@@ -30,6 +30,7 @@ import { HideButton, OrganizerLine } from '@/components/organizer';
 import { eventSummary, leftovers } from '@/lib/event-summary';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { FedexStandings, RaceSummary, usePlayerName } from '@/components/fedex-standings';
+import { IndividualStandings, IndividualSummary } from '@/components/individual-standings';
 
 export { ErrorBoundary } from '@/components/error-screen';
 
@@ -304,7 +305,7 @@ export default function EventScreen() {
         {e.status === 'complete' ? <ChampionBanner e={e} rounds={rounds} /> : null}
         {(e.startDate || e.recurrence) && (
           <View style={{ alignItems: 'center', gap: 2 }}>
-            <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{e.type === 'cup' ? 'RYDER CUP' : e.type === 'season' ? (e.fedex ? 'SEASON · POINTS RACE' : 'SEASON') : 'TRIP'}</Text>
+            <Text style={{ color: c.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>{e.type === 'cup' ? 'RYDER CUP' : e.type === 'season' ? (e.fedex ? 'SEASON · POINTS RACE' : e.individual ? 'SEASON · INDIVIDUAL POINTS' : 'SEASON') : 'TRIP'}</Text>
             {e.startDate && (
               <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>
                 {formatDate(e.startDate, { month: 'short', day: 'numeric' })}
@@ -379,7 +380,7 @@ export default function EventScreen() {
           })()
         ) : (
           <>
-            {e.teamOf && (e.teamLetters?.length ?? 0) >= 2 && (() => {
+            {e.teamOf && !e.individual && (e.teamLetters?.length ?? 0) >= 2 && (() => {
               const { totals, roundsCounted } = eventTeamTotals(e, rounds);
               const lead = totals[0] && totals[1] && totals[0].points > totals[1].points ? totals[0].letter : null;
               // Projected: add what each team would pick up if the matches in play finished as they stand.
@@ -407,14 +408,17 @@ export default function EventScreen() {
             })()}
             {/* Points Race seasons: the race at a glance comes first. */}
             {e.fedex ? <RaceSummary e={e} rounds={rounds} /> : null}
-            {e.fedex ? <EventStory e={e} rounds={rounds} /> : null}
+            {/* Individual points seasons: the leader at a glance comes first too. */}
+            {e.individual && !e.fedex ? <IndividualSummary e={e} rounds={rounds} /> : null}
+            {e.fedex || e.individual ? <EventStory e={e} rounds={rounds} /> : null}
             <NextRound e={e} />
             {/* Points Race seasons: the 1st half / 2nd half / season standings. */}
             {e.fedex ? <FedexStandings e={e} rounds={rounds} /> : null}
-            {e.fedex ? null : <EventStory e={e} rounds={rounds} />}
+            {e.individual && !e.fedex ? <IndividualStandings e={e} rounds={rounds} /> : null}
+            {e.fedex || e.individual ? null : <EventStory e={e} rounds={rounds} />}
             {e.rounds?.length || eventRounds.length ? <EventRounds e={e} /> : null}
             {(!e.rounds?.length || (e.schedule?.length ?? 0) > 0) && <ScheduleSection e={e} />}
-            {e.fedex ? null : standingsCard}
+            {e.fedex || e.individual ? null : standingsCard}
             {canAdd && <AddEventPlayer e={e} />}
             {e.fedex ? null : <MatchResults e={e} matches={matches} rounds={rounds} name={name} />}
           </>

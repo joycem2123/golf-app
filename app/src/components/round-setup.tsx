@@ -221,7 +221,7 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
 }
 
 /** Drop-down to choose the main game. Games that don't fit the group size are shown greyed out with the reason. */
-export function GamePicker({ value, playerIds, teamOf, onPick, onLater, noTeams }: { value: GameKind | null; playerIds: string[]; teamOf?: TeamOf; onPick: (k: GameKind) => void; onLater?: () => void; /** "No teams" was chosen: team-only games can't be played. */ noTeams?: boolean }) {
+export function GamePicker({ value, playerIds, teamOf, onPick, onLater, noTeams, teamsLater }: { value: GameKind | null; playerIds: string[]; teamOf?: TeamOf; onPick: (k: GameKind) => void; onLater?: () => void; /** "No teams" was chosen: team-only games can't be played. */ noTeams?: boolean; /** Say why team games are greyed out (instead of the No teams note). */ teamsLater?: boolean }) {
   const playerCount = playerIds.length;
   const c = useColors();
   const [open, setOpen] = useState(false);
@@ -249,7 +249,11 @@ export function GamePicker({ value, playerIds, teamOf, onPick, onLater, noTeams 
         <Text style={{ color: c.muted, marginBottom: space.sm }}>{playerCount} player{playerCount === 1 ? '' : 's'} selected</Text>
         {noTeams ? (
           <View style={{ backgroundColor: c.primarySoft, borderRadius: radius.md, padding: space.md, marginBottom: space.sm }}>
-            <Text style={{ color: c.text, fontSize: 13, lineHeight: 18 }}>You chose <Text style={{ fontWeight: '800' }}>No teams</Text>, so team games are greyed out. To play one, go back to the Teams step and assign teams.</Text>
+            {teamsLater ? (
+              <Text style={{ color: c.text, fontSize: 13, lineHeight: 18 }}>Individual points: there are no season teams. For a team game, choose <Text style={{ fontWeight: '800' }}>Decide later</Text> and pick it when the round is set up, with that day’s teams.</Text>
+            ) : (
+              <Text style={{ color: c.text, fontSize: 13, lineHeight: 18 }}>You chose <Text style={{ fontWeight: '800' }}>No teams</Text>, so team games are greyed out. To play one, go back to the Teams step and assign teams.</Text>
+            )}
           </View>
         ) : null}
         {onLater && (
@@ -265,7 +269,7 @@ export function GamePicker({ value, playerIds, teamOf, onPick, onLater, noTeams 
         {GAMES.map((g, i) => {
           // Team-only games (best ball, alternate shot, Vegas, scramble, shamble) need teams. Nassau can be 1 v 1.
           const teamOnly = g.teams && !g.teamSizes?.includes(1);
-          const problem = noTeams && teamOnly ? 'Needs teams: go back to the Teams step and assign teams to play' : gameFitProblem(g, playerIds, teamOf);
+          const problem = noTeams && teamOnly ? (teamsLater ? 'Team game: choose it when the round is set up' : 'Needs teams: go back to the Teams step and assign teams to play') : gameFitProblem(g, playerIds, teamOf);
           const fits = !problem;
           const sel = g.kind === value;
           return (

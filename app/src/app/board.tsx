@@ -19,6 +19,7 @@ import { formatDate } from '@/lib/dates';
 import { formatIndex } from '@/lib/format';
 import { fedexStandings, scoreRound, type FedexPart, type FedexRoundResult } from '@golf/engine';
 import { currentHalf, fedexResults } from '@/lib/fedex';
+import { fmtIndividual, individualTable } from '@/lib/individual';
 import { fmtPts } from '@/components/fedex-standings';
 import { cupScore, eventStandings, eventTeamTotals, formatPoints, planName } from '@/lib/events';
 import { gameInfo, gameName } from '@/lib/games';
@@ -611,9 +612,15 @@ function Scorecard({ r, results, m, leftLetter, names, u, picks }: { r: RoundRec
   );
 }
 
+/** Each player's season points: individual points seasons count every game; others count matches. */
+function seasonRows(e: EventRecord, rounds: RoundRecord[]) {
+  if (e.individual) return individualTable(e, rounds).map((r) => ({ playerId: r.playerId, position: r.position, points: r.points, wins: r.wins, halves: r.halves, losses: r.losses }));
+  return eventStandings(e, rounds);
+}
+
 /** Events without teams: the standings. */
 function Leaderboard({ e, rounds, names, u }: { e: EventRecord; rounds: RoundRecord[]; names: Map<string, { name: string; hcp?: number }>; u: number }) {
-  const rows = eventStandings(e, rounds).slice(0, 12);
+  const rows = seasonRows(e, rounds).slice(0, 12);
   return (
     <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 18 * u, padding: 20 * u, gap: 6 * u }}>
       <View style={{ flexDirection: 'row', paddingHorizontal: 12 * u }}>
@@ -625,7 +632,7 @@ function Leaderboard({ e, rounds, names, u }: { e: EventRecord; rounds: RoundRec
         <View key={r.playerId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 * u, paddingHorizontal: 12 * u, borderRadius: 10 * u, backgroundColor: i === 0 ? '#F6EFD9' : i % 2 ? '#F4F6F5' : '#fff' }}>
           <Text style={{ fontFamily: SANS, flex: 1, textAlign: 'center', color: INK, fontWeight: '800', fontSize: 30 * u }}>{r.position}</Text>
           <Text numberOfLines={1} style={{ fontFamily: SANS, flex: 4, color: INK, fontWeight: '700', fontSize: 32 * u }}>{names.get(r.playerId)?.name ?? '?'}</Text>
-          <Text style={{ fontFamily: SANS, flex: 1, textAlign: 'center', color: INK, fontWeight: '800', fontSize: 34 * u }}>{formatPoints(r.points)}</Text>
+          <Text style={{ fontFamily: SANS, flex: 1, textAlign: 'center', color: INK, fontWeight: '800', fontSize: 34 * u }}>{fmtIndividual(r.points)}</Text>
           <Text style={{ fontFamily: SANS, flex: 1, textAlign: 'center', color: '#4A5A52', fontWeight: '700', fontSize: 24 * u }}>{r.wins}–{r.halves}–{r.losses}</Text>
         </View>
       ))}
@@ -708,7 +715,7 @@ function NextUp({ e, names, u, picks }: { e: EventRecord; names: Names; u: numbe
 
 /** Every player's points and win–halve–loss record for the event, in their team's colour. */
 function Contributions({ e, rounds, names, u, picks }: { e: EventRecord; rounds: RoundRecord[]; names: Names; u: number; picks: Picks }) {
-  const rows = eventStandings(e, rounds);
+  const rows = seasonRows(e, rounds);
   const letterOf = (id: string) => e.teamOf?.[id] ?? (e.teams ? (e.teams.A.playerIds.includes(id) ? 'A' : e.teams.B.playerIds.includes(id) ? 'B' : undefined) : undefined);
   if (!rows.length) return null;
   const fs = rows.length > 12 ? 16 : 18;

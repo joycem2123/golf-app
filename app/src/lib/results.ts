@@ -43,6 +43,7 @@ const firstName = (n: string) => n.trim().split(' ')[0];
 export function eventTeamMap(e: EventRecord | undefined): Record<string, string> | undefined {
   if (!e) return undefined;
   if (e.teams) return Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])]);
+  if (e.individual) return undefined;
   if (e.teamOf && Object.keys(e.teamOf).length && (e.teamLetters?.length ?? 2) >= 2) return e.teamOf;
   return undefined;
 }

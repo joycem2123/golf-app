@@ -1,12 +1,13 @@
 /** Edit an event's details (name, dates, team names), at any time: before, during or after it. */
-import type { TripMoney } from '@golf/engine';
+import { defaultIndividual, type IndividualConfig, type TripMoney } from '@golf/engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
+import { IndividualSettings } from '@/components/fedex-setup';
 import { DEFAULT_TRIP_MONEY, TripMoneyOption } from '@/components/trip-money-option';
-import { Button, Card, Field, Toggle } from '@/components/ui';
+import { Button, Card, Field, Segmented, Toggle } from '@/components/ui';
 import { TeamEditor } from '@/components/team-editor';
 import { AddEventPlayer } from '@/components/add-event-player';
 import { daysBetween, formatDate } from '@/lib/dates';
@@ -24,7 +25,7 @@ export default function EditEvent() {
   const [start, setStart] = useState(e?.startDate ?? '');
   const [end, setEnd] = useState(e?.endDate ?? e?.startDate ?? '');
   // Teams: a Ryder Cup's two, or the event's teams. Names and colours can be changed any time.
-  const letters = e?.teams ? ['A', 'B'] : e?.teamOf ? (e.teamLetters ?? []) : [];
+  const allLetters = e?.teams ? ['A', 'B'] : e?.teamOf ? (e.teamLetters ?? []) : [];
   const [teamNames, setTeamNames] = useState<Record<string, string>>(() => ({ ...(e?.teams ? { A: e.teams.A.name, B: e.teams.B.name } : {}), ...e?.teamNames }));
   const [teamColors, setTeamColors] = useState<Record<string, string>>(() => e?.teamColors ?? {});
   // Who's on which team (a Ryder Cup's two teams, or the event's teams).
@@ -33,12 +34,17 @@ export default function EditEvent() {
   );
   const [applyLive, setApplyLive] = useState(false);
   const [tripMoney, setTripMoney] = useState<TripMoney>(() => e?.expenses ?? DEFAULT_TRIP_MONEY);
+  // Seasons (not the Points Race): team match points, or individual points.
+  const [individual, setIndividual] = useState<IndividualConfig | null>(() => e?.individual ?? null);
+  const canScore = e?.type === 'season' && !e.fedex && !e.teams;
   // Teams as they are now (players just added below included), with my changes on top.
   const liveTeams: Record<string, string> = e?.teams
     ? Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])])
     : { ...(e?.teamOf ?? {}) };
   const teamsNow = { ...liveTeams, ...members };
   const saved = useStore((s) => s.players);
+  // Individual points: no season teams to edit.
+  const letters = individual ? [] : allLetters;
   const allRounds = useStore((s) => s.rounds);
   const setRoundTeams = useStore((s) => s.setRoundTeams);
   if (!e) return null;
@@ -61,7 +67,10 @@ export default function EditEvent() {
             B: { ...fresh.teams.B, name: teamNames.B?.trim() || 'Team B', playerIds: fresh.playerIds.filter((id) => teamsNow[id] === 'B') },
           }
         : fresh.teams,
-      teamOf: fresh.teamOf ? { ...fresh.teamOf, ...teamsNow } : fresh.teamOf,
+      // Switching to Individual points drops the season teams (each round can still have its own).
+      teamOf: canScore && individual ? undefined : fresh.teamOf ? { ...fresh.teamOf, ...teamsNow } : fresh.teamOf,
+      teamLetters: canScore && individual ? undefined : fresh.teamLetters,
+      individual: canScore ? individual ?? undefined : fresh.individual,
       teamNames: letters.length ? Object.fromEntries(Object.entries(teamNames).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])) : fresh.teamNames,
       teamColors: letters.length && Object.keys(teamColors).length ? teamColors : fresh.teamColors,
       // Turning it off keeps the settings (and the expenses stay on the server), so turning it back on loses nothing.
@@ -93,6 +102,28 @@ export default function EditEvent() {
           {e.type === 'trip' && <TripMoneyOption value={tripMoney} onChange={setTripMoney} organiserPays={!!e.remote && e.remote.role !== 'owner'} />}
         </Card>
       ) : null}
+      {canScore && (
+        <Card style={{ gap: space.sm }}>
+          <Text style={{ color: c.text, fontSize: 17, fontWeight: '700' }}>How the season is scored</Text>
+          {e.individual ? (
+            <Text style={{ color: c.muted, fontSize: 13 }}>Individual points: everyone builds their own total.</Text>
+          ) : (
+            <>
+              <Segmented<'team' | 'individual'>
+                options={[{ value: 'team', label: 'Team match points' }, { value: 'individual', label: 'Individual points' }]}
+                value={individual ? 'individual' : 'team'}
+                onChange={(v) => setIndividual(v === 'individual' ? defaultIndividual() : null)}
+              />
+              {individual && allLetters.length ? (
+                <Text style={{ color: c.danger, fontSize: 13 }}>
+                  The season teams go away and every round already played is re-scored player by player. Each round can still have its own teams. This can’t be switched back to teams.
+                </Text>
+              ) : null}
+            </>
+          )}
+        </Card>
+      )}
+      {canScore && individual ? <IndividualSettings value={individual} onChange={setIndividual} /> : null}
       {letters.length > 0 && (
         <Card style={{ gap: space.md }}>
           <Text style={{ color: c.text, fontSize: 17, fontWeight: '700' }}>Teams</Text>

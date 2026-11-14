@@ -3,7 +3,7 @@
  * 2nd half starts, how many best rounds count in each half and the season, the finishing bonus for each place
  * (edited in a pop-up), and the Stableford table. Stableford Points Race is Clutch Up Pro.
  */
-import { DEFAULT_FEDEX_BONUS, defaultFedex, type FedexConfig } from '@golf/engine';
+import { DEFAULT_FEDEX_BONUS, DEFAULT_PLACE_POINTS, defaultFedex, defaultIndividual, type FedexConfig, type IndividualConfig } from '@golf/engine';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -14,7 +14,7 @@ import { openPaywall, usePro } from '@/lib/pro';
 import { fonts, radius, space, useColors } from '@/theme';
 
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-const pts = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+const pts = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100));
 
 /** "1st +12, 2nd +11 … 12th +1" */
 export function describeBonus(bonus: number[]): string {
@@ -48,22 +48,80 @@ function Choice({ on, title, sub, onPress, pro, locked }: { on: boolean; title: 
   );
 }
 
-/** Match points or Stableford Points Race. */
-export function SeasonScoring({ value, onChange, defaultHalf }: { value: FedexConfig | null; onChange: (v: FedexConfig | null) => void; defaultHalf: string }) {
+export type SeasonMode = 'team' | 'individual' | 'fedex';
+
+/** Team match points, Individual points, or Stableford Points Race. */
+export function SeasonScoring({ mode, fedex, individual, onChange, defaultHalf }: {
+  mode: SeasonMode;
+  fedex: FedexConfig | null;
+  individual: IndividualConfig | null;
+  onChange: (mode: SeasonMode, v: { fedex: FedexConfig | null; individual: IndividualConfig | null }) => void;
+  defaultHalf: string;
+}) {
   const pro = usePro((s) => s.pro);
-  const locked = !pro && !value;
+  const locked = !pro && mode !== 'fedex';
   return (
     <View style={{ gap: space.sm }}>
       <Text style={{ color: '#6E746B', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>HOW THE SEASON IS SCORED</Text>
-      <Choice on={!value} title="Match points" sub="Win 1, halve ½ in every match. The standard season." onPress={() => onChange(null)} />
-      <Choice on={!!value} pro locked={locked} title="Stableford Points Race"
+      <Choice on={mode === 'team'} title="Team match points" sub="Players stay on the same teams all season. Win 1, halve ½ in every match, added up for each team." onPress={() => onChange('team', { fedex: null, individual: null })} />
+      <Choice on={mode === 'individual'} title="Individual points"
+        sub="Everyone builds their own total. Mix formats and partners all season: in a match each player gets their side’s points, and other games pay points by finishing place."
+        onPress={() => onChange('individual', { fedex: null, individual: individual ?? defaultIndividual() })} />
+      <Choice on={mode === 'fedex'} pro locked={locked} title="Stableford Points Race"
         sub="Stableford every round. Each round adds a finishing bonus, and your best rounds in each half and across the season make up the standings."
-        onPress={() => (locked ? openPaywall('fedex') : onChange(value ?? defaultFedex(defaultHalf)))} />
+        onPress={() => (locked ? openPaywall('fedex') : onChange('fedex', { fedex: fedex ?? defaultFedex(defaultHalf), individual: null }))} />
     </View>
   );
 }
 
-function BonusEditor({ open, bonus, onClose, onChange }: { open: boolean; bonus: number[]; onClose: () => void; onChange: (b: number[]) => void }) {
+/** "1st 1, 2nd ½" */
+export function describePlaces(places: number[]): string {
+  const f = (n: number) => (n === 0.5 ? '½' : n % 1 === 0.5 ? `${Math.floor(n)}½` : pts(n));
+  const used = places.map((x, i) => [x, i] as const).filter(([x]) => x > 0);
+  if (!used.length) return 'No points for places';
+  return `${used.map(([x, i]) => `${ordinal(i + 1)} ${f(x)}`).join(', ')}, everyone else 0`;
+}
+
+/** Individual points settings: what a match pays, and the place table for every other game. */
+export function IndividualSettings({ value, onChange }: { value: IndividualConfig; onChange: (v: IndividualConfig) => void }) {
+  const c = useColors();
+  const [open, setOpen] = useState(false);
+  return (
+    <Card style={{ gap: space.md }}>
+      <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>Individual points</Text>
+      <View style={{ gap: 2 }}>
+        <Text style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>Matches</Text>
+        <Text style={{ color: c.muted, fontSize: 13, lineHeight: 18 }}>
+          Win 1 · halve ½ · loss 0, to every player on the side. A Nassau pays its own points (win it 2½–½ and you and your partner get 2½ each).
+          Singles, best ball, alternate shot, Vegas, two-team scramble and shamble, and side matches all count.
+        </Text>
+      </View>
+      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={`Points by place: ${describePlaces(value.places)}. Tap to change.`}
+        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.sm, borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.sm, opacity: pressed ? 0.6 : 1 })}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>Other games: points by place</Text>
+          <Text style={{ color: c.muted, fontSize: 12 }}>{describePlaces(value.places)}. For stroke play, Stableford, skins, wolf and bigger scrambles. Ties share the points.</Text>
+        </View>
+        <Text style={{ color: c.primary, fontWeight: '700' }}>Edit ›</Text>
+      </Pressable>
+      <BonusEditor
+        open={open}
+        bonus={value.places}
+        onClose={() => setOpen(false)}
+        onChange={(b) => onChange({ ...value, places: b })}
+        title="Points by place"
+        sub="Points for each finishing place in games that aren’t matches. Players who tie share the points of the places they cover; everyone on a team gets the team’s points."
+        reset={DEFAULT_PLACE_POINTS}
+        resetLabel="Reset (1, ½)"
+        plus={false}
+      />
+    </Card>
+  );
+}
+
+function BonusEditor({ open, bonus, onClose, onChange, title = 'Finishing bonus', sub = 'Points added for each place in a round. Players who tie share the bonuses of the places they cover.', reset = DEFAULT_FEDEX_BONUS, resetLabel = 'Reset (12 … 1)', plus = true }: {
+  open: boolean; bonus: number[]; onClose: () => void; onChange: (b: number[]) => void; title?: string; sub?: string; reset?: number[]; resetLabel?: string; plus?: boolean;
+}) {
   const c = useColors();
   const set = (i: number, v: number) => onChange(bonus.map((x, j) => (j === i ? v : x)));
   return (
@@ -71,25 +129,25 @@ function BonusEditor({ open, bonus, onClose, onChange }: { open: boolean; bonus:
       <Pressable onPress={onClose} accessibilityLabel="Close" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: space.lg }}>
         <Pressable onPress={() => undefined} style={{ width: '100%', maxWidth: 360, maxHeight: '80%', backgroundColor: c.card, borderRadius: 14, overflow: 'hidden' }}>
           <View style={{ paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, gap: 2 }}>
-            <Text style={{ fontFamily: fonts.serif, fontWeight: '700', fontSize: 18, color: c.text }}>Finishing bonus</Text>
-            <Text style={{ color: c.muted, fontSize: 12 }}>Points added for each place in a round. Players who tie share the bonuses of the places they cover.</Text>
+            <Text style={{ fontFamily: fonts.serif, fontWeight: '700', fontSize: 18, color: c.text }}>{title}</Text>
+            <Text style={{ color: c.muted, fontSize: 12 }}>{sub}</Text>
           </View>
           <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: space.lg }}>
             {bonus.map((b, i) => (
               <View key={i} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: c.border }}>
                 <Text style={{ color: c.text, fontWeight: '600', fontSize: 15, width: 60 }}>{ordinal(i + 1)}</Text>
-                <Stepper small value={b} min={0} max={100} step={0.5} format={(v) => `+${pts(v)}`} onChange={(v) => set(i, v)} />
+                <Stepper small value={b} min={0} max={100} step={0.5} format={(v) => `${plus ? '+' : ''}${pts(v)}`} onChange={(v) => set(i, v)} />
               </View>
             ))}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: space.sm, borderTopWidth: 1, borderTopColor: c.border }}>
               <Pressable onPress={() => onChange([...bonus, 0])} hitSlop={6} accessibilityRole="button"><Text style={{ color: c.primary, fontWeight: '700' }}>+ Add a place</Text></Pressable>
               {bonus.length > 1 ? <Pressable onPress={() => onChange(bonus.slice(0, -1))} hitSlop={6} accessibilityRole="button"><Text style={{ color: c.danger, fontWeight: '700' }}>Remove last</Text></Pressable> : null}
             </View>
-            <Text style={{ color: c.muted, fontSize: 12, paddingBottom: space.sm }}>Places after {ordinal(bonus.length)} get no bonus.</Text>
+            <Text style={{ color: c.muted, fontSize: 12, paddingBottom: space.sm }}>Places after {ordinal(bonus.length)} get {plus ? 'no bonus' : '0 points'}.</Text>
           </ScrollView>
           <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: c.border }}>
-            <Pressable onPress={() => onChange([...DEFAULT_FEDEX_BONUS])} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, paddingVertical: 13, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
-              <Text style={{ color: c.muted, fontWeight: '700' }}>Reset (12 … 1)</Text>
+            <Pressable onPress={() => onChange([...reset])} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, paddingVertical: 13, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
+              <Text style={{ color: c.muted, fontWeight: '700' }}>{resetLabel}</Text>
             </Pressable>
             <Pressable onPress={onClose} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, paddingVertical: 13, alignItems: 'center', borderLeftWidth: 1, borderLeftColor: c.border, opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ color: c.primary, fontFamily: fonts.serif, fontWeight: '700', fontSize: 16 }}>Done</Text>

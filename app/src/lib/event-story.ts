@@ -3,6 +3,7 @@
  * Race, its standings and rounds).
  * Saved on the event (so everyone sees the same one) and rewritten only when more matches finish.
  */
+import { fmtIndividual, individualTable } from '@/lib/individual';
 import { teamName } from '@/lib/team-colors';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { useStore } from '@/store/store';
@@ -107,16 +108,25 @@ function eventFacts(e: EventRecord, rounds: RoundRecord[]) {
   } else if (e.teamOf && (e.teamLetters?.length ?? 0) >= 2) {
     score = Object.fromEntries(eventTeamTotals(e, rounds).totals.map((t) => [teamName(t.letter, e.teamNames), formatPoints(t.points)]));
   }
-  const standings = eventStandings(e, rounds).map((row) => ({
-    player: first(row.playerId),
-    team: teamOfPlayer(row.playerId),
-    record: `${row.wins}-${row.losses}-${row.halves}`,
-    points: formatPoints(row.points),
-  }));
+  const standings = e.individual
+    ? individualTable(e, rounds).filter((row) => row.rounds > 0).map((row) => ({
+        player: first(row.playerId),
+        position: row.position,
+        record: `${row.wins}-${row.losses}-${row.halves}`,
+        points: fmtIndividual(row.points),
+        fromMatches: fmtIndividual(row.matchPoints),
+        fromPlaces: fmtIndividual(row.placePoints),
+      }))
+    : eventStandings(e, rounds).map((row) => ({
+        player: first(row.playerId),
+        team: teamOfPlayer(row.playerId),
+        record: `${row.wins}-${row.losses}-${row.halves}`,
+        points: formatPoints(row.points),
+      }));
   const plannedRounds = e.rounds?.length ?? evRounds.length;
   return {
     event: e.name,
-    type: e.type === 'cup' ? 'Ryder Cup style team event' : e.type === 'season' ? 'season' : 'golf trip',
+    type: e.type === 'cup' ? 'Ryder Cup style team event' : e.type === 'season' ? (e.individual ? 'season scored player by player (individual points: every player on a winning side gets the points; other games pay by finishing place)' : 'season') : 'golf trip',
     roundsPlayed: evRounds.filter((r) => r.status === 'complete').length,
     roundsPlanned: plannedRounds,
     finished: e.status === 'complete' || (plannedRounds > 0 && evRounds.filter((r) => r.status === 'complete').length >= plannedRounds),

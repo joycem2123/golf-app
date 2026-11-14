@@ -1,4 +1,4 @@
-import { lockHandicaps, type FedexConfig, type Player, type TripMoney } from '@golf/engine';
+import { lockHandicaps, type FedexConfig, type IndividualConfig, type Player, type TripMoney } from '@golf/engine';
 import { AccountNeeded, useIsGuest } from '@/components/account-needed';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DateField } from '@/components/date-field';
 import { DEFAULT_TRIP_MONEY, TripMoneyOption } from '@/components/trip-money-option';
-import { FedexSettings, SeasonScoring } from '@/components/fedex-setup';
+import { FedexSettings, IndividualSettings, SeasonScoring } from '@/components/fedex-setup';
 import { SetupSaved } from '@/components/setup-saved';
 import { TeamColors } from '@/lib/team-colors';
 import { GameOptions } from '@/components/game-options';
@@ -64,6 +64,8 @@ function NewEvent() {
   const [tripMoney, setTripMoney] = useState<TripMoney>(DEFAULT_TRIP_MONEY);
   // Seasons: Stableford Points Race settings (null = match points).
   const [fedex, setFedex] = useState<FedexConfig | null>(null);
+  // Seasons: Individual points settings (null = team match points or the Points Race).
+  const [individual, setIndividual] = useState<IndividualConfig | null>(null);
   // Players & teams
   const [ids, setIds] = useState<string[]>(me ? [me.id] : []);
   const [teamOf, setTeamOfState] = useState<TeamOf>({});
@@ -83,6 +85,8 @@ function NewEvent() {
 
   const isSeason = type === 'season';
   const isFedex = isSeason && !!fedex;
+  // Individual points: everyone for themselves, so no event teams (each round can still have its own teams).
+  const isIndividual = isSeason && !fedex && !!individual;
   const isCup = type === 'cup';
   const asYouGo = isSeason && rec.every === 'asYouGo';
   const eventDays = useMemo(() => daysBetween(start, end), [start, end]);
@@ -142,7 +146,7 @@ function NewEvent() {
   // ------------------------------------------------------------------ draft
   // Saved as you go, so closing the screen by accident loses nothing ("Pick up where you left off").
   const saveDraft = useStore((s) => s.saveDraft);
-  const snapshot = { step, type, name, start, end, rec, lock, tripMoney, fedex, ids, teamOf, teamColors, letters, noTeams, teamNames, holder, count, plans, current };
+  const snapshot = { step, type, name, start, end, rec, lock, tripMoney, fedex, individual, ids, teamOf, teamColors, letters, noTeams, teamNames, holder, count, plans, current };
   const started = !!name.trim() || ids.length > 1 || step !== 'details';
   useEffect(() => {
     if (fromRound || !started) return;
@@ -158,7 +162,7 @@ function NewEvent() {
     setRestorePlans(null);
   }, [restorePlans]);
   const resume = (d: typeof snapshot) => {
-    setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock); if (d.tripMoney) setTripMoney(d.tripMoney); setFedex(d.fedex ?? null);
+    setType(d.type); setName(d.name); setStart(d.start); setEnd(d.end); setRec(d.rec); setLock(d.lock); if (d.tripMoney) setTripMoney(d.tripMoney); setFedex(d.fedex ?? null); setIndividual(d.individual ?? null);
     setIds(d.ids.filter((id) => saved.some((p) => p.id === id)));
     setTeamOfState(d.teamOf); if (d.teamColors) setTeamColors(d.teamColors); setTeamNames(d.teamNames ?? {}); setLetters(d.letters); setNoTeams(d.noTeams); setHolder(d.holder);
     setCount(d.count); setStep(d.step);
@@ -248,6 +252,7 @@ function NewEvent() {
         ? { id: p.id, number: i + 1, date: p.date, draft: { ...newDraft('stableford', players, undefined), stablefordSystem: fedex!.system }, matchupsLater: true }
         : { id: p.id, number: i + 1, date: p.date, draft: p.draft ?? undefined, matchupsLater: i > 0 && p.tbd ? true : undefined })),
       fedex: isFedex ? fedex! : undefined,
+      individual: isIndividual ? individual! : undefined,
       expenses: type === 'trip' && tripMoney.on ? { ...tripMoney, settle: tripMoney.settle ?? 'optimize', organizer: tripMoney.organizer ?? me?.id } : undefined,
     };
     addEvent(e);
@@ -314,8 +319,8 @@ function NewEvent() {
         setStep('players');
       }} />
     )
-    : step === 'players' ? (isFedex
-      // Points Race: everyone plays for themselves, so there are no teams to set.
+    : step === 'players' ? (isFedex || isIndividual
+      // Points Race / Individual points: everyone plays for themselves, so there are no event teams to set.
       ? <Button title="Next: rounds" disabled={!!playersProblem} onPress={() => { setNoTeams(true); setStep('rounds'); }} />
       : nextBtn('teams', 'Next: teams', playersProblem))
     : step === 'teams' ? (
@@ -441,8 +446,17 @@ function NewEvent() {
             </Card>
           )}
 
-          {isSeason && <SeasonScoring value={fedex} onChange={(v) => { setFedex(v); if (v) setNoTeams(true); }} defaultHalf={seasonDates[Math.floor(seasonDates.length / 2)] ?? addDays(start, Math.round(daysBetween(start, end).length / 2))} />}
+          {isSeason && (
+            <SeasonScoring
+              mode={isFedex ? 'fedex' : isIndividual ? 'individual' : 'team'}
+              fedex={fedex}
+              individual={individual}
+              onChange={(m, v) => { setFedex(v.fedex); setIndividual(v.individual); setNoTeams(m !== 'team'); }}
+              defaultHalf={seasonDates[Math.floor(seasonDates.length / 2)] ?? addDays(start, Math.round(daysBetween(start, end).length / 2))}
+            />
+          )}
           {isFedex && fedex && <FedexSettings value={fedex} onChange={setFedex} start={start} end={end} roundDates={asYouGo ? [] : seasonDates} />}
+          {isIndividual && individual && <IndividualSettings value={individual} onChange={setIndividual} />}
 
           <Card>
             <Toggle label="Lock handicaps at the start" hint="Everyone plays the whole event off today's index, even if it changes on Golf Canada." value={lock} onChange={setLock} />
@@ -552,6 +566,7 @@ function NewEvent() {
               <Text style={{ fontFamily: fonts.serif, fontSize: 18, fontWeight: '700', color: c.text }}>Game for all {plans.length} rounds</Text>
               <GamePicker
                 noTeams={noTeams}
+                teamsLater={isIndividual}
                 value={plans[0]?.draft?.kind ?? null}
                 playerIds={ids}
                 teamOf={teams}
@@ -591,6 +606,7 @@ function NewEvent() {
               ) : (
                 <GamePicker
                   noTeams={noTeams}
+                teamsLater={isIndividual}
                   value={p.draft?.kind ?? null}
                   playerIds={ids}
                   teamOf={teams}

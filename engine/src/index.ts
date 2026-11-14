@@ -11,3 +11,4 @@ export * from './courses';
 export * from './play';
 export * from './expenses';
 export * from './fedex';
+export * from './individual';

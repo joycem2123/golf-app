@@ -6,6 +6,7 @@ import { fedexStandings } from '@golf/engine';
 
 import { cupScore, eventStandings, eventTeamTotals, formatPoints } from '@/lib/events';
 import { fedexResults } from '@/lib/fedex';
+import { fmtIndividual, individualRounds, individualTable } from '@/lib/individual';
 import { teamName, namesFor } from '@/lib/team-colors';
 import type { EventRecord, RoundRecord } from '@/store/store';
 import { teamColor } from '@/theme';
@@ -41,6 +42,16 @@ export type EventSummary =
 
 export function eventSummary(e: EventRecord, rounds: RoundRecord[]): EventSummary {
   const played = rounds.filter((r) => r.eventId === e.id && r.status === 'complete').length;
+  // Individual points: everyone's own season total.
+  if (e.individual && !e.fedex) {
+    const rows = individualTable(e, rounds).filter((r) => r.rounds > 0);
+    return {
+      kind: 'players',
+      label: 'Individual points',
+      rounds: individualRounds(e, rounds).length,
+      podium: rows.filter((r) => r.position <= 3).map((r) => ({ playerId: r.playerId, position: r.position, score: `${fmtIndividual(r.points)} pts`, detail: `${r.wins}-${r.losses}-${r.halves} (W-L-H)${r.firsts ? ` · ${r.firsts} win${r.firsts === 1 ? '' : 's'} in other games` : ''}` })),
+    };
+  }
   // Ryder Cup: the two teams' cup points (the holder keeps the cup on a tie).
   if (e.teams) {
     const s = cupScore(e, rounds).standings;
