@@ -468,6 +468,8 @@ export default function Scorecard() {
       )}
       <EditRights.Provider value={canEdit}>
       <ScrollView contentContainerStyle={{ padding: view === 'hole' && !viewer ? space.md : space.lg, gap: view === 'hole' && !viewer ? 8 : space.md, paddingBottom: 60 }}>
+        {/* Who runs the round (kept out of the way while entering scores). */}
+        {view !== 'hole' || viewer ? <OrganizerLine r={r} part="label" /> : null}
         {viewer ? (
           // Following along: the full scorecard only, nothing editable.
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: c.primarySoft, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md }}>
@@ -573,7 +575,7 @@ export default function Scorecard() {
           <Button title="Edit teams" kind="secondary" onPress={() => router.push(`/round/${r.id}/teams`)} />
         )}
         {r.remote?.role !== 'viewer' && <Button title="Finish round" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />}
-        <OrganizerLine r={r} />
+        <OrganizerLine r={r} part="handoff" />
         {/* Only the organiser can delete the round; anyone else can hide it from their own screens. */}
         {organizer && canDeleteRound(r) ? (
           <Button title="Quit round" kind="ghost" onPress={() => setQuitting(true)} />

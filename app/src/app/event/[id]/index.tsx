@@ -269,6 +269,8 @@ export default function EventScreen() {
             {e.recurrence && <Text style={{ color: c.muted, fontSize: 13 }}>{describeRecurrence(e.recurrence)}</Text>}
           </View>
         )}
+        {/* Who runs it, right under the dates. */}
+        <OrganizerLine e={e} part="label" />
         {/* Something to look forward to: the countdown to the start, or to the next round. */}
         {(() => {
           const cd = eventCountdown(e, rounds);
@@ -382,7 +384,7 @@ export default function EventScreen() {
         {e.remote?.role !== 'viewer' ? <CompleteEvent e={e} rounds={rounds} /> : null}
         <TvButton e={e} />
         <Button title="Head-to-head records" kind="secondary" onPress={() => router.push('/head-to-head')} />
-        <OrganizerLine e={e} />
+        <OrganizerLine e={e} part="handoff" />
         {/* Only the organiser can delete the event; anyone else can hide it from their own screens. */}
         {canDeleteEvent(e, rounds) && isEventOrganizer(e, myUid) ? <Button
           title="Delete event"

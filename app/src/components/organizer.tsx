@@ -20,7 +20,7 @@ function useAccountName() {
   return (uid?: string) => (!uid ? undefined : uid === me ? 'you' : players.find((p) => p.userId === uid || p.id === uid)?.name ?? names[uid] ?? undefined);
 }
 
-export function OrganizerLine({ e, r }: { e?: EventRecord; r?: RoundRecord }) {
+export function OrganizerLine({ e, r, part = 'all' }: { e?: EventRecord; r?: RoundRecord; /** label: just "Organized by …" (top of the page); handoff: just the hand-off (bottom). */ part?: 'all' | 'label' | 'handoff' }) {
   const c = useColors();
   const events = useStore((s) => s.events);
   const me = useStore((s) => s.me);
@@ -54,12 +54,17 @@ export function OrganizerLine({ e, r }: { e?: EventRecord; r?: RoundRecord }) {
 
   return (
     <View style={{ gap: 6 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
-        <Text style={{ color: c.muted, fontSize: 13 }}>
-          {who ? `Organized by ${who === 'you' ? 'you' : who}` : 'Organizer'}{inEventRound ? ' (runs the event)' : ''}
-        </Text>
-      </View>
-      {canHand ? (
+      {part !== 'handoff' ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.primarySoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}>
+            <Text style={{ fontSize: 12 }}>👤</Text>
+            <Text style={{ color: c.primary, fontSize: 13, fontWeight: '700' }}>
+              {who ? `Organized by ${who === 'you' ? 'you' : who}` : 'Organizer'}{inEventRound ? ' (runs the event)' : ''}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+      {canHand && part !== 'label' ? (
         <View style={{ maxWidth: 320, alignSelf: 'center', width: '100%' }}>
           <Select label="Hand off organizer to" placeholder="Hand off organizer to…" value={null} options={accounts.map((uid) => ({ value: uid, label: name(uid) ?? 'Player' }))} onChange={setPick} />
         </View>
