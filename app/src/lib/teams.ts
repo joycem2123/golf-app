@@ -26,10 +26,10 @@ export function teamGroups(r: RoundRecord, c: Colors, gi = 0): TeamGroup[] | nul
     const tc = teamColor(L, roundPicks(r));
     return { id, label: r.teamNames?.[L]?.trim() || `Team ${L}`, names: members.map(name).join(' & '), color: tc.color, soft: tc.soft, keys };
   };
-  if ((g.type === 'matchPlay' && g.format === 'fourBall') || (g.type === 'nassau' && g.format === 'fourBall')) {
+  if ((g.type === 'matchPlay' && g.format === 'fourBall') || (g.type === 'nassau' && (g.format === 'fourBall' || g.format === 'shamble'))) {
     return [g.sideA, g.sideB].map((s, i) => make(s.id, i, s.members, s.members));
   }
-  if (g.type === 'matchPlay' && g.format === 'foursomes') return [g.sideA, g.sideB].map((s, i) => make(s.id, i, s.members, [s.id]));
+  if ((g.type === 'matchPlay' || g.type === 'nassau') && (g.format === 'foursomes' || g.format === 'scramble')) return [g.sideA, g.sideB].map((s, i) => make(s.id, i, s.members, [s.id]));
   if (g.type === 'vegas') return [g.teamA, g.teamB].map((t, i) => make(t.id, i, t.members, t.members));
   if (g.type === 'scramble') return g.teams.map((t, i) => make(t.id, i, t.members, [t.id]));
   if (g.type === 'shamble') return g.teams.map((t, i) => make(t.id, i, t.members, t.members));
@@ -67,7 +67,7 @@ export function teamHole(r: RoundRecord, result: GameResult | undefined, team: T
     const flipped = h.flipped === (isA ? 'A' : 'B');
     return { score: isA ? h.numberA : h.numberB, label: flipped ? 'Flipped' : 'Team number', counting: team.keys };
   }
-  if (g.type === 'shamble') {
+  if (g.type === 'shamble' || (g.type === 'nassau' && g.format === 'shamble')) {
     const n = Math.min(g.countBest ?? 1, vals.length);
     const sorted = [...vals].sort((a, b) => a - b).slice(0, n);
     const cutoff = sorted[sorted.length - 1];

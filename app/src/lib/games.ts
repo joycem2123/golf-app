@@ -152,6 +152,8 @@ export interface GameDraft {
   tenPlusRule: 'highFirst' | 'standard';
   stablefordSystem: 'standard' | 'modified';
   countBest: number;
+  /** Alternate Shot, Scramble, Shamble: also split into a Nassau (front 9, back 9, overall 18; 1 point each). */
+  nassau?: boolean;
   /** 9 or 18 holes, the same for every match (older drafts: 18). */
   holes?: 9 | 18;
   /** Starting hole for games that aren't split into matches (default 1). */
@@ -209,6 +211,7 @@ export function draftProblem(d: GameDraft, players: Player[]): string | null {
   const fit = gameFitProblem(info, players.map((p) => p.id), d.teamOf);
   if (fit) return `${info.name}: ${fit.toLowerCase()}`;
   if (d.kind === 'nassau' && d.holes === 9) return 'Nassau needs 18 holes (front 9, back 9 and overall). Choose 18 holes or another game.';
+  if (d.nassau && NASSAU_SPLIT.includes(d.kind) && d.holes === 9) return 'A Nassau needs 18 holes (front 9, back 9 and overall). Choose 18 holes or turn Nassau off.';
   if (info.teamSizes) {
     const used = d.matches.flatMap((m) => [...m.a, ...m.b]);
     const empty = used.filter((id) => !id).length;
@@ -221,6 +224,7 @@ export function draftProblem(d: GameDraft, players: Player[]): string | null {
     const counts = Object.values(teamCounts(d.teamOf, players.map((p) => p.id)));
     if (counts.length < 2) return 'Put players on at least two teams';
     if (d.kind === 'scramble' && counts.some((n) => n < 2 || n > 4)) return 'Scramble teams need 2–4 players each';
+    if (d.nassau && NASSAU_SPLIT.includes(d.kind) && counts.length !== 2) return 'A Nassau is two teams head to head. Use exactly two teams or turn Nassau off.';
   }
   return null;
 }
@@ -270,7 +274,9 @@ function draftToConfigsRaw(d: GameDraft, players: Player[]): GameConfig[] {
         case 'bestBall':
           return { type: 'matchPlay', id, format: 'fourBall', sideA, sideB, handicap: hc };
         case 'alternateShot':
-          return { type: 'matchPlay', id, format: 'foursomes', sideA, sideB, handicap: hc };
+          return d.nassau
+            ? { type: 'nassau', id, format: 'foursomes', sideA, sideB, presses: [], handicap: hc }
+            : { type: 'matchPlay', id, format: 'foursomes', sideA, sideB, handicap: hc };
         case 'nassau':
           return { type: 'nassau', id, format: single ? 'singles' : 'fourBall', sideA, sideB, carryovers: d.carryovers, presses: [], handicap: hc };
         default: // vegas
@@ -295,8 +301,10 @@ function draftToConfigsRaw(d: GameDraft, players: Player[]): GameConfig[] {
     case 'stableford':
       return [{ type: 'stableford', playerIds: ids, system: d.stablefordSystem, handicap: hc }];
     case 'scramble':
+      if (d.nassau && teams.length === 2) return [{ type: 'nassau', format: 'scramble', sideA: teams[0], sideB: teams[1], presses: [], handicap: { net: d.net, mode: d.mode } }];
       return [{ type: 'scramble', teams, handicap: { net: d.net, mode: d.mode } }];
     case 'shamble':
+      if (d.nassau && teams.length === 2) return [{ type: 'nassau', format: 'shamble', sideA: teams[0], sideB: teams[1], countBest: d.countBest, presses: [], handicap: hc }];
       return [{ type: 'shamble', teams, countBest: d.countBest, handicap: hc }];
     default:
       return [{ type: 'strokePlay', playerIds: ids, handicap: hc }];
@@ -341,7 +349,7 @@ export function gameKeys(g: GameConfig): string[] {
     case 'matchPlay':
       return g.format === 'foursomes' ? [g.sideA.id, g.sideB.id] : [...g.sideA.members, ...g.sideB.members];
     case 'nassau':
-      return [...g.sideA.members, ...g.sideB.members];
+      return nassauTeamCard(g) ? [g.sideA.id, g.sideB.id] : [...g.sideA.members, ...g.sideB.members];
     case 'vegas':
       return [...g.teamA.members, ...g.teamB.members];
     case 'wolf':
@@ -371,14 +379,24 @@ export function sideMatchConfig(a: string, b: string, play?: GameConfig['play'])
 export function teamCardKeys(game: GameConfig): { key: string; members: string[] }[] {
   if (game.type === 'matchPlay' && game.format === 'foursomes') return [game.sideA, game.sideB].map((s) => ({ key: s.id, members: s.members }));
   if (game.type === 'scramble') return game.teams.map((t) => ({ key: t.id, members: t.members }));
+  if (game.type === 'nassau' && nassauTeamCard(game)) return [game.sideA, game.sideB].map((s) => ({ key: s.id, members: s.members }));
   return [];
+}
+
+/** Games that can also be split into a Nassau (switch on the setup screen). */
+export const NASSAU_SPLIT: GameKind[] = ['alternateShot', 'scramble', 'shamble'];
+
+/** A Nassau where each team records one score per hole (alternate shot or scramble). */
+export function nassauTeamCard(g: GameConfig): boolean {
+  return g.type === 'nassau' && (g.format === 'foursomes' || g.format === 'scramble');
 }
 
 export function gameName(game: GameConfig): string {
   switch (game.type) {
     case 'matchPlay':
       return game.title ?? (game.format === 'singles' ? 'Singles Match Play' : game.format === 'fourBall' ? 'Best Ball' : 'Alternate Shot');
-    case 'nassau': return 'Nassau';
+    case 'nassau':
+      return game.format === 'foursomes' ? 'Alternate Shot Nassau' : game.format === 'scramble' ? 'Scramble Nassau' : game.format === 'shamble' ? 'Shamble Nassau' : 'Nassau';
     case 'skins': return game.handicap?.net === false ? 'Gross Skins' : 'Skins';
     case 'wolf': return 'Wolf';
     case 'vegas': return 'Vegas';

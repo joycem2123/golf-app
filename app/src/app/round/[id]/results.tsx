@@ -117,6 +117,15 @@ export default function Results() {
     sub = myWins.length > 1 ? `You won ${myWins.length} matches.` : 'Nicely played.';
   }
 
+  // Each match's story (built-in, or written by AI on request), shown in the summary near the top.
+  const storyMatches = matches.filter((m) => isResult(results[m.gi] as GameResult | { error: string }));
+  const stories = storyMatches.map((m) => (
+    <View key={m.gi} style={{ gap: 4, paddingTop: space.sm }}>
+      {storyMatches.length > 1 ? <Label>{m.title}</Label> : null}
+      <MatchStory r={r} res={results[m.gi] as GameResult} m={m} holes={storyHoles(r, results[m.gi] as GameResult, m, c)} compact />
+    </View>
+  ));
+
   type Row = { k: { key: string; label: string; isTeam: boolean }; tee: ReturnType<typeof teeFor>; g: (h: number) => number | null; out: number | null; inn: number | null; tot: number; holes: number; toPar: number; letter?: string; sub?: string };
   const makeRow = (k: Row['k'], g: Row['g'], tee: Row['tee'], letter?: string, sub?: string): Row => {
     const sum = (holes: number[]) => holes.reduce((s, h) => s + (g(h) ?? 0), 0);
@@ -239,6 +248,14 @@ export default function Results() {
                 );
               })}
               <Text style={{ color: c.muted, fontSize: 12 }}>{matches.some((m) => r.games[m.gi].type === 'nassau') ? 'Nassau matches count their points (front 9, back 9, overall and presses). Other matches: 1 point for a win, ½ for a halve.' : '1 point for a win, ½ for a halved match.'}</Text>
+              {stories}
+            </Card>
+          )}
+          {/* No teams: the match stories still go near the top. */}
+          {!teamRound && storyMatches.length > 0 && (
+            <Card>
+              <H2>{storyMatches.length > 1 ? 'Match stories' : 'Match story'}</H2>
+              {stories}
             </Card>
           )}
 
@@ -257,12 +274,9 @@ export default function Results() {
                     <SideRow m={m} s={m.a} which="a" showTeam={teamRound} me={m.a.members.some((x) => myIds.includes(x))} />
                     <SideRow m={m} s={m.b} which="b" showTeam={teamRound} me={m.b.members.some((x) => myIds.includes(x))} />
                     {/* Alternate shot: the full scorecard, right above the story. */}
-                    {r.games[m.gi].type === 'matchPlay' && (r.games[m.gi] as { format?: string }).format === 'foursomes' ? (
+                    {(r.games[m.gi].type === 'matchPlay' || r.games[m.gi].type === 'nassau') && (r.games[m.gi] as { format?: string }).format === 'foursomes' ? (
                       <ScorecardGrid r={r} results={results} focus={m.gi} />
                     ) : null}
-                    {isResult(results[m.gi] as GameResult | { error: string }) && (
-                      <MatchStory r={r} res={results[m.gi] as GameResult} m={m} holes={storyHoles(r, results[m.gi] as GameResult, m, c)} compact />
-                    )}
                     <Text style={{ color: c.primary, fontWeight: '700', fontSize: 14, textAlign: 'right' }}>Match details & scorecard ›</Text>
                   </Pressable>
                 </View>

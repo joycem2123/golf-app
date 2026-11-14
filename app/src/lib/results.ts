@@ -75,7 +75,11 @@ export function matchOutcomes(r: RoundRecord, results: (GameResult | { error: st
     if (st0) {
       const st = st0;
       detail = winner === 'halved' ? 'Halved' : winner ? st.display : st.lead === 0 ? `All square thru ${st.thru}` : `${Math.abs(st.lead)} UP thru ${st.thru}`;
-    } else if (res.type === 'nassau') detail = `${res.points.A % 1 ? res.points.A.toFixed(1) : res.points.A} – ${res.points.B % 1 ? res.points.B.toFixed(1) : res.points.B} pts`;
+    } else if (res.type === 'nassau') {
+      // Leader's points first: "2½ – ½ pts".
+      const f = (n: number) => (n % 1 ? `${Math.floor(n) || ''}½` : String(n));
+      detail = `${f(Math.max(res.points.A, res.points.B))} – ${f(Math.min(res.points.A, res.points.B))} pts`;
+    }
     else if (res.type === 'vegas') detail = `${Math.abs(res.totalA)} pts`;
     // Nassau pays its own points (front, back, overall and presses); other matches are 1 for a win, ½ each for a halve.
     const pts =

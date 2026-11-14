@@ -2,6 +2,7 @@ import { scoreMatch, type MatchStatus } from '../matchplay';
 import { consecutiveThru, sideName, wins } from '../scoring';
 import type { BaseResult, HandicapSettings, Round, Side } from '../types';
 import { buildMatchOutcomes } from './match';
+import { playScramble, playShamble } from './strokeplay';
 
 export type NassauSegment = 'front' | 'back' | 'overall';
 
@@ -17,7 +18,15 @@ export interface NassauConfig {
   type: 'nassau';
   id?: string;
   title?: string;
-  format: 'singles' | 'fourBall';
+  /**
+   * How each hole is decided. singles / fourBall / foursomes (alternate shot) are match play; scramble and shamble
+   * compare the two teams' scores hole by hole (sides are the teams; a scramble team's card is keyed by its side id).
+   */
+  format: 'singles' | 'fourBall' | 'foursomes' | 'scramble' | 'shamble';
+  /** Scramble: team handicap percentages (lowest handicap first). */
+  percentages?: number[];
+  /** Shamble: best N balls count per hole. */
+  countBest?: number;
   sideA: Side;
   sideB: Side;
   presses?: NassauPress[];
@@ -62,8 +71,23 @@ export function half(n: number): string {
   return whole === 0 ? '½' : `${whole}½`;
 }
 
-export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
+/** Hole-by-hole results (+1 A won, -1 B won, 0 halved, null not played) for the Nassau's format. */
+function nassauOutcomes(round: Round, cfg: NassauConfig) {
+  if (cfg.format === 'scramble' || cfg.format === 'shamble') {
+    const teams = [cfg.sideA, cfg.sideB];
+    const res =
+      cfg.format === 'scramble'
+        ? playScramble(round, { type: 'scramble', teams, percentages: cfg.percentages, handicap: cfg.handicap })
+        : playShamble(round, { type: 'shamble', teams, countBest: cfg.countBest, handicap: cfg.handicap });
+    const outcomes = res.match!.outcomes;
+    return { outcomes, holeCount: outcomes.length, strokes: res.strokes };
+  }
   const { outcomes, holeCount, book } = buildMatchOutcomes(round, cfg.format, cfg.sideA, cfg.sideB, cfg.handicap);
+  return { outcomes, holeCount, strokes: book.strokeMap() };
+}
+
+export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
+  const { outcomes, holeCount, strokes } = nassauOutcomes(round, cfg);
   if (holeCount !== 18) throw new Error('Nassau needs an 18-hole round');
 
   const slice = (from: number, to: number) => scoreMatch(outcomes.slice(from - 1, to));
@@ -131,7 +155,7 @@ export function playNassau(round: Round, cfg: NassauConfig): NassauResult {
       { id: cfg.sideA.id, name: nameA, value: points.A, position: points.A >= points.B ? 1 : 2, thru },
       { id: cfg.sideB.id, name: nameB, value: points.B, position: points.B >= points.A ? 1 : 2, thru },
     ],
-    strokes: book.strokeMap(),
+    strokes,
     segments,
     presses,
     points,

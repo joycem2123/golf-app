@@ -116,7 +116,7 @@ export function cupScore(e: EventRecord, rounds: RoundRecord[]) {
   const unplanned = e.rounds
     ? e.rounds
         .filter((x) => !x.roundId || !started.has(x.roundId))
-        .reduce((s, x) => s + (x.draft ? x.draft.matches.length * (x.draft.kind === 'nassau' ? 3 : 1) : 0), 0)
+        .reduce((s, x) => s + (x.draft ? x.draft.matches.length * (x.draft.kind === 'nassau' || x.draft.nassau ? 3 : 1) : 0), 0)
     : (e.cupPoints ?? 0) - cup.reduce((s, m) => s + (m.points ?? 1), 0);
   if (unplanned > 0) cup.push({ id: 'unplayed', sideA: [], sideB: [], result: null, points: unplanned });
   const liveLeaders = Object.fromEntries(matches.filter((m) => m.result === null && m.leader).map((m) => [m.id, m.leader!]));

@@ -1,7 +1,7 @@
 import type { Player, WolfPoints } from '@golf/engine';
 import { Text, View } from 'react-native';
 
-import { gameInfo, type GameDraft, type TeamOf } from '@/lib/games';
+import { gameInfo, NASSAU_SPLIT, type GameDraft, type TeamOf } from '@/lib/games';
 import { MatchupsEditor } from './matchups';
 import { radius, space, useColors } from '@/theme';
 import { useTeamColor } from '@/lib/team-colors';
@@ -73,6 +73,23 @@ export function GameOptions({
           </>
         )}
       </Card>
+
+      {NASSAU_SPLIT.includes(draft.kind) && (
+        <Card>
+          <H2>Nassau</H2>
+          <Toggle
+            label="Play as a Nassau"
+            hint="Split into 3 games: front 9, back 9 and overall 18. 1 point each (a tied game is ½ each)."
+            value={!!draft.nassau}
+            onChange={(v) => set('nassau', v)}
+          />
+          {draft.nassau ? (
+            <Label style={{ textTransform: 'none' }}>
+              {draft.holes === 9 ? 'A Nassau needs 18 holes. Choose 18 holes or turn this off.' : 'Presses can be added during the round from the scorecard.'}
+            </Label>
+          ) : null}
+        </Card>
+      )}
 
       {draft.kind === 'nassau' && (
         <Card>
