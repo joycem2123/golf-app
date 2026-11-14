@@ -1,3 +1,4 @@
+import { toISODate } from '@/lib/dates';
 import { cupStandings, seasonStandings, type CupMatch, type GameResult, type RecordedMatch } from '@golf/engine';
 
 import type { EventRecord, RoundRecord } from '@/store/store';
@@ -171,11 +172,11 @@ export type EventPhase = 'live' | 'upcoming' | 'completed';
 export function eventPhase(e: EventRecord, rounds: RoundRecord[]): EventPhase {
   const mine = rounds.filter((r) => r.eventId === e.id);
   if (mine.some((r) => r.status === 'active')) return 'live';
+  // Finished only when the organiser completes it, or its last day has passed. Running out of planned rounds
+  // doesn't finish it: more can be added.
   if (e.status === 'complete') return 'completed';
-  const unplayed = (e.schedule ?? []).some((m) => !m.roundId || !mine.some((r) => r.id === m.roundId));
-  const unplayedRounds = (e.rounds ?? []).some((x) => !x.roundId || !mine.some((r) => r.id === x.roundId && r.status === 'complete'));
-  if (mine.length === 0 || unplayed || unplayedRounds) return 'upcoming';
-  return 'completed';
+  if (e.endDate && e.endDate < toISODate(new Date())) return 'completed';
+  return 'upcoming';
 }
 
 /** Events can only be deleted before any of their rounds are finished. */
