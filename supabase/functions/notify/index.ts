@@ -101,6 +101,31 @@ Deno.serve(async (req) => {
       title = 'You’re in a round';
       body = `${first(prof?.display_name, 'A friend')} added you to a round${course}. Tap to keep score live.`;
       data = { kind: 'round_added', roundId: id };
+    } else if (kind === 'deleted' && typeof id === 'string' && (to === 'round' || to === 'event')) {
+      // The organiser is about to delete a round or event: tell everyone else in it (sent just before deleting).
+      if (to === 'event') {
+        const { data: ev } = await admin.from('events').select('owner, data').eq('id', id).maybeSingle();
+        if (!ev || ev.owner !== me) return json({ sent: 0 });
+        const { data: mem } = await admin.from('event_members').select('user_id').eq('event_id', id);
+        users = (mem ?? []).map((m) => m.user_id as string);
+        title = 'Event deleted';
+        body = `${first(prof?.display_name, 'The organiser')} deleted ${String(ev.data?.name ?? 'an event')}.`;
+      } else {
+        const { data: org } = await admin.rpc('round_organizer', { rid: id });
+        if (org !== me) return json({ sent: 0 });
+        const { data: round } = await admin.from('rounds').select('data, event_id').eq('id', id).maybeSingle();
+        if (!round) return json({ sent: 0 });
+        const { data: mem } = await admin.from('round_members').select('user_id').eq('round_id', id);
+        users = (mem ?? []).map((m) => m.user_id as string);
+        let what = String(round.data?.label ?? 'a round');
+        if (round.event_id) {
+          const { data: ev } = await admin.from('events').select('data').eq('id', round.event_id).maybeSingle();
+          if (ev?.data?.name) what = `${what} of ${String(ev.data.name)}`;
+        }
+        title = 'Round deleted';
+        body = `${first(prof?.display_name, 'The organiser')} deleted ${what}.`;
+      }
+      data = { kind: 'deleted' };
     } else {
       return json({ error: 'Bad request' }, 400);
     }

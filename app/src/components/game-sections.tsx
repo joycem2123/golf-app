@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
-import { canDeleteEvent, eventPhase } from '@/lib/events';
+import { eventPhase } from '@/lib/events';
 import { useStore } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 import { EventCard, RoundCard } from './cards';
-import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
+import { eventSwipe, roundSwipe, SwipeToDelete } from './swipe-to-delete';
 import type { TipTarget } from './tip';
 import { Body, Label } from './ui';
 
@@ -76,8 +76,8 @@ export function GameSections({
       return {
         key: e.id,
         at: lastActivity(e.id, e.createdAt),
-        node: canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' ? (
-          <SwipeToDelete key={e.id} label={`event ${e.name}`} onDelete={() => onDeleteEvent(e.id)}>{card}</SwipeToDelete>
+        node: onDeleteEvent ? (
+          <SwipeToDelete key={e.id} label={`event ${e.name}`} mode={eventSwipe(e)} onDelete={() => onDeleteEvent(e.id)}>{card}</SwipeToDelete>
         ) : (
           <View key={e.id}>{card}</View>
         ),
@@ -93,8 +93,8 @@ export function GameSections({
       return {
         key: r.id,
         at: r.createdAt,
-        node: canDeleteRound(r) ? (
-          <SwipeToDelete key={r.id} label="round" onDelete={() => onDeleteRound(r.id)}>{card}</SwipeToDelete>
+        node: onDeleteRound ? (
+          <SwipeToDelete key={r.id} label="round" mode={roundSwipe(r)} onDelete={() => onDeleteRound(r.id)}>{card}</SwipeToDelete>
         ) : (
           <View key={r.id}>{card}</View>
         ),

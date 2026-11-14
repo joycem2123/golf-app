@@ -3,7 +3,7 @@
  * Every level can be opened: the event page, the round's results (or live scoring), and a match's details.
  */
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { gameName } from '@/lib/games';
@@ -11,15 +11,18 @@ import { headline } from '@/lib/headline';
 import { formatPoints, planName } from '@/lib/events';
 import { liveTeamScore, matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
-import type { EventRecord, RoundRecord } from '@/store/store';
+import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { radius, space, useColors } from '@/theme';
 import { namesFor, teamName, picksFor } from '@/lib/team-colors';
 import { EventCard } from './cards';
 import { ListSection } from './list-section';
 import { formatDate, today } from '@/lib/dates';
 import { TeamScoreLine, type LiveOverride } from './team-score-line';
-import { canDeleteRound, SwipeToDelete } from './swipe-to-delete';
+import { roundSwipe, SwipeToDelete } from './swipe-to-delete';
+import { HiddenTag } from './hidden-tag';
 import { LiveMatchRow } from './match-strip';
+/** Hidden rounds (shown with Show hidden) are marked, with Unhide. */
+const hiddenWrap = (id: string, node: ReactNode) => (useStore.getState().hidden?.[id] ? <HiddenTag key={id} id={id}>{node}</HiddenTag> : node);
 
 /** An event card that opens out into its rounds. */
 export interface DrillActions {
@@ -200,8 +203,8 @@ export function MyRounds({ rounds, events, onDelete, actions, upcomingSlot, empt
     .sort((a, b) => (a.p.date ?? '').localeCompare(b.p.date ?? ''));
   const eventOf = (r: RoundRecord) => (r.eventId ? events.find((e) => e.id === r.eventId) : undefined);
   const item = (r: RoundRecord) =>
-    onDelete && canDeleteRound(r) && r.remote?.role !== 'viewer' ? (
-      <SwipeToDelete key={r.id} label="round" onDelete={() => onDelete(r.id)}><RoundDrill r={r} e={eventOf(r)} actions={actions} /></SwipeToDelete>
+    onDelete ? (
+      hiddenWrap(r.id, <SwipeToDelete key={r.id} label="round" mode={roundSwipe(r)} onDelete={() => onDelete(r.id)}><RoundDrill r={r} e={eventOf(r)} actions={actions} /></SwipeToDelete>)
     ) : (
       <RoundDrill key={r.id} r={r} e={eventOf(r)} actions={actions} />
     );
@@ -232,8 +235,8 @@ export function SoloRounds({ rounds, onDelete }: { rounds: RoundRecord[]; onDele
   const live = rounds.filter((r) => r.status === 'active').sort((a, b) => b.createdAt - a.createdAt);
   const done = rounds.filter((r) => r.status === 'complete').sort((a, b) => (b.completedAt ?? b.createdAt) - (a.completedAt ?? a.createdAt));
   const item = (r: RoundRecord) =>
-    canDeleteRound(r) && r.remote?.role !== 'viewer' ? (
-      <SwipeToDelete key={r.id} label="round" onDelete={() => onDelete(r.id)}><RoundDrill r={r} /></SwipeToDelete>
+    onDelete ? (
+      hiddenWrap(r.id, <SwipeToDelete key={r.id} label="round" mode={roundSwipe(r)} onDelete={() => onDelete(r.id)}><RoundDrill r={r} /></SwipeToDelete>)
     ) : (
       <RoundDrill key={r.id} r={r} />
     );

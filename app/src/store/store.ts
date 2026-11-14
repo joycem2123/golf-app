@@ -82,6 +82,22 @@ export interface RoundRecord {
 export interface Remote {
   shareCode: string;
   role: 'owner' | 'scorer' | 'viewer';
+  /** The organiser's account id (the only one who can delete it). */
+  owner?: string;
+}
+
+/** Am I this event's organiser? (Events only on this phone: yes.) */
+export function isEventOrganizer(e: EventRecord, me: string | null | undefined): boolean {
+  if (!e.remote) return true;
+  return e.remote.owner ? e.remote.owner === me : e.remote.role === 'owner';
+}
+
+/** Am I this round's organiser? A round in an event is run by the event's organiser, whoever started it. */
+export function isRoundOrganizer(r: RoundRecord, events: EventRecord[], me: string | null | undefined): boolean {
+  const ev = r.eventId ? events.find((e) => e.id === r.eventId) : undefined;
+  if (ev) return isEventOrganizer(ev, me);
+  if (!r.remote) return true;
+  return r.remote.owner ? r.remote.owner === me : r.remote.role === 'owner';
 }
 
 /** A score waiting to be sent to the server (kept while offline). */
@@ -260,6 +276,9 @@ interface State {
   dirtyEvents: string[];
   /** Rounds/events I deleted: the sync removes them online, and never downloads them again. */
   deleted: Record<string, Tombstone>;
+  /** Rounds and events I've hidden from my Home and Scores (they stay mine; Show hidden brings them back). */
+  hidden?: Record<string, number>;
+  setHidden: (id: string, hidden: boolean) => void;
   markDeletedDone: (ids: string[]) => void;
   /** My corrections to courses (rating, slope, pars, hole handicaps), by course id. */
   courseEdits: Record<string, Course>;
@@ -397,6 +416,7 @@ export const EMPTY_DATA = {
   dirtyRounds: [] as string[],
   dirtyEvents: [] as string[],
   deleted: {} as Record<string, Tombstone>,
+  hidden: {} as Record<string, number>,
   courseEdits: {} as Record<string, Course>,
   sharedCourses: {} as Record<string, { course: Course; from: string; fromName?: string }>,
   courseShares: {} as Record<string, string[]>,
@@ -465,6 +485,7 @@ export const useStore = create<State>()(
       outbox: [],
       dirtyRounds: [],
       dirtyEvents: [],
+      hidden: {},
       deleted: {},
       courseEdits: {},
       sharedCourses: {},
@@ -594,7 +615,8 @@ export const useStore = create<State>()(
               teamNames: round.teamNames ?? r.teamNames,
               course: round.course ?? r.course,
               stories: { ...round.stories, ...r.stories },
-              remote: r.remote?.role === 'owner' ? r.remote : round.remote ?? r.remote,
+              // Keep my own role, but always take the latest organiser from the server (it can be handed over).
+              remote: r.remote?.role === 'owner' ? { ...r.remote, owner: round.remote?.owner ?? r.remote.owner } : round.remote ?? r.remote,
             })),
           };
         }),
@@ -610,7 +632,7 @@ export const useStore = create<State>()(
           events: s.events.some((x) => x.id === e.id)
             ? s.events.map((x) =>
                 x.id === e.id
-                  ? { ...e, schedule: s.dirtyEvents.includes(e.id) ? x.schedule : e.schedule, remote: x.remote?.role === 'owner' ? x.remote : e.remote }
+                  ? { ...e, schedule: s.dirtyEvents.includes(e.id) ? x.schedule : e.schedule, remote: x.remote?.role === 'owner' ? { ...x.remote, owner: e.remote?.owner ?? x.remote.owner } : e.remote }
                   : x,
               )
             : [e, ...s.events],
@@ -698,13 +720,15 @@ export const useStore = create<State>()(
           events: s.events.map((e) => (e.id === id ? { ...e, status: complete ? 'complete' : 'active', completedAt: complete ? Date.now() : undefined } : e)),
           dirtyEvents: dirtyEvent(s, id),
         })),
+      setHidden: (id, hidden) =>
+        set((s) => ({ hidden: hidden ? { ...(s.hidden ?? {}), [id]: Date.now() } : Object.fromEntries(Object.entries(s.hidden ?? {}).filter(([k]) => k !== id)) })),
       deleteEvent: (id) =>
         set((s) => {
           const e = s.events.find((x) => x.id === id);
           return {
             events: s.events.filter((x) => x.id !== id),
             rounds: s.rounds.map((r) => (r.eventId === id ? { ...r, eventId: undefined } : r)),
-            deleted: { ...s.deleted, [id]: { kind: 'event', at: Date.now(), owner: e?.remote?.role === 'owner', online: !!e?.remote } },
+            deleted: { ...s.deleted, [id]: { kind: 'event', at: Date.now(), owner: e ? isEventOrganizer(e, s.me) : false, online: !!e?.remote } },
           };
         }),
 
@@ -731,7 +755,7 @@ export const useStore = create<State>()(
         set((s) => ({
           deleted: (() => {
             const r = s.rounds.find((x) => x.id === id);
-            return { ...s.deleted, [id]: { kind: 'round' as const, at: opts?.now ? 0 : Date.now(), owner: r?.remote?.role === 'owner', online: !!r?.remote } };
+            return { ...s.deleted, [id]: { kind: 'round' as const, at: opts?.now ? 0 : Date.now(), owner: r ? isRoundOrganizer(r, s.events, s.me) : false, online: !!r?.remote } };
           })(),
           rounds: s.rounds.filter((r) => r.id !== id),
           history: s.history.filter((m) => m.eventId !== id),

@@ -10,6 +10,7 @@ import { ScorecardGrid } from '@/components/scorecard-grid';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { MeBadge, useAutoIdentity } from '@/components/people';
 import { canDeleteRound } from '@/components/swipe-to-delete';
+import { HideButton, OrganizerLine } from '@/components/organizer';
 import { supabase } from '@/sync/supabase';
 import { ShareCard } from '@/components/share-card';
 import { useMe } from '@/lib/me';
@@ -18,7 +19,7 @@ import { Body, Button, Card, Chip, H2, Label, Segmented, Stepper, styles } from 
 import { gameKeys, gameName, matchLabel, gameTitle } from '@/lib/games';
 import { courseFor, evaluate, grossAt, isResult, recordedMatches, scoreKeys, shortCourseName, teeFor, type ScoreKey, allHolesScored, gameHoles } from '@/lib/round';
 import { holeWinner, teamGroups, teamHole } from '@/lib/teams';
-import { useRound, useStore, type RoundRecord } from '@/store/store';
+import { useRound, useStore, type RoundRecord, isRoundOrganizer } from '@/store/store';
 import { flush, shareRound } from '@/sync/sync';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { track } from '@/lib/usage';
@@ -320,12 +321,15 @@ export default function Scorecard() {
   const [opened, setOpened] = useState<Record<string, number>>({});
   const [quitting, setQuitting] = useState(false);
   const deleteRound = useStore((s) => s.deleteRound);
+  const allEvents = useStore((s) => s.events);
+  const myUid = useStore((s) => s.me);
 
   useAutoIdentity(r && r.remote && r.remote.role !== 'owner' ? r.players : []);
   const uid = useAccountId();
   const { requests, claimed, reload } = useEditRequests(r);
   const { isMe: isMyId } = useMe();
   if (!r) return <Body>Round not found.</Body>;
+  const organizer = isRoundOrganizer(r, allEvents, myUid);
   const viewer = r.remote?.role === 'viewer';
 
   const course = courseFor(r);
@@ -569,19 +573,19 @@ export default function Scorecard() {
           <Button title="Edit teams" kind="secondary" onPress={() => router.push(`/round/${r.id}/teams`)} />
         )}
         {r.remote?.role !== 'viewer' && <Button title="Finish round" kind={allDone ? 'primary' : 'secondary'} onPress={finish} />}
-        {r.remote?.role !== 'viewer' && canDeleteRound(r) && (
-          <Button title={r.remote && r.remote.role !== 'owner' ? 'Leave round' : 'Quit round'} kind="ghost" onPress={() => setQuitting(true)} />
+        <OrganizerLine r={r} />
+        {/* Only the organiser can delete the round; anyone else can hide it from their own screens. */}
+        {organizer && canDeleteRound(r) ? (
+          <Button title="Quit round" kind="ghost" onPress={() => setQuitting(true)} />
+        ) : (
+          <HideButton id={r.id} kind="round" onDone={() => router.dismissTo('/')} />
         )}
         <ConfirmDialog
           visible={quitting}
-          title={r.remote && r.remote.role !== 'owner' ? 'Leave this round?' : 'Quit this round?'}
-          message={
-            r.remote && r.remote.role !== 'owner'
-              ? 'It will be removed from your phone. The rest of the group can keep playing.'
-              : `The round and the scores entered so far will be deleted${r.remote ? ' for everyone in the group' : ''}. This can’t be undone.`
-          }
+          title="Quit this round?"
+          message={`The round and the scores entered so far will be deleted${r.remote ? ' for everyone in the group' : ''}. You can restore it from Recently Deleted for 30 days.`}
           cancelLabel="Keep playing"
-          confirmLabel={r.remote && r.remote.role !== 'owner' ? 'Leave round' : 'Quit round'}
+          confirmLabel="Quit round"
           onCancel={() => setQuitting(false)}
           onConfirm={() => {
             setQuitting(false);

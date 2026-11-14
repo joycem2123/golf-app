@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
+import { eventSwipe, SwipeToDelete, useDeleteWithUndo } from '@/components/swipe-to-delete';
 import { EventDrill, MyRounds } from '@/components/score-drill';
+import { HiddenTag } from '@/components/hidden-tag';
 import { FriendMatches } from '@/components/friend-matches';
-import { canDeleteEvent, eventPhase } from '@/lib/events';
+import { eventPhase } from '@/lib/events';
 import { TabHeader } from '@/components/tab-header';
-import { Body, Label, Segmented } from '@/components/ui';
+import { Body, Checkbox, Label, Segmented } from '@/components/ui';
 import { isMeId } from '@/lib/me';
 import { useStore } from '@/store/store';
 import { space } from '@/theme';
 
 /** Events, live and upcoming first, each opening out into its rounds and matches. */
-function EventsList({ onDeleteEvent }: { onDeleteEvent: (id: string) => void }) {
-  const events = useStore((s) => s.events);
+function EventsList({ onDeleteEvent, showHidden }: { onDeleteEvent: (id: string) => void; showHidden: boolean }) {
+  const hidden = useStore((s) => s.hidden) ?? {};
+  const events = useStore((s) => s.events).filter((e) => showHidden || !hidden[e.id]);
   const rounds = useStore((s) => s.rounds);
   if (events.length === 0) return <Body muted>No events yet. Set up a trip or season from Home.</Body>;
   const last = (id: string, fallback: number) => Math.max(fallback, ...rounds.filter((r) => r.eventId === id).map((r) => r.completedAt ?? r.createdAt));
@@ -21,10 +23,12 @@ function EventsList({ onDeleteEvent }: { onDeleteEvent: (id: string) => void }) 
   const open = sorted.filter((e) => eventPhase(e, rounds) !== 'completed');
   const done = sorted.filter((e) => eventPhase(e, rounds) === 'completed');
   const item = (e: (typeof events)[number]) =>
-    canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' ? (
-      <SwipeToDelete key={e.id} label={`event ${e.name}`} onDelete={() => onDeleteEvent(e.id)}><EventDrill e={e} rounds={rounds} /></SwipeToDelete>
+    hidden[e.id] ? (
+      <HiddenTag key={e.id} id={e.id}>
+        <SwipeToDelete label={`event ${e.name}`} mode={eventSwipe(e)} onDelete={() => onDeleteEvent(e.id)}><EventDrill e={e} rounds={rounds} /></SwipeToDelete>
+      </HiddenTag>
     ) : (
-      <EventDrill key={e.id} e={e} rounds={rounds} />
+      <SwipeToDelete key={e.id} label={`event ${e.name}`} mode={eventSwipe(e)} onDelete={() => onDeleteEvent(e.id)}><EventDrill e={e} rounds={rounds} /></SwipeToDelete>
     );
   return (
     <View style={{ gap: space.md }}>
@@ -44,8 +48,12 @@ export default function Scores() {
   const [whose, setWhose] = useState<'mine' | 'friends'>('mine');
   const uid = useStore((s) => s.me);
   // My matches: rounds I'm part of (not friends' rounds I'm only following).
-  const myRounds = rounds.filter((r) => r.remote?.role !== 'viewer' || r.players.some((p) => p.id === uid || isMeId(p.id)));
-  const myEvents = events.filter((e) => e.remote?.role !== 'viewer' || e.playerIds.some((id) => id === uid || isMeId(id)));
+  const hidden = useStore((s) => s.hidden) ?? {};
+  const [showHidden, setShowHidden] = useState(false);
+  const anyHidden = Object.keys(hidden).some((id) => rounds.some((r) => r.id === id) || events.some((e) => e.id === id));
+  const visible = (id: string, eventId?: string) => showHidden || (!hidden[id] && !(eventId && hidden[eventId]));
+  const myRounds = rounds.filter((r) => visible(r.id, r.eventId) && (r.remote?.role !== 'viewer' || r.players.some((p) => p.id === uid || isMeId(p.id))));
+  const myEvents = events.filter((e) => visible(e.id) && (e.remote?.role !== 'viewer' || e.playerIds.some((id) => id === uid || isMeId(id))));
 
   return (
     <View style={{ flex: 1 }}>
@@ -65,7 +73,8 @@ export default function Scores() {
                   value={games}
                   onChange={setGames}
                 />
-                {games === 'events' ? <EventsList onDeleteEvent={deleteEvent} /> : <MyRounds rounds={myRounds} events={myEvents} onDelete={deleteRound} />}
+                <Checkbox label={`Show hidden${anyHidden ? ` (${Object.keys(hidden).filter((id) => rounds.some((r) => r.id === id) || events.some((e) => e.id === id)).length})` : ''}`} hint={showHidden ? 'Swipe a hidden round or event left (or tap Unhide) to put it back.' : undefined} value={showHidden} onChange={setShowHidden} />
+                {games === 'events' ? <EventsList onDeleteEvent={deleteEvent} showHidden={showHidden} /> : <MyRounds rounds={myRounds} events={myEvents} onDelete={deleteRound} />}
               </>
             )}
         </>

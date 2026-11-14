@@ -7,7 +7,7 @@ import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
-import { canDeleteRound } from '@/components/swipe-to-delete';
+import { roundSwipe } from '@/components/swipe-to-delete';
 import type { TipTarget } from '@/components/tip';
 import { gameName, matchLabel } from '@/lib/games';
 import { headline } from '@/lib/headline';
@@ -100,7 +100,9 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
           const big = head ? (head.board ? (head.board[0] ? `${head.board[0].pos === 'T1' ? 'Tied: ' : ''}${firstNames(head.board[0].name)} ${head.board[0].value}` : '') : head.leader ? `${firstNames(head.leader)} ${head.big}` : head.big) : '';
           // How far along: "thru 7", or "not started".
           const progress = head ? (head.board?.[0] && head.board[0].thru !== '–' ? (head.board[0].thru === 'F' ? 'finished' : `thru ${head.board[0].thru}`) : head.small.toLowerCase()) : '';
-          const deletable = !it.followed && canDeleteRound(r) && r.remote?.role !== 'viewer';
+          // The organiser can delete a live round; anyone else can hide it from their Home.
+          const deletable = !it.followed;
+          const swipe = roundSwipe(r);
           const asks = toAnswer(r);
           return (
             <View key={`${r.id}:${gi}`} ref={n === 0 ? firstRef : undefined} collapsable={false} style={{ width: cardW }}>
@@ -143,9 +145,9 @@ export function LiveCarousel({ rounds, onDelete, firstRef, today = [], countdown
                           onPress={() => onDelete(r.id)}
                           hitSlop={8}
                           accessibilityRole="button"
-                          accessibilityLabel="Delete this round"
-                          style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: pressed ? '#8E2A24' : c.danger, alignItems: 'center', justifyContent: 'center' })}>
-                          {Platform.OS === 'ios' ? <SymbolView name="trash.fill" tintColor="#fff" size={18} /> : <Text style={{ color: '#fff', fontSize: 16 }}>🗑</Text>}
+                          accessibilityLabel={swipe === 'delete' ? 'Delete this round' : 'Hide this round'}
+                          style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, backgroundColor: swipe === 'delete' ? (pressed ? '#8E2A24' : c.danger) : pressed ? '#555' : '#6E746B', alignItems: 'center', justifyContent: 'center' })}>
+                          {Platform.OS === 'ios' ? <SymbolView name={swipe === 'delete' ? 'trash.fill' : 'eye.slash.fill'} tintColor="#fff" size={18} /> : <Text style={{ color: '#fff', fontSize: 16 }}>{swipe === 'delete' ? '🗑' : '👁'}</Text>}
                         </Pressable>
                       )}
                     </View>

@@ -12,7 +12,7 @@ import { track } from '@/lib/usage';
 import { gameInfo, gameName } from '@/lib/games';
 import { matchOutcomes, roundTeamScore } from '@/lib/results';
 import { courseFor, evaluate, isResult, shortCourseName } from '@/lib/round';
-import { useStore, type EventRecord, type EventRound } from '@/store/store';
+import { useStore, type EventRecord, type EventRound, isEventOrganizer } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { namesFor, teamName, picksFor } from '@/lib/team-colors';
 import { Button, Card, H2, Label } from './ui';
@@ -30,6 +30,7 @@ export function EventRounds({ e }: { e: EventRecord }) {
     .map((r) => ({ id: `round-${r.id}`, number: Number(/Round (\d+)/.exec(r.label ?? '')?.[1]) || 0, date: toISODate(new Date(r.createdAt)), roundId: r.id }) as EventRound);
   const list = [...planned, ...extra].sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || a.number - b.number);
   const canEdit = e.remote?.role !== 'viewer';
+  const organizer = isEventOrganizer(e, useStore((s) => s.me));
   const isFinal = (x: EventRound) => rounds.some((r) => r.id === x.roundId && r.status === 'complete');
   const isLive = (x: EventRound) => rounds.some((r) => r.id === x.roundId && r.status === 'active');
   const live = list.filter(isLive);
@@ -55,7 +56,8 @@ export function EventRounds({ e }: { e: EventRecord }) {
       else if (canEdit) router.push({ pathname: '/new-round', params: { eventId: e.id, eventRound: x.id } });
     };
     // A planned round that hasn't been started: swipe left to delete it from the event.
-    const deletable = !r && canEdit && planned.some((p) => p.id === x.id);
+    // Taking a planned round out of the event: the event's organiser only.
+    const deletable = !r && canEdit && organizer && planned.some((p) => p.id === x.id);
     return (
       <View key={x.id}>
       <SwipeToDelete disabled={!deletable} label={planName(x)} onDelete={() => setDeleting(x)}>

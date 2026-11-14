@@ -18,7 +18,7 @@ import { headline } from '@/lib/headline';
 import { liveTeamScore } from '@/lib/results';
 import { evaluate, isResult } from '@/lib/round';
 import { formatIndex } from '@/lib/format';
-import { useEvent, useStore, type EventRecord, type RoundRecord } from '@/store/store';
+import { isEventOrganizer, useEvent, useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { fonts, radius, space, teamColor, useColors } from '@/theme';
 import { namesFor, teamName } from '@/lib/team-colors';
 import { Tip } from '@/components/tip';
@@ -26,6 +26,7 @@ import { AddEventPlayer } from '@/components/add-event-player';
 import { EventStory } from '@/components/event-story';
 import { TripExpenses } from '@/components/trip-expenses';
 import { PlayedWith } from '@/components/played-with';
+import { HideButton, OrganizerLine } from '@/components/organizer';
 import { completeBlocker, eventSummary } from '@/lib/event-summary';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { FedexStandings, RaceSummary, usePlayerName } from '@/components/fedex-standings';
@@ -179,6 +180,7 @@ export default function EventScreen() {
   const rounds = useStore((s) => s.rounds);
   const saved = useStore((s) => s.players);
   const deleteEvent = useStore((s) => s.deleteEvent);
+  const myUid = useStore((s) => s.me);
   const c = useColors();
   const [tab, setTab] = useState<'event' | 'expenses'>('event');
   useAutoIdentity(e && e.remote && e.remote.role !== 'owner' ? e.playerIds.map((pid) => ({ id: pid, name: saved.find((p) => p.id === pid)?.name ?? '' })) : []);
@@ -380,16 +382,18 @@ export default function EventScreen() {
         {e.remote?.role !== 'viewer' ? <CompleteEvent e={e} rounds={rounds} /> : null}
         <TvButton e={e} />
         <Button title="Head-to-head records" kind="secondary" onPress={() => router.push('/head-to-head')} />
-        {canDeleteEvent(e, rounds) && e.remote?.role !== 'viewer' && <Button
+        <OrganizerLine e={e} />
+        {/* Only the organiser can delete the event; anyone else can hide it from their own screens. */}
+        {canDeleteEvent(e, rounds) && isEventOrganizer(e, myUid) ? <Button
           title="Delete event"
           kind="ghost"
           onPress={() =>
-            Alert.alert('Delete this event?', 'Its rounds are kept.', [
+            Alert.alert('Delete this event?', 'Its rounds are kept. It’s removed for everyone in it, and you can restore it from Recently Deleted for 30 days.', [
               { text: 'Cancel' },
               { text: 'Delete', style: 'destructive', onPress: () => { router.dismissTo('/'); deleteEvent(e.id); } },
             ])
           }
-        />}
+        /> : <HideButton id={e.id} kind="event" onDone={() => router.dismissTo('/')} />}
       </ScrollView>
       )}
       <Tip

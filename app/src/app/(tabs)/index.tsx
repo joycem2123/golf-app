@@ -97,9 +97,11 @@ export default function Home() {
   const onHomeEvent = (e: (typeof events)[number]) => mineEvent(e) || followsEvent(follows, e.id) || !peek.includes(e.id);
   // A friends' game: someone else's round, or a match I follow inside one of mine.
   const hasFollowed = (r: (typeof rounds)[number]) => followedGames(follows, r.id).length > 0;
+  // Rounds and events I've hidden stay off Home (Scores → Show hidden brings them back).
+  const hidden = useStore((s) => s.hidden) ?? {};
   const keepRound = (r: (typeof rounds)[number]) =>
-    onHomeRound(r) && (show === 'all' || (show === 'mine' ? mineRound(r) : !mineRound(r) || hasFollowed(r)));
-  const keepEvent = (e: (typeof events)[number]) => onHomeEvent(e) && (show === 'all' || (show === 'mine') === mineEvent(e));
+    !hidden[r.id] && !(r.eventId && hidden[r.eventId]) && onHomeRound(r) && (show === 'all' || (show === 'mine' ? mineRound(r) : !mineRound(r) || hasFollowed(r)));
+  const keepEvent = (e: (typeof events)[number]) => !hidden[e.id] && onHomeEvent(e) && (show === 'all' || (show === 'mine') === mineEvent(e));
   const anyFriends = rounds.some((r) => r.status === 'active' && onHomeRound(r) && (!mineRound(r) || hasFollowed(r))) || events.some((e) => !mineEvent(e) && onHomeEvent(e));
   const active = rounds.filter((r) => r.status === 'active' && keepRound(r));
   // The event calendar: rounds planned for today (Start round), and a countdown to what's next.

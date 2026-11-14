@@ -54,6 +54,11 @@ export function notify(body: { kind: 'edit'; id: string } | { kind: 'friend'; to
   void supabase.functions.invoke('notify', { body }).catch(() => undefined);
 }
 
+/** Before the organiser deletes a round or event: tell everyone else in it (waits, as the members go with it). */
+export async function notifyDeleted(kind: 'round' | 'event', id: string) {
+  await supabase.functions.invoke('notify', { body: { kind: 'deleted', id, to: kind } }).catch(() => undefined);
+}
+
 /** Tapping a notification: open the round it's about, or the friend requests. */
 export function watchNotificationTaps(open: (path: string) => void) {
   if (Platform.OS === 'web') return () => undefined;

@@ -12,7 +12,7 @@ import { evaluate, isResult, recordedMatches } from '@/lib/round';
 import { UNDO_WINDOW_MS, useStore, type EventRecord, type Remote, type RoundRecord } from '@/store/store';
 import { ensureSession } from './auth';
 import { pullSharedCourses } from './courses';
-import { notify } from './nudges';
+import { notifyDeleted, notify } from './nudges';
 import { supabase } from './supabase';
 
 // ------------------------------------------------------------------ documents
@@ -28,6 +28,7 @@ interface RoundRow {
   share_code: string;
   event_id: string | null;
   status: 'active' | 'complete';
+  owner?: string;
   data: RoundDoc;
 }
 
@@ -41,7 +42,7 @@ function roundFromRow(row: RoundRow, role: Remote['role']): RoundRecord {
     currentHole: 1,
     status: row.status,
     notices: [],
-    remote: { shareCode: row.share_code, role },
+    remote: { shareCode: row.share_code, role, owner: row.owner },
   };
 }
 
@@ -86,7 +87,7 @@ export async function shareRound(roundId: string): Promise<string> {
     .select('share_code')
     .single();
   if (error) throw new Error(error.message);
-  st.setRoundRemote(r.id, { shareCode: data.share_code, role: 'owner' });
+  st.setRoundRemote(r.id, { shareCode: data.share_code, role: 'owner', owner: st.me ?? undefined });
   // Upload any scores already entered.
   const existing = Object.values(r.ledger).map((e) => ({ roundId: r.id, key: e.key, hole: e.hole, gross: e.gross, enteredAt: e.enteredAt }));
   useStore.setState((s) => ({ outbox: [...s.outbox, ...existing] }));
@@ -103,7 +104,7 @@ export async function shareEvent(eventId: string): Promise<string> {
   if (e.remote) return e.remote.shareCode;
   const { data, error } = await supabase.from('events').insert({ id: e.id, data: eventDoc(e) }).select('share_code').single();
   if (error) throw new Error(error.message);
-  st.setEventRemote(e.id, { shareCode: data.share_code, role: 'owner' });
+  st.setEventRemote(e.id, { shareCode: data.share_code, role: 'owner', owner: st.me ?? undefined });
   for (const r of useStore.getState().rounds.filter((x) => x.eventId === e.id && !x.remote)) await shareRound(r.id);
   return data.share_code;
 }
@@ -120,7 +121,7 @@ export async function autoShare(roundId: string) {
 
 export async function pullRound(roundId: string, role?: Remote['role']) {
   const [{ data: row, error }, { data: scores }] = await Promise.all([
-    supabase.from('rounds').select('id, share_code, event_id, status, data').eq('id', roundId).maybeSingle(),
+    supabase.from('rounds').select('id, share_code, event_id, status, owner, data').eq('id', roundId).maybeSingle(),
     supabase.from('scores').select('*').eq('round_id', roundId),
   ]);
   if (!row) {
@@ -148,7 +149,7 @@ export async function pullRound(roundId: string, role?: Remote['role']) {
 }
 
 export async function pullEvent(eventId: string, role?: Remote['role']) {
-  const { data: row } = await supabase.from('events').select('id, share_code, data').eq('id', eventId).maybeSingle();
+  const { data: row } = await supabase.from('events').select('id, share_code, owner, data').eq('id', eventId).maybeSingle();
   if (!row) return;
   const doc = row.data as EventDoc;
   const st = useStore.getState();
@@ -156,7 +157,8 @@ export async function pullEvent(eventId: string, role?: Remote['role']) {
   for (const p of doc.playerInfo ?? []) if (!st.players.some((x) => x.id === p.id)) st.upsertPlayer({ ...p, notFriend: true });
   const { playerInfo: _p, ...e } = doc;
   const resolvedRole = role ?? st.events.find((x) => x.id === eventId)?.remote?.role ?? (await myRole('event_members', 'event_id', eventId));
-  st.upsertRemoteEvent({ ...e, remote: { shareCode: row.share_code, role: resolvedRole } });
+  st.upsertRemoteEvent({ ...e, remote: { shareCode: row.share_code, role: resolvedRole, owner: row.owner as string } });
+  void loadNames([row.owner as string]);
   const { data: rounds } = await supabase.from('rounds').select('id').eq('event_id', eventId);
   for (const r of rounds ?? []) if (!useStore.getState().deleted?.[r.id]) await pullRound(r.id, resolvedRole === 'owner' ? 'scorer' : resolvedRole);
 }
@@ -358,6 +360,8 @@ export async function flush() {
       if (t.done || Date.now() - t.at < UNDO_WINDOW_MS) continue;
       if (!t.online) { doneDeletes.push(id); continue; }
       const table = t.kind === 'round' ? 'rounds' : 'events';
+      // The organiser deletes it for everyone (after telling them); anyone else just leaves it.
+      if (t.owner) await notifyDeleted(t.kind, id);
       const { error } = t.owner
         ? await supabase.from(table).delete().eq('id', id)
         : await supabase.rpc(t.kind === 'round' ? 'leave_round' : 'leave_event', t.kind === 'round' ? { rid: id } : { eid: id });

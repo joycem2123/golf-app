@@ -6,7 +6,7 @@ import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reani
 
 import type { RecordedMatch } from '@golf/engine';
 
-import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
+import { isEventOrganizer, isRoundOrganizer, useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { supabase } from '@/sync/supabase';
 import { fonts, radius, space, useColors } from '@/theme';
 import { courseFor, holesComplete, playedHoles, shortCourseName } from '@/lib/round';
@@ -19,42 +19,60 @@ import { canDeleteEvent } from '@/lib/events';
  */
 export const canDeleteRound = (r: RoundRecord) => r.status !== 'complete' && (!r.completedAt || holesComplete(r) < playedHoles(r).length);
 
+/** What swiping a round does for me: Delete (organiser, while it can still go), Unhide (hidden), else Hide. */
+export function roundSwipe(r: RoundRecord): SwipeMode {
+  const st = useStore.getState();
+  if (st.hidden?.[r.id]) return 'unhide';
+  return canDeleteRound(r) && isRoundOrganizer(r, st.events, st.me) ? 'delete' : 'hide';
+}
+export function eventSwipe(e: EventRecord): SwipeMode {
+  const st = useStore.getState();
+  if (st.hidden?.[e.id]) return 'unhide';
+  return canDeleteEvent(e, st.rounds) && isEventOrganizer(e, st.me) ? 'delete' : 'hide';
+}
+
 /** Swipe a card left to reveal a trash can. */
 /**
  * The red Delete button behind a swipeable card. It's invisible until the card is actually swiped, so it can't show
  * through around a card that's taller than its background (e.g. an event opened up to show its rounds).
  */
-function DeleteAction({ progress, methods, label, onDelete }: { progress: SharedValue<number>; methods: SwipeableMethods; label: string; onDelete: () => void }) {
+function DeleteAction({ progress, methods, label, onDelete, mode }: { progress: SharedValue<number>; methods: SwipeableMethods; label: string; onDelete: () => void; mode: SwipeMode }) {
   const c = useColors();
+  const word = mode === 'hide' ? 'Hide' : mode === 'unhide' ? 'Unhide' : 'Delete';
+  const bg = mode === 'delete' ? c.danger : mode === 'hide' ? '#6E746B' : c.primary;
+  const icon = mode === 'delete' ? 'trash.fill' : mode === 'hide' ? 'eye.slash.fill' : 'eye.fill';
   const shown = useAnimatedStyle(() => ({ opacity: progress.value > 0.02 ? Math.min(1, progress.value * 3) : 0 }));
   return (
     <Animated.View style={[{ justifyContent: 'center', paddingLeft: space.sm }, shown]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Delete ${label}`}
+        accessibilityLabel={`${word} ${label}`}
         onPress={() => {
           methods.close();
           onDelete();
         }}
         style={({ pressed }) => ({
-          width: 76, height: '100%', minHeight: 64, borderRadius: radius.lg, backgroundColor: c.danger,
+          width: 76, height: '100%', minHeight: 64, borderRadius: radius.lg, backgroundColor: bg,
           alignItems: 'center', justifyContent: 'center', gap: 4, opacity: pressed ? 0.8 : 1,
         })}>
-        {Platform.OS === 'ios' ? <SymbolView name="trash.fill" tintColor="#fff" size={24} /> : <Text style={{ color: '#fff', fontSize: 20 }}>🗑</Text>}
-        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Delete</Text>
+        {Platform.OS === 'ios' ? <SymbolView name={icon} tintColor="#fff" size={24} /> : <Text style={{ color: '#fff', fontSize: 20 }}>{mode === 'delete' ? '🗑' : '👁'}</Text>}
+        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{word}</Text>
       </Pressable>
     </Animated.View>
   );
 }
 
-export function SwipeToDelete({ children, onDelete, label, disabled }: { children: ReactNode; onDelete: () => void; label: string; disabled?: boolean }) {
+/** delete: the organiser removes it for everyone. hide: anyone else takes it off their own screens. unhide: put it back. */
+export type SwipeMode = 'delete' | 'hide' | 'unhide';
+
+export function SwipeToDelete({ children, onDelete, label, disabled, mode = 'delete' }: { children: ReactNode; onDelete: () => void; label: string; disabled?: boolean; mode?: SwipeMode }) {
   if (disabled) return <>{children}</>;
   return (
     <Swipeable
       friction={2}
       rightThreshold={40}
       overshootRight={false}
-      renderRightActions={(progress, _translation, methods) => <DeleteAction progress={progress} methods={methods} label={label} onDelete={onDelete} />}>
+      renderRightActions={(progress, _translation, methods) => <DeleteAction progress={progress} methods={methods} label={label} onDelete={onDelete} mode={mode} />}>
       {children}
     </Swipeable>
   );
@@ -109,20 +127,33 @@ export function useDeleteWithUndo() {
     start({ kind: 'event', event, roundIds });
   };
 
-  /** Ask "Are you sure?" first. */
+  const [hiddenNote, setHiddenNote] = useState<{ id: string; kind: 'round' | 'event' } | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Hide (or unhide) on my own screens only. */
+  const toggleHidden = (id: string, kind: 'round' | 'event') => {
+    const st = useStore.getState();
+    const hiding = !st.hidden?.[id];
+    st.setHidden(id, hiding);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    setHiddenNote(hiding ? { id, kind } : null);
+    if (hiding) hideTimer.current = setTimeout(() => setHiddenNote(null), UNDO_MS);
+  };
+
+  /** Ask "Are you sure?" first. Not the organiser (or it's finished): hide it on my phone instead. */
   const deleteRound = (id: string) => {
     const r = useStore.getState().rounds.find((x) => x.id === id);
-    // Finished rounds are part of everyone's history and can't be deleted.
-    if (!r || !canDeleteRound(r)) return;
+    if (!r) return;
+    if (roundSwipe(r) !== 'delete') return toggleHidden(id, 'round');
     let where = '';
     try { where = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
     const date = new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    setAsk({ kind: 'round', id, title: gameName(r.games[0]), detail: [where, date, r.players.map((p) => p.name).join(', ')].filter(Boolean).join(' · ') });
+    setAsk({ kind: 'round', id, title: gameName(r.games[0]), detail: [where, date, r.players.map((p) => p.name).join(', ')].filter(Boolean).join(' · ') + '\n\nIt’s removed for everyone in it. You can restore it from Recently Deleted for 30 days.' });
   };
   const deleteEvent = (id: string) => {
     const e = useStore.getState().events.find((x) => x.id === id);
-    if (!e || !canDeleteEvent(e, useStore.getState().rounds)) return;
-    setAsk({ kind: 'event', id, title: e.name, detail: 'Its rounds are kept.' });
+    if (!e) return;
+    if (eventSwipe(e) !== 'delete') return toggleHidden(id, 'event');
+    setAsk({ kind: 'event', id, title: e.name, detail: 'Its rounds are kept. It’s removed for everyone in it, and you can restore it from Recently Deleted for 30 days.' });
   };
 
   const undo = () => {
@@ -171,6 +202,20 @@ export function useDeleteWithUndo() {
     </Modal>
   );
 
+  const hideBar = hiddenNote && !pending ? (
+    <View
+      style={{
+        position: 'absolute', left: space.lg, right: space.lg, bottom: space.lg, backgroundColor: c.text, borderRadius: radius.lg,
+        paddingVertical: space.md, paddingHorizontal: space.lg, flexDirection: 'row', alignItems: 'center',
+        shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+      }}>
+      <Text style={{ color: '#fff', flex: 1, fontSize: 15 }}>{hiddenNote.kind === 'round' ? 'Round hidden' : 'Event hidden'} · Show hidden in Scores</Text>
+      <Pressable onPress={() => { useStore.getState().setHidden(hiddenNote.id, false); setHiddenNote(null); }} accessibilityRole="button" hitSlop={10}>
+        <Text style={{ color: c.accent, fontWeight: '800', fontSize: 15, letterSpacing: 0.5 }}>UNDO</Text>
+      </Pressable>
+    </View>
+  ) : null;
+
   const undoBar = pending ? (
     <View
       style={{
@@ -189,6 +234,7 @@ export function useDeleteWithUndo() {
     <>
       {dialog}
       {undoBar}
+      {hideBar}
     </>
   );
 
