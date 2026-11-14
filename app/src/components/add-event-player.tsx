@@ -49,7 +49,7 @@ export function AddEventPlayer({ e }: { e: EventRecord }) {
     if (!ready) return;
     let id = picked;
     if (mode === 'new') {
-      const p: SavedPlayer = { id: newId(), name: name.trim(), handicapIndex: parsed ?? 0, gender };
+      const p: SavedPlayer = { id: newId(), name: name.trim(), handicapIndex: parsed ?? 0, gender, notFriend: true };
       upsertPlayer(p);
       id = p.id;
     }

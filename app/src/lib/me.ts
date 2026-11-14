@@ -14,9 +14,9 @@ export function useMe() {
   const me: SavedPlayer | undefined = players.find((p) => p.id === myPlayerId);
   const isMe = (id: string) => id === myPlayerId || meAliases.includes(id);
   const others = players.filter((p) => !isMe(p.id)).sort((a, b) => a.name.localeCompare(b.name));
-  const friends = others.filter((p) => !p.pending);
+  const friends = others.filter((p) => !p.pending && !p.notFriend);
   /** People I've sent a friend request to who haven't accepted yet. */
-  const requested = others.filter((p) => p.pending);
+  const requested = others.filter((p) => p.pending && !p.notFriend);
   return { me, isMe, friends, requested, myPlayerId };
 }
 

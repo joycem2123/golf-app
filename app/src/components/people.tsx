@@ -4,14 +4,15 @@ import { Alert, Pressable, Text, View } from 'react-native';
 
 import { formatIndex } from '@/lib/format';
 import { useMe } from '@/lib/me';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { useStore, type SavedPlayer } from '@/store/store';
 import { ensureSession, saveMyProfile } from '@/sync/auth';
-import { cancelRequest, respondToRequest, useFriendRequests } from '@/sync/friends';
+import { cancelRequest, removeFriends, respondToRequest, useFriendRequests } from '@/sync/friends';
 import { FriendActions } from './friend-actions';
 import { UsernameField, type UsernameStatus } from './username-field';
 import { fonts, radius, space, useColors } from '@/theme';
 import { PlayerForm, splitName } from './player-form';
-import { Body, Button, Card, H2, Label } from './ui';
+import { Body, Button, Card, Checkbox, H2, Label } from './ui';
 
 export function MeBadge({ small }: { small?: boolean }) {
   const c = useColors();
@@ -130,7 +131,7 @@ export function MeCard() {
 }
 
 /** My friends: everyone else in my saved players. */
-export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
+export function FriendsList({ onPick, showHeader }: { onPick?: (id: string) => void; /** "Friends · N" with the Edit button. */ showHeader?: boolean }) {
   const c = useColors();
   const { friends, requested } = useMe();
   const upsert = useStore((s) => s.upsertPlayer);
@@ -138,14 +139,63 @@ export function FriendsList({ onPick }: { onPick?: (id: string) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   // Remove / report / block menu for a friend.
   const [actions, setActions] = useState<SavedPlayer | null>(null);
+  // Edit: tick several and remove them at once.
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [confirm, setConfirm] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const toggle = (id: string) => setPicked((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
+  const allPicked = friends.length > 0 && friends.every((f) => picked.includes(f.id));
 
   return (
     <View style={{ gap: space.sm }}>
       <FriendActions p={actions} onClose={() => setActions(null)} />
+      {showHeader ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Label>Friends · {friends.length}</Label>
+          {!onPick && friends.length > 0 ? (
+            <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={selecting ? 'Done editing' : 'Edit friends list'} onPress={() => { setSelecting(!selecting); setPicked([]); setEditing(null); }}>
+              <Text style={{ color: c.primary, fontWeight: '700', fontSize: 15 }}>{selecting ? 'Done' : 'Edit'}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {selecting ? (
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm }}>
+          <View style={{ flex: 1 }}>
+            <Checkbox label="Select all" value={allPicked} onChange={(v) => setPicked(v ? friends.map((f) => f.id) : [])} />
+          </View>
+          <Button small kind="danger" title={removing ? 'Removing…' : `Remove${picked.length ? ` (${picked.length})` : ''}`} disabled={!picked.length || removing} onPress={() => setConfirm(true)} />
+        </Card>
+      ) : null}
+      <ConfirmDialog
+        visible={confirm}
+        title={`Remove ${picked.length} friend${picked.length === 1 ? '' : 's'}?`}
+        message="They come off your friends list. Rounds and events you played together are kept. Friends on Clutch Up are removed for both of you."
+        confirmLabel="Remove"
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => {
+          const list = friends.filter((f) => picked.includes(f.id));
+          setConfirm(false);
+          setRemoving(true);
+          void removeFriends(list).finally(() => { setRemoving(false); setPicked([]); setSelecting(false); });
+        }}
+      />
       <Card style={{ paddingVertical: friends.length ? space.sm : space.lg }}>
         {friends.length === 0 && <Body muted>No friends yet. Add the people you play with.</Body>}
         {friends.map((p, i) =>
-          editing === p.id ? (
+          selecting ? (
+            <Pressable key={p.id} onPress={() => toggle(p.id)} accessibilityRole="checkbox" accessibilityState={{ checked: picked.includes(p.id) }} accessibilityLabel={p.name}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, opacity: pressed ? 0.6 : 1 })}>
+              <View style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: picked.includes(p.id) ? c.danger : c.border, backgroundColor: picked.includes(p.id) ? c.danger : c.card, alignItems: 'center', justifyContent: 'center' }}>
+                {picked.includes(p.id) ? <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900', lineHeight: 18 }}>✓</Text> : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{p.name}</Text>
+                <Text style={{ color: c.muted, fontSize: 12 }}>{p.username ? `@${p.username}` : 'Not on Clutch Up'}</Text>
+              </View>
+            </Pressable>
+          ) : editing === p.id ? (
             <PlayerForm key={p.id} initial={p} onCancel={() => setEditing(null)} onSave={(x) => { upsert(x); setEditing(null); }} />
           ) : (
             <Pressable key={p.id} onPress={onPick ? () => onPick(p.id) : () => setEditing(p.id)}>

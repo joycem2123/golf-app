@@ -134,7 +134,7 @@ export default function UploadScorecard() {
     // Add anyone new, then hand the players and tees to the round setup.
     const rows = card.rows.map((r) => {
       if (r.playerId) return r;
-      const p: SavedPlayer = { id: newId(), name: r.name.trim(), handicapIndex: parseIndex(r.newIndex ?? '') ?? 0, gender: r.newGender ?? 'M' };
+      const p: SavedPlayer = { id: newId(), name: r.name.trim(), handicapIndex: parseIndex(r.newIndex ?? '') ?? 0, gender: r.newGender ?? 'M', notFriend: true };
       upsertPlayer(p);
       return { ...r, playerId: p.id };
     });

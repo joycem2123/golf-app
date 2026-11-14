@@ -11,7 +11,7 @@ import { Body, Button, Card } from './ui';
 import { track } from '@/lib/usage';
 
 /** Find people on Clutch Up as you type, or add someone who isn't on the app. */
-export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p: SavedPlayer) => void; onClose?: () => void; initialQuery?: string }) {
+export function FriendSearch({ onAdded, onClose, initialQuery, asFriend = true }: { onAdded?: (p: SavedPlayer) => void; onClose?: () => void; initialQuery?: string; /** A guest added to a round or event (not the friends list) stays off my friends list. */ asFriend?: boolean }) {
   const c = useColors();
   const players = useStore((s) => s.players);
   const upsert = useStore((s) => s.upsertPlayer);
@@ -53,7 +53,7 @@ export function FriendSearch({ onAdded, onClose, initialQuery }: { onAdded?: (p:
           initial={q.trim() ? { id: '', name: q.trim(), handicapIndex: 0, gender: 'M' } : undefined}
           onCancel={() => setOfflineForm(false)}
           onSave={(p) => {
-            const player = { ...p, id: p.id || `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` };
+            const player = { ...p, id: p.id || `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, notFriend: asFriend ? undefined : true };
             upsert(player);
             onAdded?.(player);
             setOfflineForm(false);

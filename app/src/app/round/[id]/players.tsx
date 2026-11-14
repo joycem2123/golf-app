@@ -70,7 +70,7 @@ export default function ChangeRoundPlayer() {
           <Field label="Name" value={newName} onChangeText={setNewName} placeholder="Mitch Smith" />
           <Field label="Handicap index" value={newIndex} onChangeText={setNewIndex} placeholder="12.4 or +1.2" keyboardType="numbers-and-punctuation" />
           <Button title="Use this player" disabled={!canAdd} onPress={() => {
-            const p = { id: newId(), name: newName.trim(), handicapIndex: idx, gender: 'M' as const };
+            const p = { id: newId(), name: newName.trim(), handicapIndex: idx, gender: 'M' as const, notFriend: true };
             upsertPlayer(p);
             choose(p);
           }} />

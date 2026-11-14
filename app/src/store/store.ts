@@ -33,6 +33,11 @@ export interface SavedPlayer {
   username?: string;
   /** I sent them a friend request that they haven't accepted yet. */
   pending?: boolean;
+  /**
+   * Known from a round or event I'm in (their name is needed there), but not in my friends list: a guest someone
+   * added, or someone I removed. Unset = a friend (everyone saved before this existed counts as a friend).
+   */
+  notFriend?: boolean;
   /** When they last updated (or confirmed) their handicap index on Clutch Up (ISO time). */
   handicapUpdatedAt?: string;
 }
@@ -317,6 +322,8 @@ interface State {
   setEventComplete: (id: string, complete: boolean) => void;
   upsertPlayer: (p: SavedPlayer) => void;
   removePlayer: (id: string) => void;
+  /** Put people in, or take them out of, my friends list (they stay known for the rounds they're in). */
+  setFriend: (ids: string[], friend: boolean) => void;
   addRound: (r: RoundRecord) => void;
   /** now: skip the undo window (Quit round). */
   deleteRound: (id: string, opts?: { now?: boolean }) => void;
@@ -704,6 +711,7 @@ export const useStore = create<State>()(
       upsertPlayer: (p) =>
         set((s) => ({ players: s.players.some((x) => x.id === p.id) ? s.players.map((x) => (x.id === p.id ? p : x)) : [...s.players, p] })),
       removePlayer: (id) => set((s) => ({ players: s.players.filter((p) => p.id !== id) })),
+      setFriend: (ids, friend) => set((s) => ({ players: s.players.map((p) => (ids.includes(p.id) ? { ...p, notFriend: friend ? undefined : true, pending: friend ? p.pending : undefined } : p)) })),
 
       addRound: (r) => set((s) => ({ rounds: [r, ...s.rounds] })),
       restoreRound: (r, matches) =>

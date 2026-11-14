@@ -25,6 +25,7 @@ import { Tip } from '@/components/tip';
 import { AddEventPlayer } from '@/components/add-event-player';
 import { EventStory } from '@/components/event-story';
 import { TripExpenses } from '@/components/trip-expenses';
+import { PlayedWith } from '@/components/played-with';
 import { completeBlocker, eventSummary } from '@/lib/event-summary';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { FedexStandings, RaceSummary, usePlayerName } from '@/components/fedex-standings';
@@ -375,6 +376,7 @@ export default function EventScreen() {
         )}
         <ShareCard remote={e.remote} what="event" onShare={() => shareEvent(e.id)} />
 
+        <PlayedWith people={[...e.playerIds.map((pid) => ({ id: pid, name: saved.find((p) => p.id === pid)?.name ?? 'Player' })), ...eventRounds.flatMap((r) => r.players)]} />
         {e.remote?.role !== 'viewer' ? <CompleteEvent e={e} rounds={rounds} /> : null}
         <TvButton e={e} />
         <Button title="Head-to-head records" kind="secondary" onPress={() => router.push('/head-to-head')} />

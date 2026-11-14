@@ -152,7 +152,8 @@ export async function pullEvent(eventId: string, role?: Remote['role']) {
   if (!row) return;
   const doc = row.data as EventDoc;
   const st = useStore.getState();
-  for (const p of doc.playerInfo ?? []) if (!st.players.some((x) => x.id === p.id)) st.upsertPlayer(p);
+  // Players from someone's event are known (for names), not added to my friends list.
+  for (const p of doc.playerInfo ?? []) if (!st.players.some((x) => x.id === p.id)) st.upsertPlayer({ ...p, notFriend: true });
   const { playerInfo: _p, ...e } = doc;
   const resolvedRole = role ?? st.events.find((x) => x.id === eventId)?.remote?.role ?? (await myRole('event_members', 'event_id', eventId));
   st.upsertRemoteEvent({ ...e, remote: { shareCode: row.share_code, role: resolvedRole } });

@@ -1,4 +1,5 @@
 import { summarizeStats, type GameResult } from '@golf/engine';
+import { PlayedWith } from '@/components/played-with';
 import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
@@ -352,6 +353,7 @@ export default function Results() {
           </Card>
         )}
 
+        <PlayedWith people={r.players} />
         <Button title="Done" kind="secondary" onPress={() => router.dismissTo('/')} />
         <AddToEvent r={r} />
         {/* People following along can't change the scores. */}

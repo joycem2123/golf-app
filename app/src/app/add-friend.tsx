@@ -23,6 +23,7 @@ export default function AddFriend() {
         automaticallyAdjustKeyboardInsets>
         <FriendSearch
           initialQuery={q}
+          asFriend={!pick}
           onClose={() => router.back()}
           onAdded={
             pick

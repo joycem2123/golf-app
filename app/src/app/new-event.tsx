@@ -452,7 +452,7 @@ export default function NewEvent() {
             </Text>
           </View>
           {(() => {
-            const everyone = saved.filter((p) => !p.pending);
+            const everyone = saved.filter((p) => !p.pending && (!p.notFriend || isMe(p.id)));
             const all = everyone.length > 0 && everyone.every((p) => ids.includes(p.id));
             return (
               <Checkbox
@@ -467,7 +467,7 @@ export default function NewEvent() {
             );
           })()}
           <PlayerPicker
-            people={meFirst(saved, isMe)}
+            people={meFirst(saved.filter((p) => !p.notFriend || isMe(p.id) || ids.includes(p.id)), isMe)}
             selected={ids}
             onToggle={toggle}
             isMe={isMe}

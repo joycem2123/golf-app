@@ -85,11 +85,39 @@ export async function cancelRequest(p: SavedPlayer) {
   await refreshRequests();
 }
 
-/** Unfriend (removes the friendship for both people). */
+/** Is this player in any of my rounds or events (so their name is still needed)? */
+function inUse(id: string): boolean {
+  const st = useStore.getState();
+  return st.rounds.some((r) => r.players.some((p) => p.id === id)) || st.events.some((e) => e.playerIds.includes(id));
+}
+
+/** Take someone out of my friends list for good: kept (hidden) only if a round or event still needs their name. */
+export function forgetPlayer(id: string) {
+  if (inUse(id)) useStore.getState().setFriend([id], false);
+  else useStore.getState().removePlayer(id);
+}
+
+/** Unfriend (removes the friendship for both people), or take a guest off my list. */
 export async function removeFriend(p: SavedPlayer) {
-  useStore.getState().removePlayer(p.id);
+  forgetPlayer(p.id);
   if (p.userId) await supabase.rpc('remove_friend', { target: p.userId });
   await refreshRequests();
+}
+
+/** Remove several at once (Edit on the friends list). */
+export async function removeFriends(list: SavedPlayer[]) {
+  for (const p of list) forgetPlayer(p.id);
+  await Promise.all(list.filter((p) => p.userId).map((p) => supabase.rpc('remove_friend', { target: p.userId })));
+  await refreshRequests();
+}
+
+/** Add someone I played with: a guest goes straight into my list; someone on Clutch Up gets a friend request. */
+export async function befriend(p: SavedPlayer): Promise<'added' | 'sent' | 'accepted' | 'friends'> {
+  if (!p.userId) {
+    useStore.getState().setFriend([p.id], true);
+    return 'added';
+  }
+  return sendFriendRequest({ id: p.userId, username: p.username ?? '', display_name: p.name, handicap_index: p.handicapIndex, gender: p.gender });
 }
 
 /** Bring my friends list in line with my account: accepted friends, waiting requests, and anyone who's gone. */
@@ -107,10 +135,11 @@ export async function pullFriends() {
     if (!p.userId || p.id === st.myPlayerId || st.meAliases.includes(p.id)) continue;
     if (accepted.has(p.userId)) continue;
     if (outgoing.has(p.userId)) {
-      if (!p.pending) useStore.getState().upsertPlayer({ ...p, pending: true });
+      if (!p.pending) useStore.getState().upsertPlayer({ ...p, pending: true, notFriend: undefined });
       continue;
     }
-    useStore.getState().removePlayer(p.id);
+    // Not a friend (any more): hide them from my list, keeping their name where a round or event needs it.
+    if (!p.notFriend || p.pending) forgetPlayer(p.id);
   }
 
   const want = [...accepted, ...outgoing];

@@ -563,7 +563,7 @@ export default function NewRound() {
           )}
           {/* Select all, as on New Event: everyone in my friends list (or in this event). */}
           {(() => {
-            const everyone = saved.filter((p) => !p.pending && (!event || event.playerIds.includes(p.id)));
+            const everyone = saved.filter((p) => !p.pending && (event ? event.playerIds.includes(p.id) : !p.notFriend || isMe(p.id)));
             const all = everyone.length > 0 && everyone.every((p) => roster.some((r) => r.id === p.id));
             return (
               <Checkbox
@@ -582,7 +582,7 @@ export default function NewRound() {
             );
           })()}
           <PlayerPicker
-            people={meFirst(saved, isMe)}
+            people={meFirst(event ? saved : saved.filter((p) => !p.notFriend || isMe(p.id) || roster.some((r) => r.id === p.id)), isMe)}
             selected={roster.map((r) => r.id)}
             onToggle={togglePlayer}
             isMe={isMe}

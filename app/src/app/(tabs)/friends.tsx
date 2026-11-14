@@ -4,12 +4,10 @@ import { ScrollView, View } from 'react-native';
 import { HeadToHeadView } from '@/components/head-to-head-view';
 import { FriendRequestsCard, FriendsList } from '@/components/people';
 import { TabHeader } from '@/components/tab-header';
-import { Label, Segmented } from '@/components/ui';
-import { useMe } from '@/lib/me';
+import { Segmented } from '@/components/ui';
 import { space } from '@/theme';
 
 export default function Friends() {
-  const { friends } = useMe();
   const [tab, setTab] = useState<'list' | 'h2h'>('list');
   return (
     <View style={{ flex: 1 }}>
@@ -19,8 +17,7 @@ export default function Friends() {
         {tab === 'list' ? (
           <>
             <FriendRequestsCard />
-            <Label>Friends · {friends.length}</Label>
-            <FriendsList />
+            <FriendsList showHeader />
           </>
         ) : (
           <HeadToHeadView />
