@@ -142,6 +142,31 @@ function NewRound() {
         .map((m, i) => ({ i, ta: sideTeamOf(m.a, m.ta), tb: sideTeamOf(m.b, m.tb), m }))
         .filter((x) => x.ta && x.ta === x.tb && x.m.a.length && x.m.b.length)
         .map((x) => ({ i: x.i, team: teamName(x.ta!, teamNames), names: [...x.m.a, ...x.m.b].map((id) => name(id).split(' ')[0]).join(' and ') }));
+  // In a team event the event's teams decide who gets the point, so a match has to be one event team against
+  // another. Say so before the round starts if a matchup mixes them.
+  const seasonClashes =
+    !draft || !eventTeams || !isMatchFormat(draft.kind)
+      ? []
+      : draft.matches.flatMap((m, i) => {
+          if (!m.a.length || !m.b.length || [...m.a, ...m.b].some((id) => !id)) return [];
+          const t = (id: string) => eventTeams[id];
+          const first = (id: string) => name(id).split(' ')[0];
+          const list = (ids: string[]) => (ids.length > 2 ? `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]}` : ids.join(' and '));
+          const shared = [...new Set(m.a.map(t))].find((L) => L && m.b.some((id) => t(id) === L));
+          if (shared) {
+            const ids = [...m.a, ...m.b].filter((id) => t(id) === shared).map(first);
+            return [{ i, text: `${list(ids)} ${ids.length > 2 ? 'are all' : 'are both'} on ${teamName(shared, teamNames)} for ${event!.name} but play against each other` }];
+          }
+          for (const side of [m.a, m.b]) {
+            const ls = [...new Set(side.map(t).filter(Boolean))];
+            if (ls.length > 1) return [{ i, text: `${list(side.map((id) => `${first(id)} (${teamName(t(id)!, teamNames)})`))} are partners` }];
+          }
+          if ([...m.a, ...m.b].some((id) => !t(id))) {
+            const off = [...m.a, ...m.b].filter((id) => !t(id)).map(first);
+            return [{ i, text: `${list(off)} ${off.length > 1 ? 'aren’t' : 'isn’t'} on a team in ${event!.name}` }];
+          }
+          return [];
+        });
   const problem = draft ? draftProblem(draft, players) : 'Choose a game';
 
   // Starting a scheduled match: pre-fill course, players, sides and format.
@@ -721,7 +746,19 @@ function NewRound() {
           ) : null}
           <GamePicker value={draft?.kind ?? null} playerIds={rosterIds} teamOf={noTeams ? undefined : teamOf} onPick={pickGame} noTeams={noTeams} />
 
-          {sameTeamMatches.length > 0 && (
+          {seasonClashes.length > 0 && (
+            // Matchups that don't line up with the event's teams earn no team points.
+            <View style={{ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 2, borderColor: c.danger, padding: space.md, gap: 4 }}>
+              <Text style={{ color: c.danger, fontWeight: '800', fontSize: 13, letterSpacing: 0.5 }}>⚠️ MIXED TEAMS</Text>
+              {seasonClashes.map((m) => (
+                <Text key={m.i} style={{ color: c.text, fontSize: 14 }}>
+                  {draft && draft.matches.length > 1 ? `Match ${m.i + 1}: ` : ''}{m.text}, so this match won’t count toward the {event!.name} standings.
+                </Text>
+              ))}
+              <Text style={{ color: c.muted, fontSize: 13 }}>Swap players in the matchups below to keep each side on one team, or start anyway (the scores still count for everything else).</Text>
+            </View>
+          )}
+          {sameTeamMatches.length > 0 && seasonClashes.length === 0 && (
             // Two players on the same team can't earn a team point: say so before the round starts.
             <View style={{ backgroundColor: c.card, borderRadius: radius.md, borderWidth: 2, borderColor: c.danger, padding: space.md, gap: 4 }}>
               <Text style={{ color: c.danger, fontWeight: '800', fontSize: 13, letterSpacing: 0.5 }}>⚠️ SAME-TEAM MATCH{sameTeamMatches.length > 1 ? 'ES' : ''}</Text>

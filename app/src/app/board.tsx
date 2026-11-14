@@ -22,7 +22,7 @@ import { currentHalf, fedexResults } from '@/lib/fedex';
 import { fmtPts } from '@/components/fedex-standings';
 import { cupScore, eventStandings, eventTeamTotals, formatPoints, planName } from '@/lib/events';
 import { gameInfo, gameName } from '@/lib/games';
-import { liveTeamScore, roundTeamScore, type MatchOutcome } from '@/lib/results';
+import { liveTeamScore, registerBoardEvent, roundTeamScore, type MatchOutcome } from '@/lib/results';
 import { courseFor, evaluate, grossAt, isResult, shortCourseName } from '@/lib/round';
 import { storyHoles } from '@/lib/story';
 import { namesFor, teamName } from '@/lib/team-colors';
@@ -160,6 +160,7 @@ function BoardView({ raw, u, code, stale, updated }: { raw: NonNullable<Raw>; u:
   const model = useMemo(() => {
     const { playerInfo, ...rest } = raw.event.data;
     const e = { ...(rest as unknown as EventRecord), id: raw.event.id };
+    registerBoardEvent(e);
     const rounds = raw.rounds.map((x) => toRound(x, e.id));
     const names = new Map<string, { name: string; hcp?: number }>();
     for (const p of playerInfo ?? []) names.set(p.id, { name: p.name, hcp: p.handicapIndex });

@@ -45,7 +45,9 @@ export function EventRounds({ e }: { e: EventRecord }) {
     const score = r ? roundTeamScore(r, results) : null;
     const summary = !score && r && results[0] && isResult(results[0]) ? results[0].summary : null;
     const fmt = r ? gameName(r.games[0]) : x.draft ? gameInfo(x.draft.kind).name : 'Format TBD';
-    const matches = r ? matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-')).length : x.matchupsLater ? 0 : (x.draft?.matches.length ?? 0);
+    const outcomes = r ? matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-')) : [];
+    const matches = r ? outcomes.length : x.matchupsLater ? 0 : (x.draft?.matches.length ?? 0);
+    const mixed = outcomes.filter((m) => m.mixed).length;
     const date = x.date ?? (r ? new Date(r.createdAt).toISOString().slice(0, 10) : undefined);
     let course = '';
     try { if (r) course = shortCourseName(courseFor(r).name); } catch { /* course missing */ }
@@ -84,6 +86,11 @@ export function EventRounds({ e }: { e: EventRecord }) {
                 )}
               </View>
               <Text style={{ color: c.muted, fontSize: 13 }}>{[fmt, x.matchupsLater && !r ? 'Matchups TBD' : matches ? `${matches} match${matches === 1 ? '' : 'es'}` : null, course || null].filter(Boolean).join(' · ')}</Text>
+              {mixed > 0 ? (
+                <Text style={{ color: c.muted, fontSize: 12 }}>
+                  {mixed === matches ? 'Doesn’t count toward the team standings (mixed teams)' : `${mixed} match${mixed === 1 ? '' : 'es'} with mixed teams ${mixed === 1 ? 'doesn’t' : 'don’t'} count`}
+                </Text>
+              ) : null}
               {score && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                   {score.map((t) => (

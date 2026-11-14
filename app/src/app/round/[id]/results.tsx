@@ -20,7 +20,7 @@ import { toPar } from '@/lib/format';
 import { eventTeamTotals } from '@/lib/events';
 import { gameName, matchLabel, teamIdName, gameTitle } from '@/lib/games';
 import { useMe } from '@/lib/me';
-import { matchOutcomes, teamTotals, type MatchOutcome, cardSides } from '@/lib/results';
+import { countsForTeams, matchOutcomes, teamTotals, type MatchOutcome, cardSides } from '@/lib/results';
 import { storyHoles } from '@/lib/story';
 import { teamGroups, teamHole } from '@/lib/teams';
 import { courseFor, evaluate, grossAt, isResult, postingList, scoreKeys, shortCourseName, teeFor, roundHoleCount } from '@/lib/round';
@@ -69,7 +69,7 @@ export default function Results() {
 
   const matches = matchOutcomes(r, results);
   const teams = teamTotals(r, matches);
-  const teamRound = teams.length >= 2 && matches.some((m) => m.a.letter !== m.b.letter);
+  const teamRound = teams.length >= 2 && matches.some((m) => countsForTeams(r, m));
   const decided = teamRound && matches.some((m) => m.winner);
   const teamWinner = decided && teams[0].points > teams[1].points ? teams[0].letter : null;
   const teamTie = decided && !teamWinner;
@@ -265,7 +265,10 @@ export default function Results() {
               {matches.map((m) => (
                 <View key={m.gi} style={{ gap: 6, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: c.border }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.sm }}>
-                    <Label>{m.title}</Label>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <Label>{m.title}</Label>
+                      {m.mixed ? <MixedTag /> : null}
+                    </View>
                     <Text style={{ color: m.winner === 'halved' ? c.accent : c.muted, fontWeight: '800', fontSize: 11, letterSpacing: 1 }}>
                       {m.winner === 'halved' ? 'HALVED' : m.winner ? 'FINAL' : m.detail.toUpperCase()}
                     </Text>
@@ -451,6 +454,16 @@ function PlayerCard({ g, tee }: { g: (h: number) => number | null; tee: ReturnTy
       {(FRONT.some((h) => g(h) !== null) || !BACK.some((h) => g(h) !== null)) && nine(FRONT, 'OUT')}
       {(BACK.some((h) => g(h) !== null) || !FRONT.some((h) => g(h) !== null)) && nine(BACK, 'IN')}
       <Text style={{ color: c.muted, fontSize: 11 }}>○ birdie  ◎ eagle  □ bogey  ⧈ double+</Text>
+    </View>
+  );
+}
+
+/** A match in a team event whose sides don't match the event's teams. */
+function MixedTag() {
+  const c = useColors();
+  return (
+    <View style={{ alignSelf: 'flex-start', backgroundColor: c.chip, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+      <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700' }}>Doesn’t count: mixed teams</Text>
     </View>
   );
 }

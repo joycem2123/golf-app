@@ -1,6 +1,6 @@
 import type { GameConfig, GameResult } from '@golf/engine';
 
-import type { RoundRecord } from '@/store/store';
+import { useStore, type EventRecord, type RoundRecord } from '@/store/store';
 import { gameName, matchLabel } from './games';
 
 export interface ResultSide {
@@ -21,6 +21,11 @@ export interface MatchOutcome {
   /** Points each side earns toward the team total (1 win, ½ halve; Nassau: its points). */
   pointsA: number;
   pointsB: number;
+  /**
+   * A round in a team event where the sides don't line up with the event's teams (teammates on both sides, or a
+   * side made up of players from different teams): the match is played and shown, but earns no team points.
+   */
+  mixed?: boolean;
 }
 
 export interface TeamTotal {
@@ -33,6 +38,30 @@ export interface TeamTotal {
 }
 
 const firstName = (n: string) => n.trim().split(' ')[0];
+
+/** Each player's team in a team event (Ryder Cup style events keep their teams as two lists). */
+export function eventTeamMap(e: EventRecord | undefined): Record<string, string> | undefined {
+  if (!e) return undefined;
+  if (e.teams) return Object.fromEntries([...e.teams.A.playerIds.map((id) => [id, 'A']), ...e.teams.B.playerIds.map((id) => [id, 'B'])]);
+  if (e.teamOf && Object.keys(e.teamOf).length && (e.teamLetters?.length ?? 2) >= 2) return e.teamOf;
+  return undefined;
+}
+
+// Events shown outside the phone's store (the TV board loads its own).
+const extraEvents = new Map<string, EventRecord>();
+export function registerBoardEvent(e: EventRecord | undefined) {
+  if (e) extraEvents.set(e.id, e);
+}
+
+/** The event teams a round's matches are scored by (undefined: the round's own teams). */
+function seasonTeams(r: RoundRecord): Record<string, string> | undefined {
+  if (!r.eventId) return undefined;
+  const e = extraEvents.get(r.eventId) ?? useStore.getState().events.find((x) => x.id === r.eventId);
+  return eventTeamMap(e);
+}
+
+/** A match counts toward the team score: not a side bet, two different teams, and lined up with the event's teams. */
+export const countsForTeams = (r: RoundRecord, m: MatchOutcome) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter && !m.mixed;
 
 /** Team letter of a side: from the Teams step, else its id ("match-2-C", "team-C"), else by position. */
 function letterOf(r: RoundRecord, id: string, members: string[], fallback: string): string {
@@ -62,8 +91,25 @@ export function matchOutcomes(r: RoundRecord, results: (GameResult | { error: st
       members: s.members,
       names: s.members.map((m) => (s.members.length > 1 ? firstName(name(m)) : name(m))).join(' & '),
     });
-    const a = side(sides[0], 'A');
-    const b = side(sides[1], 'B');
+    let a = side(sides[0], 'A');
+    let b = side(sides[1], 'B');
+    // In a team event, the event's teams decide who earns the point (not the labels picked for this round).
+    let mixed = false;
+    const season = seasonTeams(r);
+    if (season) {
+      const teamOfSide = (ids: string[]) => {
+        const ls = [...new Set(ids.map((id) => season[id]))];
+        return ls.length === 1 ? ls[0] : ls.length > 1 ? null : undefined; // undefined: nobody on a team; null: mixed
+      };
+      const ta = teamOfSide(a.members);
+      const tb = teamOfSide(b.members);
+      if (ta && tb && ta !== tb) {
+        a = { ...a, letter: ta };
+        b = { ...b, letter: tb };
+      } else if (!(ta === undefined && tb === undefined && a.members.every((id) => !(id in season)) && b.members.every((id) => !(id in season)))) {
+        mixed = true;
+      }
+    }
     let winner: MatchOutcome['winner'] = null;
     if (res.type === 'nassau') {
       if (res.finished) winner = res.points.A > res.points.B ? 'a' : res.points.B > res.points.A ? 'b' : 'halved';
@@ -87,7 +133,7 @@ export function matchOutcomes(r: RoundRecord, results: (GameResult | { error: st
         ? [res.points.A, res.points.B]
         : winner === 'a' ? [1, 0] : winner === 'b' ? [0, 1] : winner === 'halved' ? [0.5, 0.5] : [0, 0];
     const label = matchLabel(g);
-    out.push({ gi, title: label ? `${label === 'Side match' ? 'Side match' : label} · ${gameName(g)}` : gameName(g), a, b, winner, detail, pointsA: pts[0], pointsB: pts[1] });
+    out.push({ gi, title: label ? `${label === 'Side match' ? 'Side match' : label} · ${gameName(g)}` : gameName(g), a, b, winner, detail, pointsA: pts[0], pointsB: pts[1], ...(mixed ? { mixed } : {}) });
   });
   return out;
 }
@@ -99,9 +145,10 @@ export function teamTotals(r: RoundRecord, matches: MatchOutcome[]): TeamTotal[]
     if (!byLetter.has(L)) byLetter.set(L, { letter: L, members: [], points: 0, wins: 0, halves: 0, losses: 0 });
     return byLetter.get(L)!;
   };
-  if (r.teamOf) for (const [pid, L] of Object.entries(r.teamOf)) if (r.players.some((p) => p.id === pid)) get(L).members.push(pid);
+  const tm = seasonTeams(r) ?? r.teamOf;
+  if (tm) for (const [pid, L] of Object.entries(tm)) if (r.players.some((p) => p.id === pid)) get(L).members.push(pid);
   for (const m of matches) {
-    if ((r.games[m.gi].id ?? '').startsWith('side-') || m.a.letter === m.b.letter) continue;
+    if (!countsForTeams(r, m)) continue;
     const ta = get(m.a.letter);
     const tb = get(m.b.letter);
     for (const [t, s] of [[ta, m.a], [tb, m.b]] as const) for (const id of s.members) if (!t.members.includes(id)) t.members.push(id);
@@ -119,7 +166,7 @@ export function teamTotals(r: RoundRecord, matches: MatchOutcome[]): TeamTotal[]
 export function roundTeamScore(r: RoundRecord, results: (GameResult | { error: string })[]): TeamTotal[] | null {
   const matches = matchOutcomes(r, results);
   const totals = teamTotals(r, matches);
-  return totals.length >= 2 && matches.some((m) => m.a.letter !== m.b.letter) ? totals : null;
+  return totals.length >= 2 && matches.some((m) => countsForTeams(r, m)) ? totals : null;
 }
 
 /** Who's ahead in a match still being played: 'a', 'b', 'square', or null if it hasn't started. */
@@ -148,7 +195,7 @@ export interface LiveTeamScore {
  * being played (a leading match counts a full point toward the projection, a level one half each).
  */
 export function liveTeamScore(r: RoundRecord, results: (GameResult | { error: string })[]): LiveTeamScore | null {
-  const matches = matchOutcomes(r, results).filter((m) => !(r.games[m.gi].id ?? '').startsWith('side-') && m.a.letter !== m.b.letter);
+  const matches = matchOutcomes(r, results).filter((m) => countsForTeams(r, m));
   if (matches.length === 0) return null;
   const totals = teamTotals(r, matches).map((t) => ({ ...t, leading: 0, projected: t.points }));
   const get = (L: string) => totals.find((t) => t.letter === L);
